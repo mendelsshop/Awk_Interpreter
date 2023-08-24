@@ -14,7 +14,7 @@ public class Main {
         // TODO: its a little confusing who gets the source code does the Lex class get
         // it and in its constructor instiates a StringHandles or do we pass is to
         // StringHandler whic get passed to Lex
-        Lex lexer = new Lex(content);
+        Lexer lexer = new Lexer(content);
 
         // print result token stream
         lexer.lex().forEach(System.out::println);

@@ -1,11 +1,11 @@
 import java.util.LinkedList;
 
-public class Lex {
+public class Lexer {
     private StringHandler source;
     private int position = 1;
     private int lineNumber = 1;
 
-    public Lex(String input) {
+    public Lexer(String input) {
         source = new StringHandler(input);
     }
 
