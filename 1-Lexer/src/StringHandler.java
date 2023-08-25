@@ -36,14 +36,24 @@ public class StringHandler {
     }
 
     public boolean IsDone() {
-        return content.length() - 1 == position;
+        // we check content.length() == position and not content.length() - 1 ==
+        // position
+        // because of the way GetChar works in that it increments position not for
+        // itself but for the next time the StringHandler is used
+        // so let say where at the second to last character and we GetChar so we
+        // increment postion and now posistion = content.length - 1 so it would ignore
+        // the last character if we checked for content.length() - 1 == position
+        // another problem with content.length() - 1 == position is that when you have
+        // empty string position has to be negative in order for it to be done (which it
+        // will never been)
+        return content.length() == position;
     }
 
     // TODO: Does it consume
     public String Remainder() {
         String substring = content.substring(position);
         // consume remaining characters
-        position = content.length() - 1;
+        position = content.length();
         return substring;
     }
 }

@@ -1,6 +1,7 @@
 import static org.junit.Assert.*;
 
 import java.nio.charset.Charset;
+import java.util.LinkedList;
 import java.util.Random;
 
 import org.junit.Test;
@@ -10,6 +11,11 @@ public class UnitTests {
     private boolean debug = false;
 
     // StringHandler unittests
+    @Test
+    public void HandleLEmptyString() throws Exception {
+        var handler = new StringHandler("");
+        assertEquals(handler.IsDone(), true);
+    }
 
     public void fuzz_string_handler(String input, int numberOfOperations) throws Exception {
         int length = input.length();
@@ -27,6 +33,12 @@ public class UnitTests {
             switch (op) {
                 // Peek
                 case 0:
+                    if (position == length && handler.IsDone()) {
+                        break;
+                    } else if (handler.IsDone()) {
+                        throw new IllegalStateException("StringHandler claims to be done, but it still has "
+                                + (length - position) + " characters remaining");
+                    }
                     int index = rng.nextInt(length - position);
                     char peek = handler.Peek(index);
                     char check_peek = handler.Peek(index);
@@ -36,6 +48,12 @@ public class UnitTests {
                     break;
                 // PeekString
                 case 1:
+                    if (position == length && handler.IsDone()) {
+                        break;
+                    } else if (handler.IsDone()) {
+                        throw new IllegalStateException("StringHandler claims to be done, but it still has "
+                                + (length - position) + " characters remaining");
+                    }
                     index = rng.nextInt(length - position);
                     String peekString = handler.PeekString(index);
                     String check_peekString = handler.PeekString(index);
@@ -48,7 +66,7 @@ public class UnitTests {
                     // need to check if were at end of string b/c for all other tests we choose
                     // index s.t. it should be within range of length of input
                     // but getchar and peek dont give us tht control
-                    if (position == length - 1 && handler.IsDone()) {
+                    if (position == length && handler.IsDone()) {
                         break;
                     } else if (handler.IsDone()) {
                         throw new IllegalStateException("StringHandler claims to be done, but it still has "
@@ -57,7 +75,7 @@ public class UnitTests {
                     handler.GetChar();
                     position++;
                     assertEquals(position, handler.getPosition());
-                    if (position == length - 1 && handler.IsDone()) {
+                    if (position == length && handler.IsDone()) {
                         break;
                     } else if (handler.IsDone()) {
                         throw new IllegalStateException("StringHandler claims to be done, but it still has "
@@ -67,6 +85,12 @@ public class UnitTests {
                     break;
                 // Swallow
                 case 3:
+                    if (position == length && handler.IsDone()) {
+                        break;
+                    } else if (handler.IsDone()) {
+                        throw new IllegalStateException("StringHandler claims to be done, but it still has "
+                                + (length - position) + " characters remaining");
+                    }
                     index = rng.nextInt(length - position);
                     handler.Swallow(index);
                     position += index;
@@ -77,7 +101,7 @@ public class UnitTests {
                     break;
                 // IsDone
                 case 4:
-                    assertEquals((position == length - 1), handler.IsDone());
+                    assertEquals((position == length), handler.IsDone());
                     break;
                 // Remainder
                 case 5:
@@ -85,7 +109,7 @@ public class UnitTests {
                     String remainderCheck = input.substring(position);
                     assertEquals(remainder, remainderCheck);
                     assertEquals(handler.IsDone(), true);
-                    position = length - 1;
+                    position = length;
                     break;
 
                 default:
@@ -119,10 +143,14 @@ public class UnitTests {
 
     // Lexer unittests
     @Test
-    public void LexLoremIpsum() throws Exception {
-        // String loremIpsum = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-        String loremIpsum = "aAAA\taaazz\nZZ1Z.aa";
-        var lexer = new Lexer(loremIpsum);
+    public void BasicLex() throws Exception {
+        var lexer = new Lexer("111aAAA\taaazz\nZZ1Z.zaaa");
         lexer.lex().forEach(System.out::println);
+    }
+
+    @Test
+    public void EmptyLex() throws Exception {
+        var lexer = new Lexer("");
+        assertEquals(lexer.lex(), new LinkedList<>());
     }
 }
