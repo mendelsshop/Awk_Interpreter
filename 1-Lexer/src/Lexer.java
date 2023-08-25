@@ -11,11 +11,18 @@ public class Lexer {
     private int position = 0;
     private int lineNumber = 0;
 
+    // tells the lexer what type of lexing it should do based on a given character
+    // (if the character is not in the map, then it is not supported by the lexer)
+    // the reason it is Supplier<Optional<Token>> as opposed to Supplier<Token> is
+    // because characters like \r and \t do not give back tokens but are still valid
+    // leading to 2 cases for lexing something at a given position either it gives
+    // back token or not
     private HashMap<Character, Supplier<Optional<Token>>> dispatchTable = new HashMap<Character, Supplier<Optional<Token>>>() {
         {
             put('\n', () -> {
                 source.GetChar();
-                return Optional.ofNullable(new Token(ResetPosition(), lineNumber++, Token.TokenType.SEPERATOR));
+                return Optional
+                        .ofNullable(new Token(ResetPositionIncrementLine(), lineNumber, Token.TokenType.SEPERATOR));
             });
             // \r is part of windows return (cariage return \r\n) so we dont want to fail on
             // \r but rather ignore it (who doesn't like type writers)
@@ -28,8 +35,13 @@ public class Lexer {
             put('\t', () -> absorbAndDo(() -> {
                 position++;
             }));
-            // TODO: process number might be split into 2 parts
+
             put('.', () -> Optional.ofNullable(ProcessDigit()));
+            // we have to use intervals b/c the the key is not some sort of regex/character
+            // range of the supported characters
+            // so we end up having to insert an entry for each character in the list of
+            // characters that use the specified operation
+
             // numbers
             putAll(MapFromInterval(48, 57, () -> Optional.ofNullable(ProcessDigit())));
             // uppercase letters
@@ -46,6 +58,8 @@ public class Lexer {
         return Optional.empty();
     }
 
+    // takes a an "interval" of letters (in number format) and creates a map on that
+    // interval where each value is the same (the TokenMakr Supplier)
     private Map<Character, Supplier<Optional<Token>>> MapFromInterval(int startInclusive, int endInclusive,
             Supplier<Optional<Token>> tokenMaker) {
         return IntStream.rangeClosed(startInclusive, endInclusive).boxed()
@@ -59,6 +73,10 @@ public class Lexer {
 
     public LinkedList<Token> lex() throws Exception {
         var tokens = new LinkedList<Token>();
+        // go through source peek on next character dispath usig dispatchTable to do the
+        // right lexical analysis reqiured for the source at the current position
+        // also check that the source contains only valid characters based on whether
+        // the given character is in the dispatchTable or not
         while (!source.IsDone()) {
             var current = source.Peek();
             if (dispatchTable.containsKey(current)) {
@@ -74,6 +92,7 @@ public class Lexer {
         return tokens;
     }
 
+    // "inner" method for ProcesDigit just lexes [0-9]*
     private String processInteger() {
         String number = "";
         // TODO: Charaacter.is* also includes unicode characters which are not allowed
@@ -86,10 +105,12 @@ public class Lexer {
     }
 
     public Token ProcessDigit() {
+        // lex before decimal point
         String number = processInteger();
         if (!source.IsDone() && source.Peek() == '.') {
             source.Swallow(1);
             position++;
+            // lex after decimal point
             number += "." + processInteger();
         }
         return new Token(position, lineNumber, Token.TokenType.NUMBER, number);
@@ -108,7 +129,11 @@ public class Lexer {
         return new Token(position, lineNumber, Token.TokenType.WORD, word);
     }
 
-    private int ResetPosition() {
+    // used for processing newlines
+    // reset position and gives back position from before reset
+    // also increments line number
+    private int ResetPositionIncrementLine() {
+        lineNumber++;
         int previousPosition = position;
         position = 0;
         return previousPosition;
