@@ -91,15 +91,7 @@ public class Lexer {
     public LinkedList<Token> lex() throws Exception {
         var tokens = new LinkedList<Token>();
         while (!source.IsDone()) {
-            var maybeSymbol = ProcessSymbol();
-            if (maybeSymbol.isPresent()) {
-                tokens.add(maybeSymbol.get());
-                continue;
-            }
-            var current = source.Peek();
-
-            var token = lexCharacter(current);
-
+            var token = lexCharacter(source.Peek());
             if (token.isPresent()) {
                 tokens.add(token.get());
             }

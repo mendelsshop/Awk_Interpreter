@@ -3,6 +3,7 @@ import java.util.Optional;
 
 public class Lexer {
     private StringHandler source;
+     // position and line number are zero-based
     private int position = 0;
     private int lineNumber = 0;
 
@@ -13,8 +14,7 @@ public class Lexer {
     public LinkedList<Token> lex() throws Exception {
         var tokens = new LinkedList<Token>();
         while (!source.IsDone()) {
-            var current = source.Peek();
-            var token = lexCharacter(current);
+            var token = lexCharacter(source.Peek());
             if (token.isPresent()) {
                 tokens.add(token.get());
             }
@@ -63,6 +63,7 @@ public class Lexer {
 
     // [0-9]*\.[0-9]*
     public Token ProcessDigit() {
+        int startPosition = position;
         // lex before decimal point
         String number = processInteger();
         if (!source.IsDone() && source.Peek() == '.') {
@@ -71,11 +72,12 @@ public class Lexer {
             // lex after decimal point
             number += "." + processInteger();
         }
-        return new Token(position, lineNumber, Token.TokenType.NUMBER, number);
+        return new Token(startPosition, lineNumber, Token.TokenType.NUMBER, number);
     }
 
     // [a-zA-z][0-9a-zA-Z\-]*
     public Token ProcessWord() {
+        int startPosition = position;
         String word = "";
         // we can always use isAlphaNumeric as opposed to using isLetter the first time
         // and then isAlphaNumeric for the rest
@@ -86,7 +88,7 @@ public class Lexer {
             position++;
             word += source.GetChar();
         }
-        return new Token(position, lineNumber, Token.TokenType.WORD, word);
+        return new Token(startPosition, lineNumber, Token.TokenType.WORD, word);
     }
 
     // used for processing newlines
