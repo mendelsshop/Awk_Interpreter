@@ -108,9 +108,7 @@ public class Lexer {
     // "inner" method for ProcesDigit just lexes [0-9]*
     private String processInteger() {
         String number = "";
-        // TODO: Charaacter.is* also includes unicode characters which are not allowed
-        // to lex
-        while (!source.IsDone() && Character.isDigit(source.Peek())) {
+        while (!source.IsDone() && isDigit(source.Peek())) {
             position++;
             number += source.GetChar();
         }
@@ -133,9 +131,11 @@ public class Lexer {
     // [a-zA-z][0-9a-zA-Z\-]*
     public Token ProcessWord() {
         String word = "";
-        // TODO: Charaacter.is* also includes unicode characters which are not allowed
-        // to lex
-        while (!source.IsDone() && (Character.isLetterOrDigit(source.Peek())
+        // we can always use isAlphaNumeric as opposed to using isLetter the first time
+        // and then isAlphaNumeric for the rest
+        // because by the time we enter processWord the "state" already changed to
+        // processing words, so we already know the first character was a letter
+        while (!source.IsDone() && (isAlphaNumeric(source.Peek())
                 || source.Peek() == '_')) {
             position++;
             word += source.GetChar();
@@ -152,4 +152,17 @@ public class Lexer {
         position = 0;
         return previousPosition;
     }
+
+    private static boolean isLetter(char c) {
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+    }
+
+    private static boolean isDigit(char c) {
+        return c >= '0' && c <= '9';
+    }
+
+    private static boolean isAlphaNumeric(char c) {
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+    }
+
 }
