@@ -1,84 +1,10 @@
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 public class Lexer {
     private StringHandler source;
     private int position = 0;
     private int lineNumber = 0;
-
-    // tells the lexer what type of lexing it should do based on a given character
-    // (if the character is not in the map, then it is not supported by the lexer)
-    // the reason it is Supplier<Optional<Token>> as opposed to Supplier<Token> is
-    // because characters like \r and \t do not give back tokens but are still valid
-    // leading to 2 cases for lexing something at a given position either it gives
-    // back token or not
-    private HashMap<Character, Supplier<Optional<Token>>> dispatchTable = new HashMap<Character, Supplier<Optional<Token>>>() {
-        {
-            put('\n', () -> {
-                source.GetChar();
-                return Optional
-                        .ofNullable(new Token(ResetPositionIncrementLine(), lineNumber, Token.TokenType.SEPERATOR));
-            });
-            // \r is part of windows return (cariage return \r\n) so we dont want to fail on
-            // \r but rather ignore it (who doesn't like type writers)
-            put('\r', () -> absorbAndDo(() -> {
-            }));
-            put(' ', () -> absorbAndDo(() -> {
-                position++;
-            }));
-            // TODO: maybe position+=4
-            put('\t', () -> absorbAndDo(() -> {
-                position++;
-            }));
-
-            put('.', () -> Optional.ofNullable(ProcessDigit()));
-            // we have to use intervals b/c the the key is not some sort of regex/character
-            // range of the supported characters
-            // so we end up having to insert an entry for each character in the list of
-            // characters that use the specified operation
-
-            // numbers
-            // [0-9]
-            putAll(MapFromInterval(48, 57, () -> Optional.ofNullable(ProcessDigit())));
-            // uppercase letters
-            // [A-Z]
-            putAll(MapFromInterval(65, 90, () -> Optional.ofNullable(ProcessWord())));
-            // lowercase letters
-            // [a-z]
-            putAll(MapFromInterval(97, 122, () -> Optional.ofNullable(ProcessWord())));
-        }
-
-    };
-
-    // Used for lexing operations that do not give back tokens, but everey operation
-    // still needs to swallow at least one character for source or else we would end
-    // up with infinite loop in lex b/c lex peeks and doesnt't swallow (using
-    // GetChar)
-    private Optional<Token> absorbAndDo(Runnable doer) {
-        source.Swallow(1);
-        doer.run();
-        return Optional.empty();
-    }
-
-    // takes a an "interval" of letters (in number format ie: A=65,..,a=97) and
-    // creates a map on that
-    // interval where each value is the same (the TokenMakr Supplier)
-    private Map<Character, Supplier<Optional<Token>>> MapFromInterval(int startInclusive, int endInclusive,
-            Supplier<Optional<Token>> tokenMaker) {
-        // TODO: I don't know which method to use here
-        Stream.iterate(startInclusive, n -> n + 1).limit(endInclusive - startInclusive + 1).map(c -> (char) (int) c)
-                .collect(Collectors.<Character, Character, Supplier<Optional<Token>>>toMap(c -> c,
-                        c -> tokenMaker));
-        return IntStream.rangeClosed(startInclusive, endInclusive).boxed()
-                .collect(Collectors.<Integer, Character, Supplier<Optional<Token>>>toMap((c) -> (char) ((int) c),
-                        c -> tokenMaker));
-    }
 
     public Lexer(String input) {
         source = new StringHandler(input);
@@ -86,23 +12,43 @@ public class Lexer {
 
     public LinkedList<Token> lex() throws Exception {
         var tokens = new LinkedList<Token>();
-        // go through source peek on next character dispath usig dispatchTable to do the
-        // right lexical analysis reqiured for the source at the current position
-        // also check that the source contains only valid characters based on whether
-        // the given character is in the dispatchTable or not
         while (!source.IsDone()) {
             var current = source.Peek();
-            if (dispatchTable.containsKey(current)) {
-                var maybeToken = dispatchTable.get(current).get();
-                if (maybeToken.isPresent()) {
-                    tokens.push(maybeToken.get());
-                }
-            } else {
-                throw new Exception("Error: Character " + current + " not recognized");
+            var token = lexCharacter(current);
+            if (token.isPresent()) {
+                tokens.add(token.get());
             }
         }
 
         return tokens;
+    }
+
+    // Manages state switching of the Lexer
+    // but also manages the output after of a state ie the token it may produce
+    private Optional<Token> lexCharacter(Character current) throws Exception {
+        if (isLetter(current)) {
+            return Optional.ofNullable(ProcessWord());
+        } else if (isDigit(current) || current == '.') {
+            return Optional.ofNullable(ProcessDigit());
+        } else if (current == ' ' || current == '\t') {
+            source.Swallow(1);
+            position++;
+            return Optional.empty();
+        } else if (current == '\n') {
+            source.Swallow(1);
+            int savePosition = ResetPositionIncrementLine();
+            return Optional
+                    // the reason for the lineNumber - 1 is that ResetPositionIncrementLine as the
+                    // name suggests it increments the line (but I wold think the new line character
+                    // is part of the previous line)
+                    .ofNullable(new Token(savePosition, lineNumber - 1, Token.TokenType.SEPERATOR));
+        } else if (current == '\r') {
+            source.Swallow(1);
+            return Optional.empty();
+        } else {
+            throw new Exception("Error: Character " + current + " not recognized");
+        }
+
     }
 
     // "inner" method for ProcesDigit just lexes [0-9]*
