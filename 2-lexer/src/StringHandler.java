@@ -17,6 +17,7 @@ public class StringHandler {
         this.content = content;
     }
 
+    // peeking indexes start at 0 Peek(0) peeks at the next character
     public char Peek(int i) {
         return content.charAt(position + i);
     }
@@ -31,6 +32,7 @@ public class StringHandler {
         return content.charAt(position++);
     }
 
+    // Swallowing indexes start at 1
     public void Swallow(int i) {
         position += i;
     }
