@@ -98,7 +98,7 @@ public class FunctionalLexer {
                     tokens.push(maybeToken.get());
                 }
             } else {
-                throw new Exception("Error: Character " + current + " not recognized");
+                throw new Exception("Error: Character `" + current + "` not recognized");
             }
         }
 

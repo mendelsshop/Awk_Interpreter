@@ -46,7 +46,7 @@ public class Lexer {
             source.Swallow(1);
             return Optional.empty();
         } else {
-            throw new Exception("Error: Character " + current + " not recognized");
+            throw new Exception("Error: Character `" + current + "` not recognized");
         }
 
     }

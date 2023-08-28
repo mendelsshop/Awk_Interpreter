@@ -145,12 +145,24 @@ public class UnitTests {
     @Test
     public void BasicLex() throws Exception {
         var lexer = new Lexer("111aAAA\taaazz\nZZ1Z.zaaa");
-        lexer.lex().forEach(System.out::println);
+        LinkedList<Token> lexed = lexer.lex();
+        assertEquals(lexed.size(), 7);
+        lexed.forEach(System.out::println);
     }
 
     @Test
     public void EmptyLex() throws Exception {
         var lexer = new Lexer("");
         assertEquals(lexer.lex(), new LinkedList<>());
+    }
+
+    @Test
+    // Tests non allowed characters like `,`
+    public void LexLoremIpsum() throws Exception {
+        String loremIpsum = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+        var lexer = new Lexer(loremIpsum);
+        assertThrows(new Exception("Error: Character `,` not recognized").getClass(), () -> {
+            lexer.lex();
+        });
     }
 }

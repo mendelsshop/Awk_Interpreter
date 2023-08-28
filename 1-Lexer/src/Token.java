@@ -6,14 +6,14 @@ public class Token {
     private TokenType type;
     private Optional<String> value = Optional.empty();
 
-    public Token(int position, int line, Token.TokenType type, String value) {
+    public Token(int position, int line, TokenType type, String value) {
         startPosition = position;
         lineNumber = line;
         this.type = type;
         this.value = Optional.ofNullable(value);
     }
 
-    public Token(int position, int line, Token.TokenType type) {
+    public Token(int position, int line, TokenType type) {
         startPosition = position;
         lineNumber = line;
         this.type = type;
