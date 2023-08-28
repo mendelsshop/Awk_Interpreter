@@ -10,8 +10,6 @@ public class UnitTests {
     private static Random rng = new Random();
     private boolean debug = false;
 
-    // TODO: postion inintialized for tokens is last position not first position
-
     // StringHandler unittests
     @Test
     public void HandleLEmptyString() throws Exception {
