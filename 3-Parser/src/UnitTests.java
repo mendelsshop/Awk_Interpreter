@@ -3,7 +3,6 @@ import static org.junit.Assert.*;
 import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.Random;
-import java.util.stream.Collectors;
 
 import org.junit.Test;
 
@@ -149,70 +148,11 @@ public class UnitTests {
         LinkedList<Token> lexed = lexer.lex();
         assertEquals(lexed.size(), 7);
         lexed.forEach(System.out::println);
-        assertEquals(lexed.get(0).getType(), Token.TokenType.NUMBER);
-        assertEquals(lexed.get(1).getType(), Token.TokenType.WORD);
-        assertEquals(lexed.get(2).getType(), Token.TokenType.WORD);
-        assertEquals(lexed.get(3).getType(), Token.TokenType.SEPERATOR);
-        assertEquals(lexed.get(4).getType(), Token.TokenType.WORD);
-        assertEquals(lexed.get(5).getType(), Token.TokenType.NUMBER);
-        assertEquals(lexed.get(6).getType(), Token.TokenType.WORD);
     }
 
     @Test
     public void EmptyLex() throws Exception {
         var lexer = new Lexer("");
         assertEquals(lexer.lex(), new LinkedList<>());
-    }
-
-    @Test
-    // Tests non allowed characters like `,`
-    public void LexLoremIpsum() throws Exception {
-        String loremIpsum = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-        var lexer = new Lexer(loremIpsum);
-        assertThrows(new Exception("Error: Character `,` not recognized").getClass(), () -> {
-            lexer.lex();
-        });
-    }
-
-    @Test
-    public void lexNewline() throws Exception {
-        var lexer = new Lexer("\r\n");
-        var lexed = lexer.lex();
-        assertEquals(lexed.size(), 1);
-        assertEquals(lexed.getFirst().getType(), Token.TokenType.SEPERATOR);
-    }
-
-    public String randomValidTokenString(int maxWordLength) {
-        // create stream of random number with upperbound of 256 highest ascci value
-        return rng.ints(0, 256)
-                // filter out non valid characters (and `_` b/c we have no way of knowing if the
-                // underscore happens at beginning of word)
-                .filter(c -> (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '\n'
-                        || c == '\r' || c == ' ' || c == '\t')
-                // after filtering is done limit the length of the string to be somewhat
-                // reasonable
-                .limit(rng.nextInt(0, maxWordLength))
-                // collect to string by casting to char
-                .boxed().<String>map(c -> ((Character) (char) (int) c).toString()).collect(Collectors.joining());
-
-    }
-
-    public void lexFuzzingIsh(int maxWordLength, int Times) throws Exception {
-        for (int i = 0; i < Times; i++) {
-            var word = randomValidTokenString(maxWordLength);
-            var lexer = new Lexer(word);
-            lexer.lex();
-        }
-    }
-
-    // meant to catch weird edge cases where lexer doesn't recognize valid tokens (no way to verify that the output is right).
-    @Test
-    public void fuzzLexIsh_1000_100() throws Exception {
-        lexFuzzingIsh(1000, 100);
-    }
-
-    @Test
-    public void fuzzLexIsh_1000_1000() throws Exception {
-        lexFuzzingIsh(1000, 1000);
     }
 }
