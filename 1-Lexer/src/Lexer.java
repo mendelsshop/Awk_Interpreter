@@ -4,8 +4,8 @@ import java.util.Optional;
 public class Lexer {
     private StringHandler source;
      // position and line number are zero-based
-    private int position = 0;
-    private int lineNumber = 0;
+    private int position = 1;
+    private int lineNumber = 1;
 
     public Lexer(String input) {
         source = new StringHandler(input);
@@ -97,7 +97,7 @@ public class Lexer {
     private int ResetPositionIncrementLine() {
         lineNumber++;
         int previousPosition = position;
-        position = 0;
+        position = 1;
         return previousPosition;
     }
 

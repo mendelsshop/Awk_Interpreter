@@ -5,8 +5,8 @@ import java.util.Optional;
 public class Lexer {
     private StringHandler source;
     // position and line number are zero-based
-    private int position = 0;
-    private int currentLine = 0;
+    private int position = 1;
+    private int currentLine = 1;
     private HashMap<String, Token.TokenType> keywords = new HashMap<String, Token.TokenType>() {
         {
             put("while", Token.TokenType.WHILE);
@@ -250,7 +250,7 @@ public class Lexer {
     private void checkUpdateLine() {
         if (source.Peek(0) == '\n') {
             currentLine += 1;
-            position = 0;
+            position = 1;
         }
     }
 }
