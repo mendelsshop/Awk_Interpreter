@@ -8,6 +8,7 @@ public class TokenHandler {
         this.tokenStream = tokenStream;
     }
 
+    // does null checking for if we try to go past the end of the token stream
     public Optional<Token> MatchAndRemove(Token.TokenType t) {
         var peek = tokenStream.getFirst();
         if (peek != null) {

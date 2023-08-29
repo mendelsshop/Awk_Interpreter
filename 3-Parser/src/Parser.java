@@ -9,23 +9,46 @@ public class Parser {
     }
 
     public ProgramNode Parse() throws Exception {
-        return null;
+        var program = new ProgramNode();
+        while (tokens.MoreTokens()) {
+            if (!ParseFunctionCall(program)) {
+                ParseAction(program);
+            }
+        }
+        return program;
     }
 
     private boolean AcceptSeperators() {
-        return false;
+        boolean foundSeperators = false;
+        // since MatchAndRemove does out of bounds checks
+        while (tokens.MatchAndRemove(Token.TokenType.SEPERATOR).isPresent()) {
+            foundSeperators = true;
+        }
+        return foundSeperators;
     }
 
     private boolean ParseFunctionCall(ProgramNode program) {
+        if (tokens.MatchAndRemove(Token.TokenType.FUNCTION).isEmpty()) {
+            return false;
+        }
+
         return false;
     }
 
     private boolean ParseAction(ProgramNode program) {
-        return false;
+        if (tokens.MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
+
+        } else if (tokens.MatchAndRemove(Token.TokenType.END).isPresent()) {
+
+        }
+        var Condition = ParseOperation();
+        var block = ParseOperation();
+        return true;
     }
 
     private BlockNode ParseBlock() {
         return null;
+
     }
 
     private Optional<Node> ParseOperation() {

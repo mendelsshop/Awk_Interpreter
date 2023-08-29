@@ -224,7 +224,7 @@ public class Lexer {
         // swallow the end backtick
         source.GetChar();
         position++;
-        return new Token(startPosition, startLine,type , word);
+        return new Token(startPosition, startLine, type, word);
     }
 
     private Optional<Token> ProcessSymbol() {
@@ -232,15 +232,23 @@ public class Lexer {
         // the source
         // but we save line number just in case we encounter \n
         int startLine = currentLine;
-        if (twoSymbols.containsKey(source.PeekString(1))) {
+        var isTwoLetterSymbol = false;
+        try {
+            isTwoLetterSymbol = twoSymbols.containsKey(source.PeekString(2));
+        } catch (StringIndexOutOfBoundsException e) {
+            // do nothing because we could still be one letter symbol or something else
+        }
+        if (isTwoLetterSymbol) {
+            Token.TokenType type = twoSymbols.get(source.PeekString(2));
             source.Swallow(2);
             position += 2;
-            return Optional.ofNullable(new Token(position - 2, startLine, twoSymbols.get(source.PeekString(1))));
-        } else if (oneSymbol.containsKey(source.PeekString(0))) {
+            return Optional.ofNullable(new Token(position - 2, startLine, type));
+        } else if (oneSymbol.containsKey(source.PeekString(1))) {
+            Token.TokenType type = oneSymbol.get(source.PeekString(1));
             checkUpdateLine();
             position++;
             source.Swallow(1);
-            return Optional.ofNullable(new Token(position, startLine, oneSymbol.get(source.PeekString(0))));
+            return Optional.ofNullable(new Token(position, startLine, type));
         } else {
             return Optional.empty();
         }
