@@ -151,11 +151,22 @@ public class UnitTests {
     }
 
     @Test
+    public void lexNewline() throws Exception {
+        testLexContent("\r\n", new Token.TokenType[] { Token.TokenType.SEPERATOR });
+    }
+
+
+    @Test
     public void BasicLex() throws Exception {
-        var lexer = new Lexer("111aAAA\taaazz\nZZ1Z.zaaa");
-        LinkedList<Token> lexed = lexer.lex();
-        assertEquals(lexed.size(), 7);
-        lexed.forEach(System.out::println);
+        testLexContent("111aAAA\taaazz\nZZ1Z.zaaa", new Token.TokenType[] {
+                Token.TokenType.NUMBER,
+                Token.TokenType.WORD,
+                Token.TokenType.WORD,
+                Token.TokenType.SEPERATOR,
+                Token.TokenType.WORD,
+                Token.TokenType.NUMBER,
+                Token.TokenType.WORD,
+        });
     }
 
     @Test

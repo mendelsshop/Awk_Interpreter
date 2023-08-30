@@ -145,21 +145,6 @@ public class UnitTests {
 
     // Lexer unittests
     @Test
-    public void BasicLex() throws Exception {
-        var lexer = new Lexer("111aAAA\taaazz\nZZ1Z.zaaa");
-        LinkedList<Token> lexed = lexer.lex();
-        assertEquals(lexed.size(), 7);
-        lexed.forEach(System.out::println);
-        assertEquals(lexed.get(0).getType(), Token.TokenType.NUMBER);
-        assertEquals(lexed.get(1).getType(), Token.TokenType.WORD);
-        assertEquals(lexed.get(2).getType(), Token.TokenType.WORD);
-        assertEquals(lexed.get(3).getType(), Token.TokenType.SEPERATOR);
-        assertEquals(lexed.get(4).getType(), Token.TokenType.WORD);
-        assertEquals(lexed.get(5).getType(), Token.TokenType.NUMBER);
-        assertEquals(lexed.get(6).getType(), Token.TokenType.WORD);
-    }
-
-    @Test
     public void EmptyLex() throws Exception {
         var lexer = new Lexer("");
         assertEquals(lexer.lex(), new LinkedList<>());
@@ -180,13 +165,23 @@ public class UnitTests {
         var actualLexed = lexer.lex().stream().<Token.TokenType>map(c -> c.getType()).toArray();
         Stream.iterate(0, n -> n + 1).limit(lexed.length).forEach(n -> assertEquals(lexed[n], actualLexed[n]));
     }
-    @Test
 
+    @Test
     public void lexNewline() throws Exception {
-        var lexer = new Lexer("\r\n");
-        var lexed = lexer.lex();
-        assertEquals(lexed.size(), 1);
-        assertEquals(lexed.getFirst().getType(), Token.TokenType.SEPERATOR);
+        testLexContent("\r\n", new Token.TokenType[] { Token.TokenType.SEPERATOR });
+    }
+
+    @Test
+    public void BasicLex() throws Exception {
+        testLexContent("111aAAA\taaazz\nZZ1Z.zaaa", new Token.TokenType[] {
+                Token.TokenType.NUMBER,
+                Token.TokenType.WORD,
+                Token.TokenType.WORD,
+                Token.TokenType.SEPERATOR,
+                Token.TokenType.WORD,
+                Token.TokenType.NUMBER,
+                Token.TokenType.WORD,
+        });
     }
 
     public String randomValidTokenString(int maxWordLength) {
