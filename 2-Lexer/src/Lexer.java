@@ -71,7 +71,7 @@ public class Lexer {
             put("==", Token.TokenType.EQUAL);
             put("!=", Token.TokenType.NOTEQUAL);
             put("^=", Token.TokenType.EXPONENTEQUAL);
-            put("%=", Token.TokenType.DIVIDEQUAL);
+            put("%=", Token.TokenType.MODULOEQUAL);
             put("*=", Token.TokenType.MULTIPLYEQUAL);
             put("/=", Token.TokenType.DIVIDEQUAL);
             put("+=", Token.TokenType.PLUSEQUAL);
