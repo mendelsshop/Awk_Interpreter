@@ -3,6 +3,7 @@ import static org.junit.Assert.*;
 import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.Random;
+import java.util.stream.Stream;
 
 import org.junit.Test;
 
@@ -144,7 +145,8 @@ public class UnitTests {
     // Lexer unittests
     public void testLexContent(String content, Token.TokenType[] lexed) throws Exception {
         var lexer = new Lexer(content);
-        assertArrayEquals(lexer.lex().toArray(), lexed);
+        var actualLexed = lexer.lex().stream().<Token.TokenType>map(c -> c.getType()).toArray();
+        Stream.iterate(0, n -> n + 1).limit(lexed.length).forEach(n -> assertEquals(lexed[n], actualLexed[n]));
     }
 
     @Test
@@ -153,6 +155,12 @@ public class UnitTests {
         LinkedList<Token> lexed = lexer.lex();
         assertEquals(lexed.size(), 7);
         lexed.forEach(System.out::println);
+    }
+
+    @Test
+    public void actualAwk() throws Exception {
+        testLexContent("BEGIN {}",
+                new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE });
     }
 
     @Test

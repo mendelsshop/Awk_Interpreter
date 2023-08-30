@@ -4,6 +4,10 @@ public class Token {
     private int startPosition;
     private int lineNumber;
     private TokenType type;
+    public TokenType getType() {
+        return type;
+    }
+
     private Optional<String> value = Optional.empty();
 
     public Token(int position, int line, TokenType type, String value) {

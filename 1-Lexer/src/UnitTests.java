@@ -4,6 +4,7 @@ import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.junit.Test;
 
@@ -176,9 +177,9 @@ public class UnitTests {
 
     public void testLexContent(String content, Token.TokenType[] lexed) throws Exception {
         var lexer = new Lexer(content);
-        assertArrayEquals(lexer.lex().toArray(), lexed);
+        var actualLexed = lexer.lex().stream().<Token.TokenType>map(c -> c.getType()).toArray();
+        Stream.iterate(0, n -> n + 1).limit(lexed.length).forEach(n -> assertEquals(lexed[n], actualLexed[n]));
     }
-
     @Test
 
     public void lexNewline() throws Exception {
