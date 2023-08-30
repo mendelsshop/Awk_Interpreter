@@ -142,6 +142,11 @@ public class UnitTests {
     }
 
     // Lexer unittests
+    public void testLexContent(String content, Token.TokenType[] lexed) throws Exception {
+        var lexer = new Lexer(content);
+        assertArrayEquals(lexer.lex().toArray(), lexed);
+    }
+
     @Test
     public void BasicLex() throws Exception {
         var lexer = new Lexer("111aAAA\taaazz\nZZ1Z.zaaa");

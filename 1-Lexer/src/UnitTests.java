@@ -174,7 +174,13 @@ public class UnitTests {
         });
     }
 
+    public void testLexContent(String content, Token.TokenType[] lexed) throws Exception {
+        var lexer = new Lexer(content);
+        assertArrayEquals(lexer.lex().toArray(), lexed);
+    }
+
     @Test
+
     public void lexNewline() throws Exception {
         var lexer = new Lexer("\r\n");
         var lexed = lexer.lex();
@@ -205,7 +211,8 @@ public class UnitTests {
         }
     }
 
-    // meant to catch weird edge cases where lexer doesn't recognize valid tokens (no way to verify that the output is right).
+    // meant to catch weird edge cases where lexer doesn't recognize valid tokens
+    // (no way to verify that the output is right).
     @Test
     public void fuzzLexIsh_1000_100() throws Exception {
         lexFuzzingIsh(1000, 100);
