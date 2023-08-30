@@ -1,10 +1,8 @@
 import static org.junit.Assert.*;
 
 import java.nio.charset.Charset;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Random;
-import java.util.stream.Stream;
 
 import org.junit.Test;
 
@@ -147,7 +145,8 @@ public class UnitTests {
     public void testLexContent(String content, Token.TokenType[] lexed) throws Exception {
         var lexer = new Lexer(content);
         var actualLexed = lexer.lex().stream().<Token.TokenType>map(c -> c.getType()).toArray();
-        Stream.iterate(0, n -> n + 1).limit(lexed.length).forEach(n -> assertEquals(lexed[n], actualLexed[n]));
+        assertEquals(lexed.length, actualLexed.length);
+        assertArrayEquals(lexed, actualLexed);
     }
 
     @Test
@@ -169,6 +168,31 @@ public class UnitTests {
         });
     }
 
+    @Test 
+    public void justAComent() throws Exception {
+        testLexContent("# aaa dfdff", new Token.TokenType[] {});
+    }
+
+        @Test 
+    public void ComentFollowedByStuff() throws Exception {
+        testLexContent("# aaa dfdff\n1. ax1 +\n { ) -;", new Token.TokenType[] {
+            Token.TokenType.SEPERATOR,    
+            Token.TokenType.NUMBER,
+                Token.TokenType.WORD,
+                Token.TokenType.PLUS,
+                Token.TokenType.SEPERATOR,
+                Token.TokenType.OPENBRACE,
+                Token.TokenType.CLOSEPAREN,
+                Token.TokenType.MINUS,
+                Token.TokenType.SEPERATOR,
+        });
+    }
+
+    @Test
+    public void LexDecimalNumber() throws Exception {
+        testLexContent("123.999", new Token.TokenType[] { Token.TokenType.NUMBER });
+    }
+
     @Test
     public void actualAwk() throws Exception {
         testLexContent("BEGIN {}",
@@ -180,4 +204,6 @@ public class UnitTests {
         var lexer = new Lexer("");
         assertEquals(lexer.lex(), new LinkedList<>());
     }
+
+
 }

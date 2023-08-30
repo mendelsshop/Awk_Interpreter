@@ -4,7 +4,7 @@ import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
 
 import org.junit.Test;
 
@@ -163,7 +163,8 @@ public class UnitTests {
     public void testLexContent(String content, Token.TokenType[] lexed) throws Exception {
         var lexer = new Lexer(content);
         var actualLexed = lexer.lex().stream().<Token.TokenType>map(c -> c.getType()).toArray();
-        Stream.iterate(0, n -> n + 1).limit(lexed.length).forEach(n -> assertEquals(lexed[n], actualLexed[n]));
+        assertEquals(lexed.length, actualLexed.length);
+        assertArrayEquals(lexed, actualLexed);
     }
 
     @Test
@@ -182,6 +183,11 @@ public class UnitTests {
                 Token.TokenType.NUMBER,
                 Token.TokenType.WORD,
         });
+    }
+
+    @Test
+    public void LexDecimalNumber() throws Exception {
+        testLexContent("123.999", new Token.TokenType[] { Token.TokenType.NUMBER });
     }
 
     public String randomValidTokenString(int maxWordLength) {
