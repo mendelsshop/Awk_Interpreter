@@ -27,12 +27,39 @@ public class Parser {
         return foundSeperators;
     }
 
-    private boolean ParseFunctionCall(ProgramNode program) {
+    private boolean ParseFunctionCall(ProgramNode program) throws Exception {
         if (tokens.MatchAndRemove(Token.TokenType.FUNCTION).isEmpty()) {
             return false;
         }
+        var functionName = tokens.MatchAndRemove(Token.TokenType.WORD)
+                .orElseThrow(() -> new Exception("function without name")).getValue().get();
+        tokens.MatchAndRemove(Token.TokenType.OPENPAREN)
+                .orElseThrow(() -> new Exception("function does not have parentheses before parameter"));
+        var parameters = new LinkedList<>();
+        while (tokens.MoreTokens()) {
+            if (tokens.MatchAndRemove(Token.TokenType.WORD).<Boolean>map(c -> {
+                // System.out.println("next ");
+                parameters.add(c.getValue().get());
 
-        return false;
+                return tokens.MatchAndRemove(Token.TokenType.CLOSEPAREN).map(a -> true)
+                        .or(() -> tokens.MatchAndRemove(Token.TokenType.COMMA).map(d -> tokens.Peek(0)
+                                .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
+                                .orElseThrow(() -> {
+                                    throw new RuntimeException(
+                                            "comma in function parameter list must be followed by another parameter");
+                                })))
+                        .orElseThrow(() -> new RuntimeException(
+                                "function parameter must be followed by a comma or closeing parenthesis"));
+            }).or(() -> tokens.MatchAndRemove(Token.TokenType.CLOSEPAREN).map(c -> true))
+                    .orElseThrow(() -> new Exception("unknown token type in parameter list" + tokens.Peek(0)))) {
+                break;
+            }
+        }
+
+        System.out.println("parameters: " + parameters);
+        System.out.println(functionName + ": " + functionName);
+        throw new IllegalStateException();
+        // return false;
     }
 
     private boolean ParseAction(ProgramNode program) {

@@ -10,6 +10,10 @@ public class Token {
 
     private Optional<String> value = Optional.empty();
 
+    public Optional<String> getValue() {
+        return value;
+    }
+
     public Token(int position, int line, TokenType type, String value) {
         startPosition = position;
         lineNumber = line;

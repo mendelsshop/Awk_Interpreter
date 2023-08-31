@@ -212,4 +212,12 @@ public class UnitTests {
         assertEquals(lexer.lex(), new LinkedList<>());
     }
 
+    // parser tests
+    @Test
+    public void ParseBasicFunction() throws Exception {
+        var lexer = new Lexer("function function_name(argument1, argument2, a) {\n}");
+        var parser = new Parser(lexer.lex());
+        parser.Parse();
+    }
+
 }
