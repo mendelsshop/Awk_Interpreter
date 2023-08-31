@@ -4,7 +4,7 @@ import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.stream.Collectors;
-
+import java.util.stream.Stream;
 
 import org.junit.Test;
 
@@ -146,8 +146,7 @@ public class UnitTests {
     // Lexer unittests
     @Test
     public void EmptyLex() throws Exception {
-        var lexer = new Lexer("");
-        assertEquals(lexer.lex(), new LinkedList<>());
+        testLexContent("", new Token.TokenType[] {});
     }
 
     @Test
@@ -160,11 +159,18 @@ public class UnitTests {
         });
     }
 
-    public void testLexContent(String content, Token.TokenType[] lexed) throws Exception {
+    public void testLexContent(String content, Token.TokenType[] expected) throws Exception {
         var lexer = new Lexer(content);
-        var actualLexed = lexer.lex().stream().<Token.TokenType>map(c -> c.getType()).toArray();
-        assertEquals(lexed.length, actualLexed.length);
-        assertArrayEquals(lexed, actualLexed);
+        var otherLexer = new FunctionalLexer(content);
+        var lexed = lexer.lex();
+        var otherLexed = otherLexer.lex();
+        var lexedTokens = lexed.stream().<Token.TokenType>map(c -> c.getType()).toArray();
+        assertEquals(expected.length, lexedTokens.length);
+        assertArrayEquals(expected, lexedTokens);
+        assertEquals(lexed.size(), otherLexed.size());
+        // we just check for tokentype equality
+        Stream.iterate(0, n -> n == lexed.size() - 1, n -> n + 1)
+                .forEach(c -> assertEquals(lexed.get(c).getType(), otherLexed.get(c).getType()));
     }
 
     @Test

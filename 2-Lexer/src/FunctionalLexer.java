@@ -101,27 +101,28 @@ public class FunctionalLexer {
             });
 
             put('<', makeTwoSymbolProccesor(Optional.of(Token.TokenType.LESSTHAN),
-                    c -> Optional.of(c == '=' ? Token.TokenType.LESSTHANEQUAL : null)));
+                    c -> Optional.ofNullable(c == '=' ? Token.TokenType.LESSTHANEQUAL : null)));
             put('>', makeTwoSymbolProccesor(Optional.of(Token.TokenType.GREATERTHAN), c -> Optional
-                    .of(c == '=' ? Token.TokenType.GREATERTHANEQUAL : c == '>' ? Token.TokenType.APPEND : null)));
+                    .ofNullable(
+                            c == '=' ? Token.TokenType.GREATERTHANEQUAL : c == '>' ? Token.TokenType.APPEND : null)));
             put('!', makeTwoSymbolProccesor(Optional.of(Token.TokenType.NOT), c -> Optional
-                    .of(c == '=' ? Token.TokenType.NOTEQUAL : c == '~' ? Token.TokenType.NOTMATCH : null)));
+                    .ofNullable(c == '=' ? Token.TokenType.NOTEQUAL : c == '~' ? Token.TokenType.NOTMATCH : null)));
             put('+', makeTwoSymbolProccesor(Optional.of(Token.TokenType.PLUS), c -> Optional
-                    .of(c == '=' ? Token.TokenType.PLUSEQUAL : c == '>' ? Token.TokenType.PLUSPLUS : null)));
+                    .ofNullable(c == '=' ? Token.TokenType.PLUSEQUAL : c == '>' ? Token.TokenType.PLUSPLUS : null)));
             put('^', makeTwoSymbolProccesor(Optional.of(Token.TokenType.EXPONENT),
                     c -> Optional.of(c == '=' ? Token.TokenType.LESSTHANEQUAL : null)));
             put('-', makeTwoSymbolProccesor(Optional.of(Token.TokenType.MINUS), c -> Optional
-                    .of(c == '=' ? Token.TokenType.MINUSEQUAL : c == '>' ? Token.TokenType.MINUSMINUS : null)));
+                    .ofNullable(c == '=' ? Token.TokenType.MINUSEQUAL : c == '>' ? Token.TokenType.MINUSMINUS : null)));
             put('*', makeTwoSymbolProccesor(Optional.of(Token.TokenType.MULTIPLY),
-                    c -> Optional.of(c == '=' ? Token.TokenType.LESSTHANEQUAL : null)));
+                    c -> Optional.ofNullable(c == '=' ? Token.TokenType.LESSTHANEQUAL : null)));
             put('/', makeTwoSymbolProccesor(Optional.of(Token.TokenType.DIVIDE),
-                    c -> Optional.of(c == '=' ? Token.TokenType.DIVIDEQUAL : null)));
+                    c -> Optional.ofNullable(c == '=' ? Token.TokenType.DIVIDEQUAL : null)));
             put('%', makeTwoSymbolProccesor(Optional.of(Token.TokenType.MODULO),
-                    c -> Optional.of(c == '=' ? Token.TokenType.MODULOEQUAL : null)));
+                    c -> Optional.ofNullable(c == '=' ? Token.TokenType.MODULOEQUAL : null)));
             put('|', makeTwoSymbolProccesor(Optional.of(Token.TokenType.VERTICALBAR),
-                    c -> Optional.of(c == '|' ? Token.TokenType.OR : null)));
+                    c -> Optional.ofNullable(c == '|' ? Token.TokenType.OR : null)));
             put('&', makeTwoSymbolProccesor(Optional.of(Token.TokenType.AND),
-                    c -> Optional.of(c == '&' ? Token.TokenType.AND : null)));
+                    c -> Optional.ofNullable(c == '&' ? Token.TokenType.AND : null)));
 
         }
 

@@ -37,6 +37,6 @@ public class Token {
 
     @Override
     public String toString() {
-        return type + value.map(c -> "(" + c + ")").orElse("");
+        return type + value.map(c -> "(" + c + ")").orElse("") + "[" + startPosition + " " + lineNumber + "]";
     }
 }
