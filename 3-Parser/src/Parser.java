@@ -35,10 +35,9 @@ public class Parser {
                 .orElseThrow(() -> new Exception("function without name")).getValue().get();
         tokens.MatchAndRemove(Token.TokenType.OPENPAREN)
                 .orElseThrow(() -> new Exception("function does not have parentheses before parameter"));
-        var parameters = new LinkedList<>();
+        var parameters = new LinkedList<String>();
         while (tokens.MoreTokens()) {
             if (tokens.MatchAndRemove(Token.TokenType.WORD).<Boolean>map(c -> {
-                // System.out.println("next ");
                 parameters.add(c.getValue().get());
 
                 return tokens.MatchAndRemove(Token.TokenType.CLOSEPAREN).map(a -> true)
@@ -55,21 +54,24 @@ public class Parser {
                 break;
             }
         }
-
-        System.out.println("parameters: " + parameters);
-        System.out.println(functionName + ": " + functionName);
-        throw new IllegalStateException();
-        // return false;
+        var block = ParseBlock().getStatements();
+        program.addFunction(new FunctionNode(functionName, parameters, block));
+        return true;
     }
 
     private boolean ParseAction(ProgramNode program) {
         if (tokens.MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
-
+            var block = ParseBlock();
+            program.addToBegin(block);
+            return true;
         } else if (tokens.MatchAndRemove(Token.TokenType.END).isPresent()) {
-
+            var block = ParseBlock();
+            program.addToEnd(block);
+            return true;
         }
         var Condition = ParseOperation();
-        var block = ParseOperation();
+        var block = ParseBlock();
+        block.setCondition(Condition);
         return true;
     }
 
