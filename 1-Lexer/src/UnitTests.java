@@ -1,7 +1,6 @@
 import static org.junit.Assert.*;
 
 import java.nio.charset.Charset;
-import java.util.LinkedList;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -174,6 +173,23 @@ public class UnitTests {
     }
 
     @Test
+    public void testInvalidLexer1() {
+        assertThrowsLexError(new Exception("Error: Character `@` not recognized").getClass(),
+                "@==4 {}");
+    }
+
+    @Test
+    public void testInvalidAwk() {
+        assertThrowsLexError(new Exception("Error: Character `{` not recognized").getClass(),
+                "{\na=4}");
+    }
+
+    public <T extends Throwable> void assertThrowsLexError(Class<T> expectedThrowable,
+            String content) {
+        assertThrows(expectedThrowable, () -> testLexContent(content, new Token.TokenType[] {}));
+    }
+
+    @Test
     public void lexNewline() throws Exception {
         testLexContent("\r\n", new Token.TokenType[] { Token.TokenType.SEPERATOR });
     }
@@ -209,6 +225,32 @@ public class UnitTests {
                 // collect to string by casting to char
                 .boxed().<String>map(c -> ((Character) (char) (int) c).toString()).collect(Collectors.joining());
 
+    }
+
+    public String randomInValidTokenString(int maxWordLength) {
+        return rng.ints(0, 1000)
+                .filter(c -> !((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '\n'
+                        || c == '\r' || c == ' ' || c == '\t'))
+                // after filtering is done limit the length of the string to be somewhat
+                // reasonable
+                .limit(maxWordLength)
+                // collect to string by casting to char
+                .boxed().<String>map(c -> ((Character) (char) (int) c).toString()).collect(Collectors.joining());
+
+    }
+
+    public void testRandomInvalid() throws Exception {
+        var invalid = randomInValidTokenString(1);
+        System.out.println("is '" + invalid + "'");
+        assertThrowsLexError(new Exception("Error: Character `" + invalid + "` not recognized").getClass(), invalid);
+    }
+
+    @Test
+    public void fuzzRandomInvalidLex() throws Exception {
+        int iterations = rng.nextInt(0, 5);
+        for (int i = 0; i < iterations; i++) {
+            testRandomInvalid();
+        }
     }
 
     public void lexFuzzingIsh(int maxWordLength, int Times) throws Exception {

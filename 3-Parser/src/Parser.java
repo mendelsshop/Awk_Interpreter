@@ -44,7 +44,7 @@ public class Parser {
                         .or(() -> tokens.MatchAndRemove(Token.TokenType.COMMA).map(d -> tokens.Peek(0)
                                 .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
                                 .orElseThrow(() -> {
-                                    throw new RuntimeException(
+                                    throw new ParseException(
                                             "comma in function parameter list must be followed by another parameter");
                                 })))
                         .orElseThrow(() -> new RuntimeException(
@@ -59,7 +59,7 @@ public class Parser {
         return true;
     }
 
-    private boolean ParseAction(ProgramNode program) {
+    private boolean ParseAction(ProgramNode program) throws Exception{
         if (tokens.MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
             var block = ParseBlock();
             program.addToBegin(block);
@@ -75,12 +75,20 @@ public class Parser {
         return true;
     }
 
-    private BlockNode ParseBlock() {
+    private BlockNode ParseBlock() throws Exception {
+        tokens.MatchAndRemove(Token.TokenType.OPENBRACE)
+                .orElseThrow(() -> new Exception("block without open curly brace at start")).getValue().get();
         return null;
 
     }
 
     private Optional<Node> ParseOperation() {
         return Optional.empty();
+    }
+
+    public class ParseException extends Exception {
+        public ParseException(String message) {
+            
+        }
     }
 }
