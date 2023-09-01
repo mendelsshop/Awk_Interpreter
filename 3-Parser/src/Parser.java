@@ -86,7 +86,7 @@ public class Parser {
         return Optional.empty();
     }
 
-    public class ParseException extends Exception {
+    public class ParseException extends RuntimeException {
         public ParseException(String message) {
             
         }
