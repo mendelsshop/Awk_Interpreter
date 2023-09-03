@@ -37,29 +37,38 @@ public class Parser {
                 .orElseThrow(() -> new Exception("function does not have parentheses before parameter"));
         var parameters = new LinkedList<String>();
         while (tokens.MoreTokens()) {
-            if (tokens.MatchAndRemove(Token.TokenType.WORD).<Boolean>map(c -> {
-                parameters.add(c.getValue().get());
+            if (tokens.MatchAndRemove(Token.TokenType.WORD).<FunctionalLexer.CheckedSupplier<Boolean, Exception>>map(
+                    c -> () -> {
+                        parameters.add(c.getValue().get());
 
-                return tokens.MatchAndRemove(Token.TokenType.CLOSEPAREN).map(a -> true)
-                        .or(() -> tokens.MatchAndRemove(Token.TokenType.COMMA).map(d -> tokens.Peek(0)
-                                .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
-                                .orElseThrow(() -> {
-                                    new Exception(
-                                            "comma in function parameter list must be followed by another parameter");
-                                })))
-                        .orElseThrow(() -> new Exception(
-                                "function parameter must be followed by a comma or closeing parenthesis"));
-            }).or(() -> tokens.MatchAndRemove(Token.TokenType.CLOSEPAREN).map(c -> true))
-                    .orElseThrow(() -> new Exception("unknown token type in parameter list" + tokens.Peek(0)))) {
+                        return tokens
+                                .MatchAndRemove(
+                                        Token.TokenType.CLOSEPAREN).<FunctionalLexer.CheckedSupplier<Boolean, Exception>>map(
+                                                a -> () -> true)
+                                .or(() -> tokens.MatchAndRemove(Token.TokenType.COMMA).map(d -> () -> tokens.Peek(0)
+                                        .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
+                                        .orElseThrow(() -> new Exception(
+                                                "comma in function parameter list must be followed by another parameter"))))
+                                .orElseThrow(() -> new Exception(
+                                        "function parameter must be followed by a comma or closeing parenthesis"))
+                                .get();
+                    }).or(() -> tokens.MatchAndRemove(Token.TokenType.CLOSEPAREN).map(c -> () -> true))
+                    .orElseThrow(() -> new Exception("unknown token type in parameter list" + tokens.Peek(0))).get()) {
                 break;
             }
         }
+
         var block = ParseBlock().getStatements();
+        tokens.MatchAndRemove(Token.TokenType.COMMA).<FunctionalLexer.CheckedSupplier<Boolean, Exception>>map(
+                d -> () -> tokens.Peek(0)
+                        .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
+                        .orElseThrow(() -> new Exception(
+                                "comma in function parameter list must be followed by another parameter")));
         program.addFunction(new FunctionNode(functionName, parameters, block));
         return true;
     }
 
-    private boolean ParseAction(ProgramNode program) throws Exception{
+    private boolean ParseAction(ProgramNode program) throws Exception {
         if (tokens.MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
             var block = ParseBlock();
             program.addToBegin(block);
@@ -86,9 +95,9 @@ public class Parser {
         return Optional.empty();
     }
 
-    public class ParseException extends RuntimeException {
+    public class ParseException extends Exception {
         public ParseException(String message) {
-            
+
         }
     }
 }

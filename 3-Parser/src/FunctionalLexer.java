@@ -3,7 +3,6 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -37,13 +36,20 @@ public class FunctionalLexer {
         }
     };
 
+    // https://stackoverflow.com/questions/22687943/is-it-possible-to-declare-that-a-suppliert-needs-to-throw-an-exception
+    // since this is anyways not following the rules why not just use result instead of exception
+    @FunctionalInterface
+    public interface CheckedSupplier<T, E extends Exception> {
+        public T get() throws E;
+    }
+
     // tells the lexer what type of lexing it should do based on a given character
     // (if the character is not in the map, then it is not supported by the lexer)
     // the reason it is Supplier<Optional<Token>> as opposed to Supplier<Token> is
     // because characters like \r and \t do not give back tokens but are still valid
     // leading to 2 cases for lexing something at a given position either it gives
     // back token or not
-    private HashMap<Character, Supplier<Optional<Token>>> dispatchTable = new HashMap<Character, Supplier<Optional<Token>>>() {
+    private HashMap<Character, CheckedSupplier<Optional<Token>, Exception>> dispatchTable = new HashMap<Character, CheckedSupplier<Optional<Token>, Exception>>() {
         {
             // \r is part of windows return (cariage return \r\n) so we dont want to fail on
             // \r but rather ignore it (who doesn't like type writers)
@@ -128,7 +134,7 @@ public class FunctionalLexer {
 
     };
 
-    private Supplier<Optional<Token>> makeTwoSymbolProccesor(Optional<Token.TokenType> single,
+    private CheckedSupplier<Optional<Token>, Exception> makeTwoSymbolProccesor(Optional<Token.TokenType> single,
             Function<Character, Optional<Token.TokenType>> matchesSecond) {
         return () -> {
             int start = position++;
@@ -139,7 +145,7 @@ public class FunctionalLexer {
             } else if (single.isPresent()) {
                 return Optional.ofNullable(new Token(start, lineNumber, single.get()));
             } else {
-                throw new RuntimeException("Error: Character `" + first + "` not recognized");
+                throw new Exception("Error: Character `" + first + "` not recognized");
             }
         };
 
@@ -155,7 +161,7 @@ public class FunctionalLexer {
         return Optional.empty();
     }
 
-    private Supplier<Optional<Token>> makeSingleymbolProcessor(Token.TokenType token) {
+    private CheckedSupplier<Optional<Token>, Exception> makeSingleymbolProcessor(Token.TokenType token) {
         return () -> {
             source.Swallow(1);
             return Optional.ofNullable(new Token(position++, lineNumber, token));
@@ -165,10 +171,11 @@ public class FunctionalLexer {
     // takes a an "interval" of letters (in number format ie: A=65,..,a=97) and
     // creates a map on that
     // interval where each value is the same (the TokenMakr Supplier)
-    private Map<Character, Supplier<Optional<Token>>> MapFromInterval(int startInclusive, int endInclusive,
-            Supplier<Optional<Token>> tokenMaker) {
+    private Map<Character, CheckedSupplier<Optional<Token>, Exception>> MapFromInterval(int startInclusive,
+            int endInclusive,
+            CheckedSupplier<Optional<Token>, Exception> tokenMaker) {
         return IntStream.rangeClosed(startInclusive, endInclusive).boxed()
-                .collect(Collectors.<Integer, Character, Supplier<Optional<Token>>>toMap((c) -> (char) ((int) c),
+                .collect(Collectors.toMap((c) -> (char) ((int) c),
                         c -> tokenMaker));
     }
 
