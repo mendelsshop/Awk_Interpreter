@@ -1,5 +1,4 @@
 public class StringHandler {
-    // TODO: what type do use to store the source string Stream<Character> or String
     private String content;
     private int position = 0;
 

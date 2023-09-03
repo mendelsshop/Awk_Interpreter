@@ -151,11 +151,8 @@ public class UnitTests {
     @Test
     // Tests non allowed characters like `,`
     public void LexLoremIpsum() throws Exception {
-        String loremIpsum = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-        var lexer = new Lexer(loremIpsum);
-        assertThrows(new Exception("Error: Character `,` not recognized").getClass(), () -> {
-            lexer.lex();
-        });
+        assertThrowsLexError(LexerException.class,
+                "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.");
     }
 
     public void testLexContent(String content, Token.TokenType[] expected) throws Exception {
@@ -174,18 +171,20 @@ public class UnitTests {
 
     @Test
     public void testInvalidLexer1() {
-        assertThrowsLexError(new Exception("Error: Character `@` not recognized").getClass(),
+        assertThrowsLexError(LexerException.class,
                 "@==4 {}");
     }
 
     @Test
     public void testInvalidAwk() {
-        assertThrowsLexError(new Exception("Error: Character `{` not recognized").getClass(),
+        assertThrowsLexError(LexerException.class,
                 "{\na=4}");
     }
 
     public <T extends Throwable> void assertThrowsLexError(Class<T> expectedThrowable,
             String content) {
+        // reason why it takes exception is b/c I was going to verify that error
+        // messages match (but not doing that now b/c of LexerException)
         assertThrows(expectedThrowable, () -> testLexContent(content, new Token.TokenType[] {}));
     }
 
@@ -196,7 +195,7 @@ public class UnitTests {
 
     @Test
     public void BasicLex() throws Exception {
-        testLexContent("111aAAA\taaazz\nZZ1Z.zaaa", new Token.TokenType[] {
+        testLexContent("111aAAA\taaazz\nZZ1Z.1zaaa", new Token.TokenType[] {
                 Token.TokenType.NUMBER,
                 Token.TokenType.WORD,
                 Token.TokenType.WORD,
@@ -214,7 +213,7 @@ public class UnitTests {
 
     @Test
     public void LexDecimalNoNumber() throws Exception {
-        testLexContent(".", new Token.TokenType[] { Token.TokenType.NUMBER });
+        assertThrowsLexError(LexerException.class, ".");
     }
 
     @Test
@@ -224,7 +223,7 @@ public class UnitTests {
 
     @Test
     public void LexUnderScoreWordDot() throws Exception {
-        testLexContent("a_.", new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.NUMBER });
+        testLexContent("a_ 5.", new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.NUMBER });
     }
 
     @Test
@@ -250,24 +249,17 @@ public class UnitTests {
 
     @Test
     public void LexUnderScoreWordWithStuff() throws Exception {
-        testLexContent("a_s\r\n\t1234.5678 az__..",
+        testLexContent("a_s\r\n\t1234.5678 az__.5",
                 new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.SEPERATOR,
                         Token.TokenType.NUMBER,
                         Token.TokenType.WORD,
-                        Token.TokenType.NUMBER,
                         Token.TokenType.NUMBER,
                 });
     }
 
     @Test
     public void LexDotDotDotEtc() throws Exception {
-        testLexContent("....",
-                new Token.TokenType[] {
-                        Token.TokenType.NUMBER,
-                        Token.TokenType.NUMBER,
-                        Token.TokenType.NUMBER,
-                        Token.TokenType.NUMBER,
-                });
+        assertThrowsLexError(LexerException.class, "....");
     }
 
     @Test
@@ -290,13 +282,13 @@ public class UnitTests {
     @Test
     public void LexWordedSchemeFunction() throws Exception {
         // (define (list . l) l)
-        testLexContent("open_paren\tdefine open_paren\rlist .\r l close_paren l\tclose_paren",
+        testLexContent("open_paren\tdefine open_paren\rlist dot\r l close_paren l\tclose_paren",
                 new Token.TokenType[] {
                         Token.TokenType.WORD,
                         Token.TokenType.WORD,
                         Token.TokenType.WORD,
                         Token.TokenType.WORD,
-                        Token.TokenType.NUMBER,
+                        Token.TokenType.WORD,
                         Token.TokenType.WORD,
                         Token.TokenType.WORD,
                         Token.TokenType.WORD,
@@ -307,10 +299,10 @@ public class UnitTests {
     @Test
     public void LexWordedSchemeCons() throws Exception {
         // (define (cons x y)
-        //     (lambda (z)
-        //         (cond ((= z 0) x)
-        //             ((= z 1) y)
-        //             (else (error "cons not zero or one")))))
+        // (lambda (z)
+        // (cond ((= z 0) x)
+        // ((= z 1) y)
+        // (else (error "cons not zero or one")))))
         testLexContent(
                 "open_paren define open_paren cons x y close_paren\r\n\topen_paren lambda open_paren z close_paren\r\n\t\topen_paren cond open_paren open_paren equal z 0 close_paren x close_paren\r\n\t\t\topen_paren open_paren equal z 1 close_paren y close_paren\r\n\t\t\topen_paren else open_parent error quote cons not zero or one quote close_paren close_paren close_paren close_paren close_paren",
                 new Token.TokenType[] {
@@ -371,7 +363,8 @@ public class UnitTests {
     @Test
     public void LexNumberWithAnyDigitIsh() throws Exception {
         Stream.iterate(0, n -> n < 256, n -> n + 1)
-                .filter(c -> (c >= '0' && c <= '9') || c == '.').peek(System.out::println)
+                // we dont do `.` because it would attempt to lex an invalid number `.`
+                .filter(c -> (c >= '0' && c <= '9')).peek(System.out::println)
                 .forEach(c -> {
                     try {
                         testLexContent(((Character) (char) (int) c).toString(),
@@ -388,7 +381,7 @@ public class UnitTests {
         // create stream of random number with upperbound of 256 highest ascci value
         return rng.ints(0, 256)
                 // filter out non valid characters (and `_` b/c we have no way of knowing if the
-                // underscore happens at beginning of word)
+                // underscore happens at beginning of word) (same with .)
                 .filter(c -> (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '\n'
                         || c == '\r' || c == ' ' || c == '\t')
                 // after filtering is done limit the length of the string to be somewhat
@@ -413,7 +406,7 @@ public class UnitTests {
 
     public void testRandomInvalid() throws Exception {
         var invalid = randomInValidTokenString(1);
-        assertThrowsLexError(new Exception("Error: Character `" + invalid + "` not recognized").getClass(), invalid);
+        assertThrowsLexError(LexerException.class, invalid);
     }
 
     @Test
