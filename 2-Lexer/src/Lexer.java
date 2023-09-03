@@ -3,10 +3,11 @@ import java.util.LinkedList;
 import java.util.Optional;
 
 public class Lexer {
-    private StringHandler source;
+    // protected so I don't have to duplicate this for FunctionalLexer
+    protected StringHandler source;
     // position and line number are zero-based
-    private int position = 1;
-    private int currentLine = 1;
+    protected int position = 1;
+    protected int currentLine = 1;
     private HashMap<String, Token.TokenType> keywords = new HashMap<String, Token.TokenType>() {
         {
             put("while", Token.TokenType.WHILE);
@@ -88,7 +89,7 @@ public class Lexer {
         source = new StringHandler(input);
     }
 
-    public LinkedList<Token> lex() throws Exception {
+    public LinkedList<Token> lex() throws LexerException {
         var tokens = new LinkedList<Token>();
         while (!source.IsDone()) {
             var token = lexCharacter(source.Peek());
@@ -101,7 +102,7 @@ public class Lexer {
 
     // Manages state switching of the Lexer
     // but also manages the output after of a state ie the token it may produce
-    private Optional<Token> lexCharacter(Character current) throws Exception {
+    private Optional<Token> lexCharacter(Character current) throws LexerException {
         var maybeSymbol = ProcessSymbol();
         // we check for if it is present instead of blindly returning
         // because each symbol ProcessSymbol tries to match on is the same thing as
@@ -116,9 +117,15 @@ public class Lexer {
             return Optional.ofNullable(HandleStringLiteral());
         } else if (current == '`') {
             return Optional.ofNullable(HandlePattern());
-        } else if (current == ' ' || current == '\t') {
+        } else if (current == ' ') {
             source.Swallow(1);
             position++;
+            return Optional.empty();
+        } else if (current == '\t') {
+            source.Swallow(1);
+            // position+=4 because when we display errors \t generally makes a tab of (4
+            // spaces)
+            position += 4;
             return Optional.empty();
         } else if (current == '#') {
             HanldeComment();
@@ -127,7 +134,7 @@ public class Lexer {
             source.Swallow(1);
             return Optional.empty();
         } else {
-            throw new Exception("Error: Character `" + current + "` not recognized");
+            throw new LexerException(currentLine, position, "Character `" + current + "` not recognized");
         }
 
     }
@@ -142,8 +149,20 @@ public class Lexer {
         return number;
     }
 
-    // [0-9]*\.[0-9]*
-    private Token ProcessDigit() {
+    // Some methods are protected to avoid duplication with FunctionalLexer
+
+    // ([0-9]+\.[0-9]+)|([0-9]+\.)|(\.[0-9]+)/[0-9]+)
+    // you werent so specific about whats a valid number in the rubric
+    // "Accepts required characters, creates a token, doesn’t accept characters it
+    // shouldn’t (10)"
+    // in the state machine you suggest that ([0-9]+)|([0-9]*\.[0-9]*) is what we
+    // should accept, but in class you suggested otherwise
+    // so I have gone according to the jdoodle AWK implentation which allows .0.8.8
+    // and becomes Number(.0) Number(.8) Number(.8)
+    // but dissallows (..) which could technically become Number(.) Number(.)
+    // Number(.)
+    // which follows the regex ([0-9]+\.[0-9]+)|([0-9]+\.)|(\.[0-9]+)/[0-9]+)
+    protected Token ProcessDigit() throws LexerException {
         int startPosition = position;
         // lex before decimal point
         String number = processInteger();
@@ -153,11 +172,15 @@ public class Lexer {
             // lex after decimal point
             number += "." + processInteger();
         }
+        if (number.equals(".")) {
+            throw new LexerException(currentLine, startPosition,
+                    "plain decimal point not valid as whole number, needs a digit before or after the decimal");
+        }
         return new Token(startPosition, currentLine, Token.TokenType.NUMBER, number);
     }
 
     // [a-zA-z][0-9a-zA-Z\-]*
-    private Token ProcessWord() {
+    protected Token ProcessWord() {
         int startPosition = position;
         String word = "";
         // we can always use isAlphaNumeric as opposed to using isLetter the first time
@@ -187,11 +210,11 @@ public class Lexer {
         return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
     }
 
-    private Token HandleStringLiteral() {
+    protected Token HandleStringLiteral() {
         return HandleQuotedIsh('"', Token.TokenType.STRINGLITERAL);
     }
 
-    private void HanldeComment() {
+    protected void HanldeComment() {
         // TODO: are we suposing to put a separator for the \n?
         while (!source.IsDone() && !(source.Peek() == '\n')) {
             source.GetChar();
@@ -200,11 +223,11 @@ public class Lexer {
         // token on the next iteration of lex
     }
 
-    private Token HandlePattern() {
+    protected Token HandlePattern() {
         return HandleQuotedIsh('`', Token.TokenType.PATTERN);
     }
 
-    private Token HandleQuotedIsh(char quote, Token.TokenType type) {
+    protected Token HandleQuotedIsh(char quote, Token.TokenType type) {
         int startLine = currentLine;
         int startPosition = position;
         // swallow the start backtick
@@ -255,7 +278,7 @@ public class Lexer {
 
     }
 
-    private void checkUpdateLine() {
+    protected void checkUpdateLine() {
         if (source.Peek(0) == '\n') {
             currentLine += 1;
             position = 1;

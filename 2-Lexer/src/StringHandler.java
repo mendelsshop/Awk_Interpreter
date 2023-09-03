@@ -1,5 +1,4 @@
 public class StringHandler {
-    // TODO: what type do use to store the source string Stream<Character> or String
     private String content;
     private int position = 0;
 
@@ -22,7 +21,7 @@ public class StringHandler {
         return content.charAt(position + i);
     }
 
-    // peeking index starts at 1  because substring endbounds are 
+    // peeking index starts at 1 because substring endbounds are
     public String PeekString(int i) {
         return content.substring(position, position + i);
     }

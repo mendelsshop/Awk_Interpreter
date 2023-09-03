@@ -2,7 +2,16 @@ import java.util.Optional;
 
 public class Token {
     private int startPosition;
+
+    public int getStartPosition() {
+        return startPosition;
+    }
+
     private int lineNumber;
+
+    public int getLineNumber() {
+        return lineNumber;
+    }
     private TokenType type;
 
     public TokenType getType() {

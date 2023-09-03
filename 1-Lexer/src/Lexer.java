@@ -67,6 +67,8 @@ public class Lexer {
         }
         return number;
     }
+    
+    // Some methods are protected to avoid duplication with FunctionalLexer
 
     // ([0-9]+\.[0-9]+)|([0-9]+\.)|(\.[0-9]+)/[0-9]+)
     // you werent so specific about whats a valid number in the rubric
@@ -79,7 +81,7 @@ public class Lexer {
     // but dissallows (..) which could technically become Number(.) Number(.)
     // Number(.)
     // which follows the regex ([0-9]+\.[0-9]+)|([0-9]+\.)|(\.[0-9]+)/[0-9]+)
-    public Token ProcessDigit() throws LexerException {
+    protected Token ProcessDigit() throws LexerException {
         int startPosition = position;
         // lex before decimal point
         String number = processInteger();
@@ -97,7 +99,7 @@ public class Lexer {
     }
 
     // [a-zA-z][0-9a-zA-Z\-]*
-    public Token ProcessWord() {
+    protected Token ProcessWord() {
         int startPosition = position;
         String word = "";
         // we can always use isAlphaNumeric as opposed to using isLetter the first time

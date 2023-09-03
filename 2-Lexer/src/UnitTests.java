@@ -164,7 +164,7 @@ public class UnitTests {
 
     @Test
     public void BasicLex() throws Exception {
-        testLexContent("111aAAA\taaazz\nZZ1Z.zaaa", new Token.TokenType[] {
+        testLexContent("111aAAA\taaazz\nZZ1Z.1zaaa", new Token.TokenType[] {
                 Token.TokenType.NUMBER,
                 Token.TokenType.WORD,
                 Token.TokenType.WORD,
