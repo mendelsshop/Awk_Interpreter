@@ -212,6 +212,178 @@ public class UnitTests {
         testLexContent("123.999", new Token.TokenType[] { Token.TokenType.NUMBER });
     }
 
+    @Test
+    public void LexDecimalNoNumber() throws Exception {
+        testLexContent(".", new Token.TokenType[] { Token.TokenType.NUMBER });
+    }
+
+    @Test
+    public void LexUnderScoreWord() throws Exception {
+        testLexContent("a_s", new Token.TokenType[] { Token.TokenType.WORD });
+    }
+
+    @Test
+    public void LexUnderScoreWordDot() throws Exception {
+        testLexContent("a_.", new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.NUMBER });
+    }
+
+    @Test
+    public void LexWeirdUnderScoreWord() throws Exception {
+        testLexContent("a__a_a_a_s", new Token.TokenType[] { Token.TokenType.WORD });
+    }
+
+    @Test
+    public void LexWordWithAnyChar() throws Exception {
+        Stream.iterate(0, n -> n < 256, n -> n + 1)
+                .filter(c -> (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')).peek(System.out::println)
+                .forEach(c -> {
+                    try {
+                        testLexContent(((Character) (char) (int) c).toString(),
+                                new Token.TokenType[] { Token.TokenType.WORD });
+                    } catch (Exception e) {
+                        // should never happen
+                        throw new RuntimeException(e);
+                    }
+                });
+
+    }
+
+    @Test
+    public void LexUnderScoreWordWithStuff() throws Exception {
+        testLexContent("a_s\r\n\t1234.5678 az__..",
+                new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.NUMBER,
+                        Token.TokenType.WORD,
+                        Token.TokenType.NUMBER,
+                        Token.TokenType.NUMBER,
+                });
+    }
+
+    @Test
+    public void LexDotDotDotEtc() throws Exception {
+        testLexContent("....",
+                new Token.TokenType[] {
+                        Token.TokenType.NUMBER,
+                        Token.TokenType.NUMBER,
+                        Token.TokenType.NUMBER,
+                        Token.TokenType.NUMBER,
+                });
+    }
+
+    @Test
+    public void LexWordedScheme() throws Exception {
+        // (apply '(cons 1 5))
+        testLexContent("open_paren apply quote open_paren cons 1 5 close_paren close_paren",
+                new Token.TokenType[] {
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.NUMBER,
+                        Token.TokenType.NUMBER,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                });
+    }
+
+    @Test
+    public void LexWordedSchemeFunction() throws Exception {
+        // (define (list . l) l)
+        testLexContent("open_paren\tdefine open_paren\rlist .\r l close_paren l\tclose_paren",
+                new Token.TokenType[] {
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.NUMBER,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                });
+    }
+
+    @Test
+    public void LexWordedSchemeCons() throws Exception {
+        // (define (cons x y)
+        //     (lambda (z)
+        //         (cond ((= z 0) x)
+        //             ((= z 1) y)
+        //             (else (error "cons not zero or one")))))
+        testLexContent(
+                "open_paren define open_paren cons x y close_paren\r\n\topen_paren lambda open_paren z close_paren\r\n\t\topen_paren cond open_paren open_paren equal z 0 close_paren x close_paren\r\n\t\t\topen_paren open_paren equal z 1 close_paren y close_paren\r\n\t\t\topen_paren else open_parent error quote cons not zero or one quote close_paren close_paren close_paren close_paren close_paren",
+                new Token.TokenType[] {
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.NUMBER,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.NUMBER,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+                        Token.TokenType.WORD,
+
+                });
+    }
+
+    @Test
+    public void LexNumberWithAnyDigitIsh() throws Exception {
+        Stream.iterate(0, n -> n < 256, n -> n + 1)
+                .filter(c -> (c >= '0' && c <= '9') || c == '.').peek(System.out::println)
+                .forEach(c -> {
+                    try {
+                        testLexContent(((Character) (char) (int) c).toString(),
+                                new Token.TokenType[] { Token.TokenType.NUMBER });
+                    } catch (Exception e) {
+                        // should never happen
+                        throw new RuntimeException(e);
+                    }
+                });
+
+    }
+
     public String randomValidTokenString(int maxWordLength) {
         // create stream of random number with upperbound of 256 highest ascci value
         return rng.ints(0, 256)
@@ -241,7 +413,6 @@ public class UnitTests {
 
     public void testRandomInvalid() throws Exception {
         var invalid = randomInValidTokenString(1);
-        System.out.println("is '" + invalid + "'");
         assertThrowsLexError(new Exception("Error: Character `" + invalid + "` not recognized").getClass(), invalid);
     }
 

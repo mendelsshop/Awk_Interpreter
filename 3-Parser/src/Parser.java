@@ -44,10 +44,10 @@ public class Parser {
                         .or(() -> tokens.MatchAndRemove(Token.TokenType.COMMA).map(d -> tokens.Peek(0)
                                 .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
                                 .orElseThrow(() -> {
-                                    throw new ParseException(
+                                    new Exception(
                                             "comma in function parameter list must be followed by another parameter");
                                 })))
-                        .orElseThrow(() -> new RuntimeException(
+                        .orElseThrow(() -> new Exception(
                                 "function parameter must be followed by a comma or closeing parenthesis"));
             }).or(() -> tokens.MatchAndRemove(Token.TokenType.CLOSEPAREN).map(c -> true))
                     .orElseThrow(() -> new Exception("unknown token type in parameter list" + tokens.Peek(0)))) {

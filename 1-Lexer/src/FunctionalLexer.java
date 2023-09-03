@@ -92,7 +92,6 @@ public class FunctionalLexer {
             if (dispatchTable.containsKey(current)) {
                 var maybeToken = dispatchTable.get(current).get();
                 if (maybeToken.isPresent()) {
-                    System.out.println(maybeToken.get());
                     tokens.add(maybeToken.get());
                 }
             } else {
