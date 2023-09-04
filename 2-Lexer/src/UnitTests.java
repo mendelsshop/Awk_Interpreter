@@ -3,7 +3,6 @@ import static org.junit.Assert.*;
 import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.Random;
-import java.util.stream.Stream;
 
 import org.junit.Test;
 
@@ -149,12 +148,10 @@ public class UnitTests {
         var lexed = lexer.lex();
         var otherLexed = otherLexer.lex();
         var lexedTokens = lexed.stream().<Token.TokenType>map(c -> c.getType()).toArray();
-        assertEquals(expected.length, lexedTokens.length);
+        var otherLexedTokens = otherLexed.stream().<Token.TokenType>map(c -> c.getType()).toArray();
         assertArrayEquals(expected, lexedTokens);
-        assertEquals(lexed.size(), otherLexed.size());
-        // we just check for tokentype equality
-        Stream.iterate(0, n -> n == lexed.size() - 1, n -> n + 1)
-                .forEach(c -> assertEquals(lexed.get(c).getType(), otherLexed.get(c).getType()));
+        assertArrayEquals(expected, otherLexedTokens);
+
     }
 
     @Test
@@ -204,6 +201,33 @@ public class UnitTests {
     public void actualAwk() throws Exception {
         testLexContent("BEGIN {}",
                 new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE });
+    }
+
+    @Test
+    public void actualAwkProgram() throws Exception {
+        testLexContent(
+                "BEGIN {FS=\",\"} # set field separator to `,` so it works for csv\n    {\n        sum  = 0 # reset sum for each line\n        for (i = 1; i <= NF; i++) sum += $i # sum up current line\n        total = sum + total # add sum of current line to total\n        print \"Line\", NR \":\", sum\n    }\nEND { print \"Grand total:\", total }",
+                new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.STRINGLITERAL, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.FOR, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.LESSTHANEQUAL, Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.PLUSPLUS,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.WORD, Token.TokenType.PLUSEQUAL,
+                        Token.TokenType.DOLLAR, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.PLUS,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.PRINT, Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA,
+                        Token.TokenType.WORD, Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.END, Token.TokenType.OPENBRACE, Token.TokenType.PRINT,
+                        Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEBRACE
+                });
     }
 
     @Test

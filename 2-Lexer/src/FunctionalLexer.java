@@ -86,11 +86,11 @@ public class FunctionalLexer extends Lexer {
             put('!', makeTwoSymbolProccesor(Optional.of(Token.TokenType.NOT), c -> Optional
                     .ofNullable(c == '=' ? Token.TokenType.NOTEQUAL : c == '~' ? Token.TokenType.NOTMATCH : null)));
             put('+', makeTwoSymbolProccesor(Optional.of(Token.TokenType.PLUS), c -> Optional
-                    .ofNullable(c == '=' ? Token.TokenType.PLUSEQUAL : c == '>' ? Token.TokenType.PLUSPLUS : null)));
+                    .ofNullable(c == '=' ? Token.TokenType.PLUSEQUAL : c == '+' ? Token.TokenType.PLUSPLUS : null)));
             put('^', makeTwoSymbolProccesor(Optional.of(Token.TokenType.EXPONENT),
                     c -> Optional.of(c == '=' ? Token.TokenType.LESSTHANEQUAL : null)));
             put('-', makeTwoSymbolProccesor(Optional.of(Token.TokenType.MINUS), c -> Optional
-                    .ofNullable(c == '=' ? Token.TokenType.MINUSEQUAL : c == '>' ? Token.TokenType.MINUSMINUS : null)));
+                    .ofNullable(c == '=' ? Token.TokenType.MINUSEQUAL : c == '-' ? Token.TokenType.MINUSMINUS : null)));
             put('*', makeTwoSymbolProccesor(Optional.of(Token.TokenType.MULTIPLY),
                     c -> Optional.ofNullable(c == '=' ? Token.TokenType.LESSTHANEQUAL : null)));
             put('/', makeTwoSymbolProccesor(Optional.of(Token.TokenType.DIVIDE),
@@ -166,7 +166,7 @@ public class FunctionalLexer extends Lexer {
             if (dispatchTable.containsKey(current)) {
                 var maybeToken = dispatchTable.get(current).get();
                 if (maybeToken.isPresent()) {
-                    tokens.push(maybeToken.get());
+                    tokens.add(maybeToken.get());
                 }
             } else {
                 throw new LexerException(currentLine, position, "Character `" + current + "` not recognized");
