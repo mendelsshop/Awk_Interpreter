@@ -74,7 +74,7 @@ public class Lexer {
             put("^=", Token.TokenType.EXPONENTEQUAL);
             put("%=", Token.TokenType.MODULOEQUAL);
             put("*=", Token.TokenType.MULTIPLYEQUAL);
-            put("/=", Token.TokenType.DIVIDEQUAL);
+            put("/=", Token.TokenType.DIVIDEEQUAL);
             put("+=", Token.TokenType.PLUSEQUAL);
             put("-=", Token.TokenType.MINUSEQUAL);
             put("!~", Token.TokenType.NOTMATCH);
@@ -210,8 +210,8 @@ public class Lexer {
         return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
     }
 
-    protected Token HandleStringLiteral() {
-        return HandleQuotedIsh('"', Token.TokenType.STRINGLITERAL);
+    protected Token HandleStringLiteral() throws LexerException {
+        return HandleQuotedIsh('"', Token.TokenType.STRINGLITERAL, "string");
     }
 
     protected void HanldeComment() {
@@ -223,11 +223,11 @@ public class Lexer {
         // token on the next iteration of lex
     }
 
-    protected Token HandlePattern() {
-        return HandleQuotedIsh('`', Token.TokenType.PATTERN);
+    protected Token HandlePattern()throws LexerException {
+        return HandleQuotedIsh('`', Token.TokenType.PATTERN, "pattern");
     }
 
-    protected Token HandleQuotedIsh(char quote, Token.TokenType type) {
+    protected Token HandleQuotedIsh(char quote, Token.TokenType type, String name) throws LexerException {
         int startLine = currentLine;
         int startPosition = position;
         // swallow the start backtick
@@ -235,7 +235,12 @@ public class Lexer {
         position++;
         Character lastChar = ' ';
         String word = "";
-        while (!source.IsDone() && !(source.Peek() == quote && lastChar != '\\')) {
+        boolean atEnd = false;
+        while (!source.IsDone()) {
+            if (source.Peek() == quote && lastChar != '\\') {
+                atEnd = true;
+                break;
+            }
             // we increment position before line number so if we hit newline then position
             // will be overwritten to 0
             position++;
@@ -245,6 +250,10 @@ public class Lexer {
             word += currentChar;
         }
         // swallow the end backtick
+        if (!atEnd) {
+            throw new LexerException(currentLine, position,
+                    name + " does not have an end " + quote);
+        }
         source.GetChar();
         position++;
         return new Token(startPosition, startLine, type, word);
