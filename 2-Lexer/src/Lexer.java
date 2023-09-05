@@ -223,7 +223,7 @@ public class Lexer {
         // token on the next iteration of lex
     }
 
-    protected Token HandlePattern()throws LexerException {
+    protected Token HandlePattern() throws LexerException {
         return HandleQuotedIsh('`', Token.TokenType.PATTERN, "pattern");
     }
 
@@ -240,6 +240,9 @@ public class Lexer {
             if (source.Peek() == quote && lastChar != '\\') {
                 atEnd = true;
                 break;
+                // if we have a escaped quote cut off the last character (\)
+            } else if (source.Peek() == quote && lastChar == '\\') {
+                word = word.substring(0, word.length() - 1);
             }
             // we increment position before line number so if we hit newline then position
             // will be overwritten to 0
