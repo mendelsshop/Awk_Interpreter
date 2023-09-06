@@ -224,6 +224,7 @@ public class Lexer {
     }
 
     protected Token HandlePattern() throws LexerException {
+        // should multiline patterns work
         return HandleQuotedIsh('`', Token.TokenType.PATTERN, "pattern");
     }
 
@@ -247,7 +248,11 @@ public class Lexer {
             // we increment position before line number so if we hit newline then position
             // will be overwritten to 0
             position++;
-            checkUpdateLine();
+            // awk dowsnt allow nulti line strings
+            if (source.Peek() == '\n') {
+                throw new LexerException(currentLine, position,
+                    name + " does not have an end found newline before end quote" + quote);
+            }
             char currentChar = source.GetChar();
             lastChar = currentChar;
             word += currentChar;
@@ -290,7 +295,7 @@ public class Lexer {
 
     }
 
-    protected void checkUpdateLine() {
+    private void checkUpdateLine() {
         if (source.Peek(0) == '\n') {
             currentLine += 1;
             position = 1;

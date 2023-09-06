@@ -796,4 +796,11 @@ public class UnitTests {
     public void testLogicalOr() throws Exception {
         testLexContent("||", new Token.TokenType[] { Token.TokenType.OR });
     }
+
+    @Test public void invalidNewlineString() throws Exception {
+        assertThrowsLexError(LexerException.class, """
+                aaaa "
+                "
+                """);
+    }
 }
