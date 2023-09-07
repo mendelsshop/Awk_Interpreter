@@ -27,6 +27,12 @@ public class Parser {
         return foundSeperators;
     }
 
+    // https://stackoverflow.com/questions/22687943/is-it-possible-to-declare-that-a-suppliert-needs-to-throw-an-exception
+
+    public interface CheckedSupplier<T, E extends Exception> {
+        public T get() throws E;
+    }
+
     private boolean ParseFunctionCall(ProgramNode program) throws Exception {
         if (tokens.MatchAndRemove(Token.TokenType.FUNCTION).isEmpty()) {
             return false;
@@ -40,14 +46,15 @@ public class Parser {
             // parsing function signature
             // CheckedSupplier is just like the Functional Supplier interface, but the
             // lambda it takes can through catchable exceptions
-            if (tokens.MatchAndRemove(Token.TokenType.WORD).<FunctionalLexer.CheckedSupplier<Boolean, Exception>>map(
+            if (tokens.MatchAndRemove(Token.TokenType.WORD).<CheckedSupplier<Boolean, Exception>>map(
                     c -> () -> {
                         parameters.add(c.getValue().get());
                         return tokens
                                 // if we reach a `)` we are done with the function signature
                                 .MatchAndRemove(
-                                        Token.TokenType.CLOSEPAREN).<FunctionalLexer.CheckedSupplier<Boolean, Exception>>map(
-                                                a -> () -> true)
+                                        Token.TokenType.CLOSEPAREN)
+                                .<CheckedSupplier<Boolean, Exception>>map(
+                                        a -> () -> true)
                                 // if we hit a `,`, we make sure that the next token is also a function
                                 // parameter
                                 .or(() -> tokens.MatchAndRemove(Token.TokenType.COMMA).map(d -> () -> tokens.Peek(0)
@@ -90,6 +97,10 @@ public class Parser {
     private BlockNode ParseBlock() throws Exception {
         tokens.MatchAndRemove(Token.TokenType.OPENBRACE)
                 .orElseThrow(() -> new Exception("block without open curly brace at start")).getValue().get();
+        while (!tokens.MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
+            AcceptSeperators();
+            ParseOperation();
+        }
         return null;
 
     }
