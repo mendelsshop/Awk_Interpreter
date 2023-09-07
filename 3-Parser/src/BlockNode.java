@@ -9,6 +9,10 @@ public class BlockNode extends Node {
 
     private LinkedList<StatementNode> statements;
 
+    public BlockNode(LinkedList<StatementNode> statements) {
+        this.statements = statements;
+    }
+
     public Optional<Node> getCondition() {
         return Condition;
     }

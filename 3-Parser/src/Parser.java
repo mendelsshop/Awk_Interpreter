@@ -3,6 +3,8 @@ import java.util.Optional;
 
 public class Parser {
     private TokenHandler tokens;
+    private int line = 0;
+    private int column = 0;
 
     public Parser(LinkedList<Token> tokenStream) {
         tokens = new TokenHandler(tokenStream);
@@ -11,7 +13,7 @@ public class Parser {
     public ProgramNode Parse() throws Exception {
         var program = new ProgramNode();
         while (tokens.MoreTokens()) {
-            if (!ParseFunctionCall(program)) {
+            if (!ParseFunction(program)) {
                 ParseAction(program);
             }
         }
@@ -21,7 +23,7 @@ public class Parser {
     private boolean AcceptSeperators() {
         boolean foundSeperators = false;
         // since MatchAndRemove does out of bounds checks
-        while (tokens.MatchAndRemove(Token.TokenType.SEPERATOR).isPresent()) {
+        while (MatchAndRemove(Token.TokenType.SEPERATOR).isPresent()) {
             foundSeperators = true;
         }
         return foundSeperators;
@@ -29,46 +31,47 @@ public class Parser {
 
     // https://stackoverflow.com/questions/22687943/is-it-possible-to-declare-that-a-suppliert-needs-to-throw-an-exception
 
-    public interface CheckedSupplier<T, E extends Exception> {
-        public T get() throws E;
+    public interface CheckedSupplier<T> {
+        public T get() throws AwkException;
     }
 
-    private boolean ParseFunctionCall(ProgramNode program) throws Exception {
-        if (tokens.MatchAndRemove(Token.TokenType.FUNCTION).isEmpty()) {
+    private boolean ParseFunction(ProgramNode program) throws Exception {
+        if (MatchAndRemove(Token.TokenType.FUNCTION).isEmpty()) {
             return false;
         }
-        var functionName = tokens.MatchAndRemove(Token.TokenType.WORD)
+        var functionName = MatchAndRemove(Token.TokenType.WORD)
                 .orElseThrow(() -> new Exception("function without name")).getValue().get();
-        tokens.MatchAndRemove(Token.TokenType.OPENPAREN)
+        MatchAndRemove(Token.TokenType.OPENPAREN)
                 .orElseThrow(() -> new Exception("function does not have parentheses before parameter"));
         var parameters = new LinkedList<String>();
         while (tokens.MoreTokens()) {
             // parsing function signature
             // CheckedSupplier is just like the Functional Supplier interface, but the
             // lambda it takes can through catchable exceptions
-            if (tokens.MatchAndRemove(Token.TokenType.WORD).<CheckedSupplier<Boolean, Exception>>map(
+            if (MatchAndRemove(Token.TokenType.WORD).<CheckedSupplier<Boolean>>map(
                     c -> () -> {
                         parameters.add(c.getValue().get());
-                        return tokens
-                                // if we reach a `)` we are done with the function signature
-                                .MatchAndRemove(
-                                        Token.TokenType.CLOSEPAREN)
-                                .<CheckedSupplier<Boolean, Exception>>map(
+                        return
+                        // if we reach a `)` we are done with the function signature
+                        MatchAndRemove(
+                                Token.TokenType.CLOSEPAREN)
+                                .<CheckedSupplier<Boolean>>map(
                                         a -> () -> true)
                                 // if we hit a `,`, we make sure that the next token is also a function
                                 // parameter
-                                .or(() -> tokens.MatchAndRemove(Token.TokenType.COMMA).map(d -> () -> tokens.Peek(0)
+                                .or(() -> MatchAndRemove(Token.TokenType.COMMA).map(d -> () -> tokens.Peek(0)
                                         .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
                                         // otherwise we through an exception
-                                        .orElseThrow(() -> new Exception(
+                                        .orElseThrow(() -> createException(
                                                 "comma in function parameter list must be followed by another parameter"))))
                                 // if the next token after the name of a function parameter is not a `,` or `)`
                                 // we know we have an invalid function signature so we give back an error
-                                .orElseThrow(() -> new Exception(
+                                .orElseThrow(() -> createException(
                                         "function parameter must be followed by a comma or closeing parenthesis"))
                                 .get();
-                    }).or(() -> tokens.MatchAndRemove(Token.TokenType.CLOSEPAREN).map(c -> () -> true))
-                    .orElseThrow(() -> new Exception("unknown token type in parameter list" + tokens.Peek(0))).get()) {
+                    }).or(() -> MatchAndRemove(Token.TokenType.CLOSEPAREN).map(c -> () -> true))
+                    .orElseThrow(() -> createException("unknown token type in parameter list" + tokens.Peek(0)))
+                    .get()) {
                 break;
             }
         }
@@ -79,11 +82,11 @@ public class Parser {
     }
 
     private boolean ParseAction(ProgramNode program) throws Exception {
-        if (tokens.MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
+        if (MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
             var block = ParseBlock();
             program.addToBegin(block);
             return true;
-        } else if (tokens.MatchAndRemove(Token.TokenType.END).isPresent()) {
+        } else if (MatchAndRemove(Token.TokenType.END).isPresent()) {
             var block = ParseBlock();
             program.addToEnd(block);
             return true;
@@ -94,24 +97,34 @@ public class Parser {
         return true;
     }
 
+    public AwkException createException(String message) {
+        return new AwkException(tokens.Peek(0).map(Token::getLineNumber).orElse(line),
+                tokens.Peek(0).map(Token::getStartPosition).orElse(column), message,
+                AwkException.ExceptionType.ParseError);
+    }
+
+    // we use this method so that each time we actually remove we can update the
+    // poisition in case we reach EOF for proper error messages
+    public Optional<Token> MatchAndRemove(Token.TokenType type) {
+        return tokens.MatchAndRemove(type).map(c -> {
+            line = c.getLineNumber();
+            column = c.getStartPosition();
+            return c;
+        });
+    }
+
     private BlockNode ParseBlock() throws Exception {
-        tokens.MatchAndRemove(Token.TokenType.OPENBRACE)
+        MatchAndRemove(Token.TokenType.OPENBRACE)
                 .orElseThrow(() -> new Exception("block without open curly brace at start")).getValue().get();
-        while (!tokens.MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
+        while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
             AcceptSeperators();
             ParseOperation();
         }
-        return null;
+        return new BlockNode(new LinkedList<>());
 
     }
 
     private Optional<Node> ParseOperation() {
         return Optional.empty();
-    }
-
-    public class ParseException extends Exception {
-        public ParseException(String message) {
-
-        }
     }
 }
