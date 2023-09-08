@@ -23,6 +23,6 @@ public class BlockNode extends Node {
 
     @Override
     public String toString() {
-        return Condition.map(c -> c.toString() + "?") + " " + statements;
+        return Condition.map(c -> c.toString() + "? ").orElse("") + statements;
     }
 }

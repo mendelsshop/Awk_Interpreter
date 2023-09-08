@@ -134,8 +134,10 @@ public class Parser {
 
     private Optional<Node> ParseBottomLevel() {
         BiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>> parseUnary = (type, operation) -> Optional
-                // we use ofNullable to make it easier to it easy to make Optinal.Empty with ternary operator
-                .ofNullable(MatchAndRemove(type).isPresent() ? new OperationNode(operation, ParseOperation().get()) : null);
+                // we use ofNullable to make it easier to it easy to make Optinal.Empty with
+                // ternary operator
+                .ofNullable(
+                        MatchAndRemove(type).isPresent() ? new OperationNode(operation, ParseOperation().get()) : null);
         Function<Optional<Token>, String> getValue = (token) -> token.get().getValue().get();
         Optional<Token> string = MatchAndRemove(Token.TokenType.STRINGLITERAL);
         if (string.isPresent()) {
@@ -148,8 +150,7 @@ public class Parser {
         Optional<Token> pattern = MatchAndRemove(Token.TokenType.PATTERN);
         if (pattern.isPresent()) {
             return Optional.of(new PatternNode(getValue.apply(pattern)));
-        }
-        else if (MatchAndRemove(Token.TokenType.OPENPAREN).isPresent()) {
+        } else if (MatchAndRemove(Token.TokenType.OPENPAREN).isPresent()) {
             var operation = ParseOperation();
             if (!MatchAndRemove(Token.TokenType.CLOSEPAREN).isPresent()) {
                 // throw AwkException
@@ -165,25 +166,37 @@ public class Parser {
     }
 
     private Optional<Node> ParseLValue() {
-        if (MatchAndRemove(Token.TokenType.DOLLAR).isPresent()) {
+        // if (MatchAndRemove(Token.TokenType.DOLLAR).isPresent()) {
+        //     var value = ParseBottomLevel();
+        //     // probably need to unwrap value error if not present
+        //     return Optional.of(new OperationNode(OperationNode.Operation.DOLLAR, value.get()));
+        // }
+        // var varName = MatchAndRemove(Token.TokenType.WORD);
+        // if (varName.isPresent()) {
+        //     String name = varName.get().getValue().get();
+        //     if (MatchAndRemove(Token.TokenType.OPENBRACKET).isPresent()) {
+        //         var index = ParseOperation().get();
+        //         // we should probably error if parseoperation returns empty optinal
+        //         MatchAndRemove(Token.TokenType.CLOSEBRACKET).get();
+        //         return Optional.of(new VariableReferenceNode(name, Optional.of(index)));
+        //     }
+
+        //     return Optional.of(new VariableReferenceNode(name));
+        // }
+       return MatchAndRemove(Token.TokenType.DOLLAR).<Optional<Node>>map(c -> {
             var value = ParseBottomLevel();
             // probably need to unwrap value error if not present
             return Optional.of(new OperationNode(OperationNode.Operation.DOLLAR, value.get()));
-        }
-        var varName = MatchAndRemove(Token.TokenType.WORD);
-        if (varName.isPresent()) {
-            String name = varName.get().getValue().get();
-            if (MatchAndRemove(Token.TokenType.OPENBRACKET).isPresent()) {
-                System.out.println(tokens.Peek(0));
+        }).orElseGet(() -> MatchAndRemove(Token.TokenType.WORD).<Node>map(v -> {
+            String name = v.getValue().get();
+            return MatchAndRemove(Token.TokenType.OPENBRACKET).map(g -> {
                 var index = ParseOperation().get();
                 // we should probably error if parseoperation returns empty optinal
                 MatchAndRemove(Token.TokenType.CLOSEBRACKET).get();
-                return Optional.of(new VariableReferenceNode(name, Optional.of( index)));
-            }
-
-            return Optional.of(new VariableReferenceNode(name));
-        }
-        return Optional.empty();
+                return new VariableReferenceNode(name, Optional.of(index));
+            }).orElse(new VariableReferenceNode(name));
+        }));
+        // return Optional.empty();
     }
 
     private Optional<Node> ParseOperation() {
