@@ -10,7 +10,7 @@ public class Parser {
         tokens = new TokenHandler(tokenStream);
     }
 
-    public ProgramNode Parse() throws Exception {
+    public ProgramNode Parse() throws AwkException {
         var program = new ProgramNode();
         while (tokens.MoreTokens()) {
             if (!ParseFunction(program)) {
@@ -29,20 +29,20 @@ public class Parser {
         return foundSeperators;
     }
 
-    // https://stackoverflow.com/questions/22687943/is-it-possible-to-declare-that-a-suppliert-needs-to-throw-an-exception
+    // https://stackoverflow.com/questions/22687943/is-it-possible-to-declare-that-a-suppliert-needs-to-throw-an-AwkException
 
     public interface CheckedSupplier<T> {
         public T get() throws AwkException;
     }
 
-    private boolean ParseFunction(ProgramNode program) throws Exception {
+    private boolean ParseFunction(ProgramNode program) throws AwkException {
         if (MatchAndRemove(Token.TokenType.FUNCTION).isEmpty()) {
             return false;
         }
         var functionName = MatchAndRemove(Token.TokenType.WORD)
-                .orElseThrow(() -> new Exception("function without name")).getValue().get();
+                .orElseThrow(() -> createException("function without name")).getValue().get();
         MatchAndRemove(Token.TokenType.OPENPAREN)
-                .orElseThrow(() -> new Exception("function does not have parentheses before parameter"));
+                .orElseThrow(() -> createException("function does not have parentheses before parameter"));
         var parameters = new LinkedList<String>();
         while (tokens.MoreTokens()) {
             // parsing function signature
@@ -61,7 +61,7 @@ public class Parser {
                                 // parameter
                                 .or(() -> MatchAndRemove(Token.TokenType.COMMA).map(d -> () -> tokens.Peek(0)
                                         .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
-                                        // otherwise we through an exception
+                                        // otherwise we through an AwkException
                                         .orElseThrow(() -> createException(
                                                 "comma in function parameter list must be followed by another parameter"))))
                                 // if the next token after the name of a function parameter is not a `,` or `)`
@@ -81,7 +81,7 @@ public class Parser {
         return true;
     }
 
-    private boolean ParseAction(ProgramNode program) throws Exception {
+    private boolean ParseAction(ProgramNode program) throws AwkException {
         if (MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
             var block = ParseBlock();
             program.addToBegin(block);
@@ -113,9 +113,9 @@ public class Parser {
         });
     }
 
-    private BlockNode ParseBlock() throws Exception {
+    private BlockNode ParseBlock() throws AwkException {
         MatchAndRemove(Token.TokenType.OPENBRACE)
-                .orElseThrow(() -> new Exception("block without open curly brace at start")).getValue().get();
+                .orElseThrow(() -> createException("block without open curly brace at start")).getValue().get();
         while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
             AcceptSeperators();
             ParseOperation();

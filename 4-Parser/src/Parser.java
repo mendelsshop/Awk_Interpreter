@@ -12,7 +12,7 @@ public class Parser {
         tokens = new TokenHandler(tokenStream);
     }
 
-    public ProgramNode Parse() throws Exception {
+    public ProgramNode Parse() throws AwkException {
         var program = new ProgramNode();
         while (tokens.MoreTokens()) {
             if (!ParseFunction(program)) {
@@ -31,20 +31,20 @@ public class Parser {
         return foundSeperators;
     }
 
-    // https://stackoverflow.com/questions/22687943/is-it-possible-to-declare-that-a-suppliert-needs-to-throw-an-exception
+    // https://stackoverflow.com/questions/22687943/is-it-possible-to-declare-that-a-suppliert-needs-to-throw-an-AwkException
 
     public interface CheckedSupplier<T> {
         public T get() throws AwkException;
     }
 
-    private boolean ParseFunction(ProgramNode program) throws Exception {
+    private boolean ParseFunction(ProgramNode program) throws AwkException {
         if (MatchAndRemove(Token.TokenType.FUNCTION).isEmpty()) {
             return false;
         }
         var functionName = MatchAndRemove(Token.TokenType.WORD)
-                .orElseThrow(() -> new Exception("function without name")).getValue().get();
+                .orElseThrow(() -> createException("function without name")).getValue().get();
         MatchAndRemove(Token.TokenType.OPENPAREN)
-                .orElseThrow(() -> new Exception("function does not have parentheses before parameter"));
+                .orElseThrow(() -> createException("function does not have parentheses before parameter"));
         var parameters = new LinkedList<String>();
         while (tokens.MoreTokens()) {
             // parsing function signature
@@ -63,7 +63,7 @@ public class Parser {
                                 // parameter
                                 .or(() -> MatchAndRemove(Token.TokenType.COMMA).map(d -> () -> tokens.Peek(0)
                                         .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
-                                        // otherwise we through an exception
+                                        // otherwise we through an AwkException
                                         .orElseThrow(() -> createException(
                                                 "comma in function parameter list must be followed by another parameter"))))
                                 // if the next token after the name of a function parameter is not a `,` or `)`
@@ -83,7 +83,7 @@ public class Parser {
         return true;
     }
 
-    private boolean ParseAction(ProgramNode program) throws Exception {
+    private boolean ParseAction(ProgramNode program) throws AwkException {
         if (MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
             var block = ParseBlock();
             program.addToBegin(block);
@@ -115,9 +115,9 @@ public class Parser {
         });
     }
 
-    private BlockNode ParseBlock() throws Exception {
+    private BlockNode ParseBlock() throws AwkException {
         MatchAndRemove(Token.TokenType.OPENBRACE)
-                .orElseThrow(() -> new Exception("block without open curly brace at start")).getValue().get();
+                .orElseThrow(() -> createException("block without open curly brace at start")).getValue().get();
         while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
             AcceptSeperators();
             ParseOperation();
@@ -127,9 +127,9 @@ public class Parser {
     }
 
     private Optional<Node> ParseBottomLevel() {
-        // java.util.function.bif
         BiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>> parseUnary = (type, operation) -> Optional
-                .of(MatchAndRemove(type).isPresent() ? new OperationNode(operation, ParseOperation().get()) : null);
+                // we use ofNullable to make it easier to it easy to make Optinal.Empty with ternary operator
+                .ofNullable(MatchAndRemove(type).isPresent() ? new OperationNode(operation, ParseOperation().get()) : null);
         Function<Optional<Token>, String> getValue = (token) -> token.get().getValue().get();
         Optional<Token> string = MatchAndRemove(Token.TokenType.STRINGLITERAL);
         if (string.isPresent()) {
@@ -146,7 +146,7 @@ public class Parser {
         else if (MatchAndRemove(Token.TokenType.OPENPAREN).isPresent()) {
             var operation = ParseOperation();
             if (!MatchAndRemove(Token.TokenType.CLOSEPAREN).isPresent()) {
-                // throw exception
+                // throw AwkException
             }
             return operation;
         }
