@@ -171,11 +171,14 @@ public class Lexer {
             position++;
             // lex after decimal point
             number += "." + processInteger();
+            if (!source.IsDone() && source.Peek() == '.') {
+            throw new LexerException(currentLine, position, "a number cannot have more than one decimal point");
+        }
         }
         if (number.equals(".")) {
             throw new LexerException(currentLine, startPosition,
                     "plain decimal point not valid as whole number, needs a digit before or after the decimal");
-        }
+        } 
         return new Token(startPosition, currentLine, Token.TokenType.NUMBER, number);
     }
 
