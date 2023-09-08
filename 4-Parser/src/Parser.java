@@ -1,5 +1,7 @@
 import java.util.LinkedList;
 import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 public class Parser {
     private TokenHandler tokens;
@@ -125,13 +127,41 @@ public class Parser {
     }
 
     private Optional<Node> ParseBottomLevel() {
-
+        // java.util.function.bif
+        BiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>> parseUnary = (type, operation) -> Optional
+                .of(MatchAndRemove(type).isPresent() ? new OperationNode(operation, ParseOperation().get()) : null);
+        Function<Optional<Token>, String> getValue = (token) -> token.get().getValue().get();
+        Optional<Token> string = MatchAndRemove(Token.TokenType.STRINGLITERAL);
+        if (string.isPresent()) {
+            return Optional.of(new ConstantNode(getValue.apply(string), ConstantNode.ValueType.String));
+        }
+        Optional<Token> number = MatchAndRemove(Token.TokenType.NUMBER);
+        if (string.isPresent()) {
+            return Optional.of(new ConstantNode(getValue.apply(number), ConstantNode.ValueType.Number));
+        }
+        Optional<Token> pattern = MatchAndRemove(Token.TokenType.PATTERN);
+        if (string.isPresent()) {
+            return Optional.of(new PatternNode(getValue.apply(pattern)));
+        }
+        else if (MatchAndRemove(Token.TokenType.OPENPAREN).isPresent()) {
+            var operation = ParseOperation();
+            if (!MatchAndRemove(Token.TokenType.CLOSEPAREN).isPresent()) {
+                // throw exception
+            }
+            return operation;
+        }
+        return parseUnary.apply(Token.TokenType.NOT, OperationNode.Operation.NOT)
+                .or(() -> parseUnary.apply(Token.TokenType.MINUS, OperationNode.Operation.UNARYNEG))
+                .or(() -> parseUnary.apply(Token.TokenType.PLUS, OperationNode.Operation.UNARYPOS))
+                .or(() -> parseUnary.apply(Token.TokenType.MINUSMINUS, OperationNode.Operation.PREINC))
+                .or(() -> parseUnary.apply(Token.TokenType.PLUSPLUS, OperationNode.Operation.POSTINC))
+                .or(() -> ParseLValue());
     }
 
     private Optional<Node> ParseLValue() {
         if (MatchAndRemove(Token.TokenType.DOLLAR).isPresent()) {
             var value = ParseBottomLevel();
-            // probably need to unwrap value error if not present 
+            // probably need to unwrap value error if not present
             return Optional.of(new OperationNode(OperationNode.Operation.DIVIDE, null));
         }
         var varName = MatchAndRemove(Token.TokenType.WORD);
