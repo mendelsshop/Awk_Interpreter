@@ -1,6 +1,6 @@
 import java.util.Optional;
 
-public class VariableReferenceNode extends Node {
+public class VariableReferenceNode extends StatementNode{
     private String name;
 
     public VariableReferenceNode(String name) {
@@ -13,5 +13,10 @@ public class VariableReferenceNode extends Node {
     public VariableReferenceNode(String name, Optional<Node> index) {
         this.name = name;
         this.index = index;
+    }
+
+    @Override
+    public String toString() {
+        return index.isPresent() ? name + "[" + index.get() + "]" : name;
     }
 }

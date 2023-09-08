@@ -1,4 +1,4 @@
-public class ConstantNode extends Node {
+public class ConstantNode extends StatementNode {
     private String value;
     private ValueType type;
 
@@ -10,5 +10,10 @@ public class ConstantNode extends Node {
     public enum ValueType {
         Number,
         String
+    }
+
+    @Override
+    public String toString() {
+        return type + "(" + value + ")";
     }
 }

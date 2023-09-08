@@ -96,6 +96,7 @@ public class Parser {
         var Condition = ParseOperation();
         var block = ParseBlock();
         block.setCondition(Condition);
+        program.addToRest(block);
         return true;
     }
 
@@ -117,12 +118,17 @@ public class Parser {
 
     private BlockNode ParseBlock() throws AwkException {
         MatchAndRemove(Token.TokenType.OPENBRACE)
-                .orElseThrow(() -> createException("block without open curly brace at start")).getValue().get();
+                .orElseThrow(() -> createException("block without open curly brace at start"));
+        var statements = new LinkedList<StatementNode>();
         while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
+            if (!tokens.MoreTokens()) {
+                throw createException("block without closing curly brace");
+            }
             AcceptSeperators();
-            ParseOperation();
+            statements.add((StatementNode) ParseOperation().get());
+            AcceptSeperators();
         }
-        return new BlockNode(new LinkedList<>());
+        return new BlockNode(statements);
 
     }
 
@@ -136,11 +142,11 @@ public class Parser {
             return Optional.of(new ConstantNode(getValue.apply(string), ConstantNode.ValueType.String));
         }
         Optional<Token> number = MatchAndRemove(Token.TokenType.NUMBER);
-        if (string.isPresent()) {
+        if (number.isPresent()) {
             return Optional.of(new ConstantNode(getValue.apply(number), ConstantNode.ValueType.Number));
         }
         Optional<Token> pattern = MatchAndRemove(Token.TokenType.PATTERN);
-        if (string.isPresent()) {
+        if (pattern.isPresent()) {
             return Optional.of(new PatternNode(getValue.apply(pattern)));
         }
         else if (MatchAndRemove(Token.TokenType.OPENPAREN).isPresent()) {
@@ -162,15 +168,17 @@ public class Parser {
         if (MatchAndRemove(Token.TokenType.DOLLAR).isPresent()) {
             var value = ParseBottomLevel();
             // probably need to unwrap value error if not present
-            return Optional.of(new OperationNode(OperationNode.Operation.DIVIDE, null));
+            return Optional.of(new OperationNode(OperationNode.Operation.DOLLAR, value.get()));
         }
         var varName = MatchAndRemove(Token.TokenType.WORD);
         if (varName.isPresent()) {
             String name = varName.get().getValue().get();
             if (MatchAndRemove(Token.TokenType.OPENBRACKET).isPresent()) {
-                var index = ParseOperation();
+                System.out.println(tokens.Peek(0));
+                var index = ParseOperation().get();
                 // we should probably error if parseoperation returns empty optinal
-                return Optional.of(new VariableReferenceNode(name, index));
+                MatchAndRemove(Token.TokenType.CLOSEBRACKET).get();
+                return Optional.of(new VariableReferenceNode(name, Optional.of( index)));
             }
 
             return Optional.of(new VariableReferenceNode(name));

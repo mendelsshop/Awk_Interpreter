@@ -8,6 +8,7 @@ import java.util.stream.Stream;
 import org.junit.Test;
 
 public class UnitTests {
+    // TODO: pull random awk code from the internet and test it with the lexer
     private static Random rng = new Random();
     private boolean debug = false;
 

@@ -1,7 +1,14 @@
 import java.util.Optional;
 
-public class OperationNode extends Node {
-        // and a list of possible operations – use an enum for this. Mine are:
+public class OperationNode extends StatementNode {
+        @Override
+    public String toString() {
+        return Right.isPresent() ? Left + " " + operation + " " + Right.get() : operation + " " + Left;
+    }
+
+
+
+    // and a list of possible operations – use an enum for this. Mine are:
     // does this mean a list of operations
     // or single operation (i assume that it's a single operation)
     private Operation operation;
