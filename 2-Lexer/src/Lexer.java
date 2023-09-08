@@ -151,17 +151,6 @@ public class Lexer {
 
     // Some methods are protected to avoid duplication with FunctionalLexer
 
-    // ([0-9]+\.[0-9]+)|([0-9]+\.)|(\.[0-9]+)/[0-9]+)
-    // you werent so specific about whats a valid number in the rubric
-    // "Accepts required characters, creates a token, doesn’t accept characters it
-    // shouldn’t (10)"
-    // in the state machine you suggest that ([0-9]+)|([0-9]*\.[0-9]*) is what we
-    // should accept, but in class you suggested otherwise
-    // so I have gone according to the jdoodle AWK implentation which allows .0.8.8
-    // and becomes Number(.0) Number(.8) Number(.8)
-    // but dissallows (..) which could technically become Number(.) Number(.)
-    // Number(.)
-    // which follows the regex ([0-9]+\.[0-9]+)|([0-9]+\.)|(\.[0-9]+)/[0-9]+)
     protected Token ProcessDigit() throws LexerException {
         int startPosition = position;
         // lex before decimal point
@@ -172,13 +161,13 @@ public class Lexer {
             // lex after decimal point
             number += "." + processInteger();
             if (!source.IsDone() && source.Peek() == '.') {
-            throw new LexerException(currentLine, position, "a number cannot have more than one decimal point");
-        }
+                throw new LexerException(currentLine, position, "a number cannot have more than one decimal point");
+            }
         }
         if (number.equals(".")) {
             throw new LexerException(currentLine, startPosition,
                     "plain decimal point not valid as whole number, needs a digit before or after the decimal");
-        } 
+        }
         return new Token(startPosition, currentLine, Token.TokenType.NUMBER, number);
     }
 
@@ -254,7 +243,7 @@ public class Lexer {
             // awk dowsnt allow nulti line strings
             if (source.Peek() == '\n') {
                 throw new LexerException(currentLine, position,
-                    name + " does not have an end found newline before end quote" + quote);
+                        name + " does not have an end found newline before end quote" + quote);
             }
             char currentChar = source.GetChar();
             lastChar = currentChar;
