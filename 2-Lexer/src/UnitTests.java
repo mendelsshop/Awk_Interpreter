@@ -1,6 +1,9 @@
 import static org.junit.Assert.*;
 
+import java.nio.file.Files;
+import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.stream.Stream;
@@ -8,7 +11,56 @@ import java.util.stream.Stream;
 import org.junit.Test;
 
 public class UnitTests {
-    // TODO: pull random awk code from the internet and test it with the lexer
+    // use get_awk_files.py, make sure to have root/tests directory
+    // amd that the junit tests run in the root directory
+    // in vscode use "java.test.config": {
+    // "workingDirectory": "${workspaceFolder}"
+    // }, in settings.json
+    // to pull random awk code from the internet
+    // 
+    // NOTE: about this test:
+    // a) it does not mean the lexer works b/c
+    //  1) if a test fails, the source file could be invalid we have no way of verfiying a file
+    //  2) if it doesnt fail who says lexer is correct as we have no way of verfiying a file
+    // b) this simple file = file.replaceAll("/", "`"); messes with with division, even though it fixes regex pattern
+
+    public Stream<String> get_awk_files() throws Exception {
+
+        return Files.list(Paths.get("tests")).filter(file -> {
+            try {
+                new String(Files.readAllBytes(file));
+                return true;
+            } catch (IOException e) {
+                return false;
+            }
+        }).map(file -> {
+            try {
+                return new String(Files.readAllBytes(file));
+            } catch (IOException e) {
+                return "";
+            }
+        });
+    }
+
+    public void assertWorks(String file) {
+        file = file.replaceAll("/", "`");
+        var lexer = new Lexer(file);
+        var fpLexer = new FunctionalLexer(file);
+        try {
+            lexer.lex();
+            fpLexer.lex();
+        } catch (LexerException e) {
+            System.out.println("error lexing file\n" + file +"\n"+ e.message);
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    @Test
+    public void TestRandomAwkFile() throws Exception {
+        get_awk_files().forEach(this::assertWorks);
+    }
+
     private static Random rng = new Random();
     private boolean debug = false;
 
@@ -206,7 +258,6 @@ public class UnitTests {
                 Token.TokenType.SEPERATOR,
         });
     }
-
 
     @Test
     public void LexDecimalNoNumber() throws Exception {
@@ -798,7 +849,8 @@ public class UnitTests {
         testLexContent("||", new Token.TokenType[] { Token.TokenType.OR });
     }
 
-    @Test public void invalidNewlineString() throws Exception {
+    @Test
+    public void invalidNewlineString() throws Exception {
         assertThrowsLexError(LexerException.class, """
                 aaaa "
                 "

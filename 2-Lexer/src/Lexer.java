@@ -90,6 +90,9 @@ public class Lexer {
     }
 
     public LinkedList<Token> lex() throws LexerException {
+        // do we allow `\` for multiline things ie
+        // "#if %s\n" \
+        //  "aa"
         var tokens = new LinkedList<Token>();
         while (!source.IsDone()) {
             var token = lexCharacter(source.Peek());
@@ -221,6 +224,8 @@ public class Lexer {
     }
 
     protected Token HandleQuotedIsh(char quote, Token.TokenType type, String name) throws LexerException {
+        // this doesn't lex, bc the \\ doesn't escape to \
+        // "TESTS = \\"
         int startLine = currentLine;
         int startPosition = position;
         // swallow the start backtick
