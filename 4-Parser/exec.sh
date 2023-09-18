@@ -1,0 +1,1 @@
+/usr/bin/env /home/mendel/.jdks/temurin-20.0.2/bin/java @/tmp/cp_iu12raqmiejengc8esqa5d7z.argfile Awk -- data.awk

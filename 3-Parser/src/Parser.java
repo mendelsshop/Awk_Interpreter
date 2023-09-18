@@ -58,12 +58,12 @@ public class Parser {
                                 .<CheckedSupplier<Boolean>>map(
                                         a -> () -> true)
                                 // if we hit a `,`, we make sure that the next token is also a function
-                                // parameter
-                                .or(() -> MatchAndRemove(Token.TokenType.COMMA).map(d -> () -> tokens.Peek(0)
+                                // parameter can have function_name(a ,,,) ...
+                                .or(() -> MatchAndRemove(Token.TokenType.COMMA).map(d -> () -> {AcceptSeperators();return tokens.Peek(0)
                                         .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
                                         // otherwise we through an AwkException
                                         .orElseThrow(() -> createException(
-                                                "comma in function parameter list must be followed by another parameter"))))
+                                                "comma in function parameter list must be followed by another parameter"));}))
                                 // if the next token after the name of a function parameter is not a `,` or `)`
                                 // we know we have an invalid function signature so we give back an error
                                 .orElseThrow(() -> createException(
@@ -75,6 +75,8 @@ public class Parser {
                 break;
             }
         }
+        // eating up newline or ';' before block
+        AcceptSeperators();
 
         var block = ParseBlock().getStatements();
         program.addFunction(new FunctionNode(functionName, parameters, block));
@@ -94,6 +96,7 @@ public class Parser {
         var Condition = ParseOperation();
         var block = ParseBlock();
         block.setCondition(Condition);
+        program.addToRest(block);
         return true;
     }
 
@@ -114,12 +117,12 @@ public class Parser {
     }
 
     private BlockNode ParseBlock() throws AwkException {
-        MatchAndRemove(Token.TokenType.OPENBRACE)
-                .orElseThrow(() -> createException("block without open curly brace at start")).getValue().get();
-        while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
-            AcceptSeperators();
-            ParseOperation();
-        }
+        // MatchAndRemove(Token.TokenType.OPENBRACE)
+        //         .orElseThrow(() -> createException("block without open curly brace at start")).getValue().get();
+        // while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
+        //     AcceptSeperators();
+        //     ParseOperation();
+        // }
         return new BlockNode(new LinkedList<>());
 
     }
