@@ -59,11 +59,14 @@ public class Parser {
                                         a -> () -> true)
                                 // if we hit a `,`, we make sure that the next token is also a function
                                 // parameter can have function_name(a ,,,) ...
-                                .or(() -> MatchAndRemove(Token.TokenType.COMMA).map(d -> () -> {AcceptSeperators();return tokens.Peek(0)
-                                        .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
-                                        // otherwise we through an AwkException
-                                        .orElseThrow(() -> createException(
-                                                "comma in function parameter list must be followed by another parameter"));}))
+                                .or(() -> MatchAndRemove(Token.TokenType.COMMA).map(d -> () -> {
+                                    AcceptSeperators();
+                                    return tokens.Peek(0)
+                                            .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
+                                            // otherwise we through an AwkException
+                                            .orElseThrow(() -> createException(
+                                                    "comma in function parameter list must be followed by another parameter"));
+                                }))
                                 // if the next token after the name of a function parameter is not a `,` or `)`
                                 // we know we have an invalid function signature so we give back an error
                                 .orElseThrow(() -> createException(
@@ -78,23 +81,23 @@ public class Parser {
         // eating up newline or ';' before block
         AcceptSeperators();
 
-        var block = ParseBlock().getStatements();
+        var block = ParseBlock(false).getStatements();
         program.addFunction(new FunctionNode(functionName, parameters, block));
         return true;
     }
 
     private boolean ParseAction(ProgramNode program) throws AwkException {
         if (MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
-            var block = ParseBlock();
+            var block = ParseBlock(false);
             program.addToBegin(block);
             return true;
         } else if (MatchAndRemove(Token.TokenType.END).isPresent()) {
-            var block = ParseBlock();
+            var block = ParseBlock(false);
             program.addToEnd(block);
             return true;
         }
         var Condition = ParseOperation();
-        var block = ParseBlock();
+        var block = ParseBlock(false);
         block.setCondition(Condition);
         program.addToRest(block);
         return true;
@@ -116,14 +119,24 @@ public class Parser {
         });
     }
 
-    private BlockNode ParseBlock() throws AwkException {
-        // MatchAndRemove(Token.TokenType.OPENBRACE)
-        //         .orElseThrow(() -> createException("block without open curly brace at start")).getValue().get();
-        // while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
-        //     AcceptSeperators();
-        //     ParseOperation();
-        // }
-        return new BlockNode(new LinkedList<>());
+    private BlockNode ParseBlock(boolean supportsSingleLine) throws AwkException {
+
+        return new BlockNode(MatchAndRemove(Token.TokenType.OPENBRACE).<CheckedSupplier<LinkedList<StatementNode>>>map(a->() -> {
+            LinkedList<StatementNode> nodes = new LinkedList<>();
+            while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
+                AcceptSeperators();
+                nodes.add((StatementNode)ParseOperation().get());
+            }
+            return nodes;
+        }).orElse(()  -> {
+            if (supportsSingleLine) {
+                 return new LinkedList<>() {{add((StatementNode)ParseOperation().get());}};
+            } else {
+                throw createException("block without open curly brace at start");
+            }
+        }).get());
+                // .orElseThrow(() -> createException("block without open curly brace at start")).getValue();
+
 
     }
 
