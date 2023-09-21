@@ -2,6 +2,7 @@ import static org.junit.Assert.*;
 
 import java.nio.charset.Charset;
 import java.util.LinkedList;
+import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Stream;
 
@@ -205,7 +206,6 @@ public class UnitTests {
                 Token.TokenType.SEPERATOR,
         });
     }
-
 
     @Test
     public void LexDecimalNoNumber() throws Exception {
@@ -797,7 +797,8 @@ public class UnitTests {
         testLexContent("||", new Token.TokenType[] { Token.TokenType.OR });
     }
 
-    @Test public void invalidNewlineString() throws Exception {
+    @Test
+    public void invalidNewlineString() throws Exception {
         assertThrowsLexError(AwkException.class, """
                 aaaa "
                 "
@@ -805,6 +806,41 @@ public class UnitTests {
     }
 
     // parser tests
+    // TokenHandler tests
+    public void TokenHandlerFuzzer(LinkedList<Token> tokens, int numberOfOperations) {
+        var handler = new TokenHandler(tokens);
+        // deep clone via linkedlist b/c matchandremove modifies the original list
+        tokens = new LinkedList<Token>(tokens);
+        
+        for (int i = 0; i < numberOfOperations; i++) {
+            if (tokens.size() == 0) {
+                assertEquals(handler.MoreTokens(), false);
+            }
+            int op = rng.nextInt(5);
+            switch (op) {
+                // peek
+                case 0:
+                int index = rng.nextInt(0, tokens.size() - 1);
+                Optional<Token> token;
+                 try {token = Optional.of(tokens.get(index));} catch (IndexOutOfBoundsException e) { token = Optional.empty(); }
+                assertEquals(handler.Peek(index), token);
+                // matchremove with actual token
+                case 1:
+                // matchremove with mismatch token
+                case 2:
+                // isDone
+                case 3:
+                assertEquals(handler.MoreTokens(), true);
+                // peek ahead of end
+        
+                case 4: 
+                index = tokens.size();
+                assertEquals(handler.Peek(index), Optional.empty());
+                default: 
+            }
+        }
+    }
+
     @Test
     public void ParseBasicFunction() throws Exception {
         var lexer = new Lexer("function function_name(argument1, argument2, a) {\n}");
