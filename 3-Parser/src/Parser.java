@@ -80,7 +80,6 @@ public class Parser {
         }
         // eating up newline or ';' before block
         AcceptSeperators();
-
         var block = ParseBlock(false).getStatements();
         program.addFunction(new FunctionNode(functionName, parameters, block));
         return true;
@@ -123,9 +122,11 @@ public class Parser {
 
         return new BlockNode(MatchAndRemove(Token.TokenType.OPENBRACE).<CheckedSupplier<LinkedList<StatementNode>>>map(a->() -> {
             LinkedList<StatementNode> nodes = new LinkedList<>();
+            AcceptSeperators();
             while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
-                AcceptSeperators();
+
                 nodes.add((StatementNode)ParseOperation().get());
+                AcceptSeperators();
             }
             return nodes;
         }).orElse(()  -> {

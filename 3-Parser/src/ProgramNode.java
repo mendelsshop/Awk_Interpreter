@@ -6,10 +6,10 @@ public class ProgramNode extends Node {
         return "functions=" + functions + "BEGIN" + BeginBlocks + RestBlocks + "END" + EndBlocks;
     }
 
-    private LinkedList<BlockNode> BeginBlocks;
-    private LinkedList<BlockNode> EndBlocks;
-    private LinkedList<BlockNode> RestBlocks;
-    private LinkedList<FunctionNode> functions;
+    private LinkedList<BlockNode> BeginBlocks = new LinkedList<>();
+    private LinkedList<BlockNode> EndBlocks= new LinkedList<>();
+    private LinkedList<BlockNode> RestBlocks = new LinkedList<>();
+    private LinkedList<FunctionNode> functions = new LinkedList<>();
     public LinkedList<BlockNode> getBeginBlocks() {
         return BeginBlocks;
     }
