@@ -867,6 +867,13 @@ public class UnitTests {
     }
 
     @Test
+    public void fuzz_tokens() throws Exception {
+        TokenHandlerFuzzer(new LinkedList<>() {{
+            add(new Token(0, 0, Token.TokenType.AND));
+        }}, 1);
+    }
+
+    @Test
     public void ParseBasicFunction() throws Exception {
         var lexer = new Lexer("function function_name(argument1, argument2, a) {\n}");
         var parser = new Parser(lexer.lex());
