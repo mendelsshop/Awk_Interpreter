@@ -4,6 +4,7 @@ import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.Optional;
 import java.util.Random;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.junit.Test;
@@ -811,32 +812,56 @@ public class UnitTests {
         var handler = new TokenHandler(tokens);
         // deep clone via linkedlist b/c matchandremove modifies the original list
         tokens = new LinkedList<Token>(tokens);
-        
+
         for (int i = 0; i < numberOfOperations; i++) {
             if (tokens.size() == 0) {
                 assertEquals(handler.MoreTokens(), false);
+                if (debug) {
+                    System.out.println("finished tokens after " + i + " operation(s)");
+                }
+                break;
             }
             int op = rng.nextInt(5);
             switch (op) {
                 // peek
                 case 0:
-                int index = rng.nextInt(0, tokens.size() - 1);
-                Optional<Token> token;
-                 try {token = Optional.of(tokens.get(index));} catch (IndexOutOfBoundsException e) { token = Optional.empty(); }
-                assertEquals(handler.Peek(index), token);
+                    int index = rng.nextInt(0, tokens.size() - 1);
+                    Optional<Token> token = Optional.of(tokens.get(index));
+                    assertEquals(handler.Peek(index), token);
+                    break;
+
                 // matchremove with actual token
                 case 1:
+                    var nextToken = tokens.getFirst();
+                    assertEquals(handler.MatchAndRemove(nextToken.getType()).get(), nextToken.getType());
+                    tokens.pop();
+                    break;
+
                 // matchremove with mismatch token
                 case 2:
+                    nextToken = tokens.getFirst();
+                    Supplier<Token.TokenType> new_tt = () -> {
+                        int tt_index = rng.nextInt(3);
+                        return tt_index == 0 ? Token.TokenType.AND
+                                : tt_index == 1 ? Token.TokenType.OR : Token.TokenType.CONTINUE;
+                    };
+                    Token.TokenType not_match;
+                    do {
+                        not_match = new_tt.get();
+                    } while (not_match == nextToken.getType());
+                    assertEquals(handler.MatchAndRemove(not_match), Optional.empty());
+                    break;
                 // isDone
                 case 3:
-                assertEquals(handler.MoreTokens(), true);
+                    assertEquals(handler.MoreTokens(), true);
+                    break;
                 // peek ahead of end
-        
-                case 4: 
-                index = tokens.size();
-                assertEquals(handler.Peek(index), Optional.empty());
-                default: 
+                case 4:
+                    index = tokens.size();
+                    assertEquals(handler.Peek(index), Optional.empty());
+                    break;
+                default:
+                    break;
             }
         }
     }
