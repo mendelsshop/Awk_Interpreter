@@ -13,8 +13,10 @@ public class Parser {
     public ProgramNode Parse() throws AwkException {
         var program = new ProgramNode();
         while (tokens.MoreTokens()) {
-            if (!ParseFunction(program)) {
-                ParseAction(program);
+            // and is short circuiting 
+            // so if ParseFunction returns true then !true && !ParseAction(program) will return false
+            if (!ParseFunction(program) && !ParseAction(program)){
+                throw createException("cannot parse program top level item was not a function or action");
             }
         }
         return program;
@@ -48,6 +50,7 @@ public class Parser {
             // parsing function signature
             // CheckedSupplier is just like the Functional Supplier interface, but the
             // lambda it takes can through catchable exceptions
+        
             if (MatchAndRemove(Token.TokenType.WORD).<CheckedSupplier<Boolean>>map(
                     c -> () -> {
                         parameters.add(c.getValue().get());
@@ -102,6 +105,7 @@ public class Parser {
         return true;
     }
 
+    // createException is here because it makes it easier to create exceptions, and not haveing to deal with keeping track of line numbers.
     public AwkException createException(String message) {
         return new AwkException(tokens.Peek(0).map(Token::getLineNumber).orElse(line),
                 tokens.Peek(0).map(Token::getStartPosition).orElse(column), message,
@@ -119,34 +123,7 @@ public class Parser {
     }
 
     private BlockNode ParseBlock(boolean supportsSingleLine) throws AwkException {
-
-        return new BlockNode(
-                MatchAndRemove(Token.TokenType.OPENBRACE).<CheckedSupplier<LinkedList<StatementNode>>>map(a -> () -> {
-                    LinkedList<StatementNode> nodes = new LinkedList<>();
-                    AcceptSeperators();
-                    while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
-
-                        AcceptSeperators();
-                        if (tokens.MoreTokens()) {
-                            // TODO: better error message
-                            nodes.add((StatementNode) ParseOperation().orElseThrow(() -> createException("")));
-                        }
-                    }
-                    return nodes;
-                }).orElse(() -> {
-                    if (supportsSingleLine) {
-                        return new LinkedList<>() {
-                            {
-                                add((StatementNode) ParseOperation()
-                                        .orElseThrow(() -> createException("single line block without expression")));
-                            }
-                        };
-                    } else {
-                        throw createException("block without open curly brace at start");
-                    }
-                }).get());
-        // .orElseThrow(() -> createException("block without open curly brace at
-        // start")).getValue();
+        return new BlockNode(new LinkedList<>());
 
     }
 

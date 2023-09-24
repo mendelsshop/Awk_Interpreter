@@ -117,23 +117,36 @@ public class Parser {
         });
     }
 
-    private BlockNode ParseBlock() throws AwkException {
-        var statements = new LinkedList<StatementNode>();
-        MatchAndRemove(Token.TokenType.OPENBRACE).CheckedifPresentOrElse(a -> {
+    private BlockNode ParseBlock(boolean supportsSingleLine) throws AwkException {
 
-            while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
-                if (!tokens.MoreTokens()) {
-                    throw createException("block without closing curly brace");
-                }
-                // accept seperators might need to be not here
-                AcceptSeperators();
-                statements.add(ParseStatement());
-                AcceptSeperators();
-            }
-        }, () -> {
-            statements.add(ParseStatement());
-        });
-        return new BlockNode(statements);
+        return new BlockNode(
+                MatchAndRemove(Token.TokenType.OPENBRACE).<CheckedSupplier<LinkedList<StatementNode>>>map(a -> () -> {
+                    LinkedList<StatementNode> nodes = new LinkedList<>();
+                    AcceptSeperators();
+                    while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
+
+                        AcceptSeperators();
+                        if (tokens.MoreTokens()) {
+                            // TODO: better error message
+                            nodes.add((StatementNode) ParseOperation().orElseThrow(() -> createException("")));
+                        }
+                    }
+                    return nodes;
+                }).orElse(() -> {
+                    if (supportsSingleLine) {
+                        return new LinkedList<>() {
+                            {
+                                add((StatementNode) ParseOperation()
+                                        .orElseThrow(() -> createException("single line block without expression")));
+                            }
+                        };
+                    } else {
+                        throw createException("block without open curly brace at start");
+                    }
+                }).get());
+        // .orElseThrow(() -> createException("block without open curly brace at
+        // start")).getValue();
+
 
     }
 

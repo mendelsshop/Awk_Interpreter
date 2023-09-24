@@ -868,16 +868,23 @@ public class UnitTests {
 
     @Test
     public void fuzz_tokens() throws Exception {
-        TokenHandlerFuzzer(new LinkedList<>() {{
-            add(new Token(0, 0, Token.TokenType.AND));
-        }}, 1);
+        TokenHandlerFuzzer(new LinkedList<>() {
+            {
+                add(new Token(0, 0, Token.TokenType.AND));
+            }
+        }, 1);
     }
 
     @Test
     public void ParseBasicFunction() throws Exception {
-        var lexer = new Lexer("function function_name(argument1, argument2, a) {\n}");
+        var lexer = new Lexer("function function_name(argument1, argument2, a) BEGIN END BEGIN ");
         var parser = new Parser(lexer.lex());
-        parser.Parse();
+        var parsed = parser.Parse();
+        assertEquals(parsed.getEndBlocks().size(), 1);
+        assertEquals(parsed.getBeginBlocks().size(), 2);
+        assertEquals(parsed.getFunctions().size(), 1);
+        assertEquals(parsed.getFunctions().get(0).getName(), "function_name");
+        assertEquals(parsed.getFunctions().get(0).getParameters().size(), 3);
     }
 
 }
