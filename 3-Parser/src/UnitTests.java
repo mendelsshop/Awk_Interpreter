@@ -145,7 +145,7 @@ public class UnitTests {
     }
 
     // Lexer unittests
-    public void testLexContent(String content, Token.TokenType[] expected) throws Exception {
+    public LinkedList<Token> testLexContent(String content, Token.TokenType[] expected) throws Exception {
         var lexer = new Lexer(content);
         var otherLexer = new FunctionalLexer(content);
         var lexed = lexer.lex();
@@ -154,6 +154,7 @@ public class UnitTests {
         var otherLexedTokens = otherLexed.stream().<Token.TokenType>map(c -> c.getType()).toArray();
         assertArrayEquals("lexer", expected, lexedTokens);
         assertArrayEquals("functional lexer", expected, otherLexedTokens);
+        return lexed;
 
     }
 
@@ -825,7 +826,7 @@ public class UnitTests {
             switch (op) {
                 // peek
                 case 0:
-                    int index = rng.nextInt(0, tokens.size() - 1);
+                    int index = tokens.size() - 1 != 0 ? rng.nextInt(0, tokens.size() - 1) : 0;
                     Optional<Token> token = Optional.of(tokens.get(index));
                     assertEquals(handler.Peek(index), token);
                     break;
@@ -833,7 +834,7 @@ public class UnitTests {
                 // matchremove with actual token
                 case 1:
                     var nextToken = tokens.getFirst();
-                    assertEquals(handler.MatchAndRemove(nextToken.getType()).get(), nextToken.getType());
+                    assertEquals(handler.MatchAndRemove(nextToken.getType()).get().getType(), nextToken.getType());
                     tokens.pop();
                     break;
 
@@ -873,6 +874,74 @@ public class UnitTests {
                 add(new Token(0, 0, Token.TokenType.AND));
             }
         }, 1);
+    }
+
+    @Test
+    public void fuzz_tokens_100() throws Exception {
+        var tokens = testLexContent(
+                "BEGIN {FS=\",\"} # set field separator to `,` so it works for csv\n    {\n        sum  = 0 # reset sum for each line\n        for (i = 1; i <= NF; i++) sum += $i # sum up current line\n        total = sum + total # add sum of current line to total\n        print \"Line\", NR \":\", sum\n    }\nEND { print \"Grand total:\", total }",
+                new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.STRINGLITERAL, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.FOR, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.LESSTHANEQUAL, Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.PLUSPLUS,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.WORD, Token.TokenType.PLUSEQUAL,
+                        Token.TokenType.DOLLAR, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.PLUS,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.PRINT, Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA,
+                        Token.TokenType.WORD, Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.END, Token.TokenType.OPENBRACE, Token.TokenType.PRINT,
+                        Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEBRACE
+                });
+        TokenHandlerFuzzer(tokens, 100);
+    }
+
+    @Test
+    public void fuzz_tokens_1000() throws Exception {
+        var tokens = testLexContent(
+                "BEGIN {FS=\",\"} # set field separator to `,` so it works for csv\n    {\n        sum  = 0 # reset sum for each line\n        for (i = 1; i <= NF; i++) sum += $i # sum up current line\n        total = sum + total # add sum of current line to total\n        print \"Line\", NR \":\", sum\n    }\nEND { print \"Grand total:\", total } BEGIN {FS=,}  { x = (if (> x 10) (* x 2) (+ x 1)); print \"Result: \", x  }",
+                new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.STRINGLITERAL, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.FOR, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.LESSTHANEQUAL, Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.PLUSPLUS,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.WORD, Token.TokenType.PLUSEQUAL,
+                        Token.TokenType.DOLLAR, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.PLUS,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.PRINT, Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA,
+                        Token.TokenType.WORD, Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.END, Token.TokenType.OPENBRACE, Token.TokenType.PRINT,
+                        Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.COMMA, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.OPENBRACE, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.OPENPAREN, Token.TokenType.IF, Token.TokenType.OPENPAREN,
+                        Token.TokenType.GREATERTHAN, Token.TokenType.WORD, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENPAREN, Token.TokenType.MULTIPLY,
+                        Token.TokenType.WORD, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENPAREN, Token.TokenType.PLUS, Token.TokenType.WORD, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.PRINT, Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA,
+                        Token.TokenType.WORD,
+                        Token.TokenType.CLOSEBRACE,
+                });
+        TokenHandlerFuzzer(tokens, 1000);
     }
 
     @Test

@@ -50,10 +50,12 @@ public class Parser {
             // parsing function signature
             // CheckedSupplier is just like the Functional Supplier interface, but the
             // lambda it takes can through catchable exceptions
-        
+            AcceptSeperators();
+            // really Awk only allows newlines after each comma ie function a(v,\n\nc) is allowed but function q(\na) doesnt work along with function y(v\n, a) and function e(a\n)
             if (MatchAndRemove(Token.TokenType.WORD).<CheckedSupplier<Boolean>>map(
                     c -> () -> {
                         parameters.add(c.getValue().get());
+                                    AcceptSeperators();
                         return
                         // if we reach a `)` we are done with the function signature
                         MatchAndRemove(
@@ -81,8 +83,8 @@ public class Parser {
                 break;
             }
         }
-        // eating up newline or ';' before block
-        AcceptSeperators();
+        // parse block eats up newlines before the {
+  
         var block = ParseBlock(false).getStatements();
         program.addFunction(new FunctionNode(functionName, parameters, block));
         return true;
@@ -98,6 +100,7 @@ public class Parser {
             program.addToEnd(block);
             return true;
         }
+    
         var Condition = ParseOperation();
         var block = ParseBlock(false);
         block.setCondition(Condition);
@@ -128,6 +131,8 @@ public class Parser {
     }
 
     private Optional<Node> ParseOperation() {
+        // eating up newline or ';' before block
+        AcceptSeperators();
         return Optional.empty();
     }
 }
