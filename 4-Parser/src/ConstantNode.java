@@ -1,4 +1,4 @@
-public class ConstantNode extends StatementNode {
+public class ConstantNode extends Node {
     private String value;
     private ValueType type;
 

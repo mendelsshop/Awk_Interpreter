@@ -1,13 +1,67 @@
 import static org.junit.Assert.*;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.Random;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.junit.Test;
 
 public class UnitTests {
+    // use get_awk_files.py, make sure to have root/tests directory
+    // amd that the junit tests run in the root directory
+    // in vscode use "java.test.config": {
+    // "workingDirectory": "${workspaceFolder}"
+    // }, in settings.json
+    // to pull random awk code from the internet
+    //
+    // NOTE: about this test:
+    // a) it does not mean the lexer works b/c
+    // 1) if a test fails, the source file could be invalid we have no way of
+    // verfiying a file
+    // 2) if it doesnt fail who says lexer is correct as we have no way of verfiying
+    // a file
+    // b) this simple file = file.replaceAll("/", "`"); messes with with division,
+    // even though it fixes regex pattern
+    public Stream<String> get_awk_files() throws Exception {
+        return Files.list(Paths.get("tests")).filter(file -> {
+            try {
+                new String(Files.readAllBytes(file));
+                return true;
+            } catch (IOException e) {
+                return false;
+            }
+        }).map(file -> {
+            try {
+                return new String(Files.readAllBytes(file));
+            } catch (IOException e) {
+                return "";
+            }
+        });
+    }
+
+    public void assertWorks(String file) {
+        file = file.replaceAll("/", "`");
+        var lexer = new Lexer(file);
+        var fpLexer = new FunctionalLexer(file);
+        try {
+            lexer.lex();
+            fpLexer.lex();
+        } catch (AwkException e) {
+            System.out.println("error lexing file\n" + file + "\n" + e.message);
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    public void TestRandomAwkFile() throws Exception {
+        get_awk_files().forEach(this::assertWorks);
+    }
+
     private static Random rng = new Random();
     private boolean debug = false;
 
@@ -143,7 +197,7 @@ public class UnitTests {
     }
 
     // Lexer unittests
-    public void testLexContent(String content, Token.TokenType[] expected) throws Exception {
+    public LinkedList<Token> testLexContent(String content, Token.TokenType[] expected) throws Exception {
         var lexer = new Lexer(content);
         var otherLexer = new FunctionalLexer(content);
         var lexed = lexer.lex();
@@ -152,6 +206,7 @@ public class UnitTests {
         var otherLexedTokens = otherLexed.stream().<Token.TokenType>map(c -> c.getType()).toArray();
         assertArrayEquals("lexer", expected, lexedTokens);
         assertArrayEquals("functional lexer", expected, otherLexedTokens);
+        return lexed;
 
     }
 
@@ -205,7 +260,6 @@ public class UnitTests {
                 Token.TokenType.SEPERATOR,
         });
     }
-
 
     @Test
     public void LexDecimalNoNumber() throws Exception {
@@ -797,7 +851,8 @@ public class UnitTests {
         testLexContent("||", new Token.TokenType[] { Token.TokenType.OR });
     }
 
-    @Test public void invalidNewlineString() throws Exception {
+    @Test
+    public void invalidNewlineString() throws Exception {
         assertThrowsLexError(AwkException.class, """
                 aaaa "
                 "
@@ -805,11 +860,427 @@ public class UnitTests {
     }
 
     // parser tests
+    // TokenHandler tests
+    public void TokenHandlerFuzzer(LinkedList<Token> tokens, int numberOfOperations) {
+        var handler = new TokenHandler(tokens);
+        // deep clone via linkedlist b/c matchandremove modifies the original list
+        tokens = new LinkedList<Token>(tokens);
+
+        for (int i = 0; i < numberOfOperations; i++) {
+            if (tokens.size() == 0) {
+                assertEquals(handler.MoreTokens(), false);
+                if (debug) {
+                    System.out.println("finished tokens after " + i + " operation(s)");
+                }
+                break;
+            }
+            int op = rng.nextInt(5);
+            switch (op) {
+                // peek
+                case 0:
+                    int index = tokens.size() - 1 != 0 ? rng.nextInt(0, tokens.size() - 1) : 0;
+                    Optional<Token> token = Optional.of(tokens.get(index));
+                    assertEquals(handler.Peek(index), token);
+                    break;
+
+                // matchremove with actual token
+                case 1:
+                    var nextToken = tokens.getFirst();
+                    assertEquals(handler.MatchAndRemove(nextToken.getType()).get().getType(), nextToken.getType());
+                    tokens.pop();
+                    break;
+
+                // matchremove with mismatch token
+                case 2:
+                    nextToken = tokens.getFirst();
+                    Supplier<Token.TokenType> new_tt = () -> {
+                        int tt_index = rng.nextInt(3);
+                        return tt_index == 0 ? Token.TokenType.AND
+                                : tt_index == 1 ? Token.TokenType.OR : Token.TokenType.CONTINUE;
+                    };
+                    Token.TokenType not_match;
+                    do {
+                        not_match = new_tt.get();
+                    } while (not_match == nextToken.getType());
+                    assertEquals(handler.MatchAndRemove(not_match), Optional.empty());
+                    break;
+                // isDone
+                case 3:
+                    assertEquals(handler.MoreTokens(), true);
+                    break;
+                // peek ahead of end
+                case 4:
+                    index = tokens.size();
+                    assertEquals(handler.Peek(index), Optional.empty());
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    @Test
+    public void fuzz_tokens() throws Exception {
+        TokenHandlerFuzzer(new LinkedList<>() {
+            {
+                add(new Token(0, 0, Token.TokenType.AND));
+            }
+        }, 1);
+    }
+
+    @Test
+    public void fuzz_tokens_100() throws Exception {
+        var tokens = testLexContent(
+                "BEGIN {FS=\",\"} # set field separator to `,` so it works for csv\n    {\n        sum  = 0 # reset sum for each line\n        for (i = 1; i <= NF; i++) sum += $i # sum up current line\n        total = sum + total # add sum of current line to total\n        print \"Line\", NR \":\", sum\n    }\nEND { print \"Grand total:\", total }",
+                new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.STRINGLITERAL, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.FOR, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.LESSTHANEQUAL, Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.PLUSPLUS,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.WORD, Token.TokenType.PLUSEQUAL,
+                        Token.TokenType.DOLLAR, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.PLUS,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.PRINT, Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA,
+                        Token.TokenType.WORD, Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.END, Token.TokenType.OPENBRACE, Token.TokenType.PRINT,
+                        Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEBRACE
+                });
+        TokenHandlerFuzzer(tokens, 100);
+    }
+
+    @Test
+    public void fuzz_tokens_1000() throws Exception {
+        var tokens = testLexContent(
+                "BEGIN {FS=\",\"} # set field separator to `,` so it works for csv\n    {\n        sum  = 0 # reset sum for each line\n        for (i = 1; i <= NF; i++) sum += $i # sum up current line\n        total = sum + total # add sum of current line to total\n        print \"Line\", NR \":\", sum\n    }\nEND { print \"Grand total:\", total } BEGIN {FS=,}  { x = (if (> x 10) (* x 2) (+ x 1)); print \"Result: \", x  }",
+                new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.STRINGLITERAL, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.FOR, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.LESSTHANEQUAL, Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.PLUSPLUS,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.WORD, Token.TokenType.PLUSEQUAL,
+                        Token.TokenType.DOLLAR, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.PLUS,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.PRINT, Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA,
+                        Token.TokenType.WORD, Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.END, Token.TokenType.OPENBRACE, Token.TokenType.PRINT,
+                        Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.COMMA, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.OPENBRACE, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.OPENPAREN, Token.TokenType.IF, Token.TokenType.OPENPAREN,
+                        Token.TokenType.GREATERTHAN, Token.TokenType.WORD, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENPAREN, Token.TokenType.MULTIPLY,
+                        Token.TokenType.WORD, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENPAREN, Token.TokenType.PLUS, Token.TokenType.WORD, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.PRINT, Token.TokenType.STRINGLITERAL, Token.TokenType.COMMA,
+                        Token.TokenType.WORD,
+                        Token.TokenType.CLOSEBRACE,
+                });
+        TokenHandlerFuzzer(tokens, 1000);
+    }
+
+    @Test
+    public void testTokenHandler() throws Exception {
+        var tokens = new TokenHandler(testLexContent("BEGIN \n {} a == 5 {print \"a is 5\"}", new Token.TokenType[] {
+                Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE,
+                Token.TokenType.WORD, Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.OPENBRACE,
+                Token.TokenType.PRINT, Token.TokenType.STRINGLITERAL, Token.TokenType.CLOSEBRACE
+        }));
+
+        // simulate parsing
+        assertEquals(tokens.MatchAndRemove(Token.TokenType.BEGIN).isPresent(), true);
+        assertEquals(tokens.MatchAndRemove(Token.TokenType.SEPERATOR).isPresent(), true);
+        assertEquals(tokens.MatchAndRemove(Token.TokenType.OPENBRACE).isPresent(), true);
+        assertEquals(tokens.MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent(), true);
+
+        if (!tokens.MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
+            assertEquals(tokens.MatchAndRemove(Token.TokenType.WORD).isPresent(), true);
+            if (tokens.Peek(0).map(Token::getType) != Optional.of(Token.TokenType.NOTEQUAL)
+                    && (tokens.Peek(0).map(Token::getType) != Optional.of(Token.TokenType.NUMBER))) {
+                assertEquals(tokens.MatchAndRemove(Token.TokenType.EQUAL).isPresent(), true);
+                assertEquals(tokens.MatchAndRemove(Token.TokenType.NUMBER).isPresent(), true);
+            }
+        }
+        assertEquals(tokens.MatchAndRemove(Token.TokenType.OPENBRACE).isPresent(), true);
+        if (tokens.Peek(0).map(Token::getType) != Optional.of(Token.TokenType.PRINT)
+                && (tokens.Peek(0).map(Token::getType) != Optional.of(Token.TokenType.STRINGLITERAL))) {
+            assertEquals(tokens.MatchAndRemove(Token.TokenType.PRINT).isPresent(), true);
+            assertEquals(tokens.MatchAndRemove(Token.TokenType.STRINGLITERAL).isPresent(), true);
+        }
+        assertEquals(tokens.MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent(), true);
+
+    }
+
+    @Test
+    public void testTokenHandler1() throws Exception {
+        var tokens = new TokenHandler(testLexContent("BEGIN \n {} a == 5 {print \"a is 5\"}", new Token.TokenType[] {
+                Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE,
+                Token.TokenType.WORD, Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.OPENBRACE,
+                Token.TokenType.PRINT, Token.TokenType.STRINGLITERAL, Token.TokenType.CLOSEBRACE
+        }));
+
+        // Test matching and removing tokens
+        assertEquals(tokens.MatchAndRemove(Token.TokenType.BEGIN).isPresent(), true);
+        assertEquals(tokens.MatchAndRemove(Token.TokenType.SEPERATOR).isPresent(), true);
+        assertEquals(tokens.MatchAndRemove(Token.TokenType.OPENBRACE).isPresent(), true);
+        assertEquals(tokens.MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent(), true);
+
+        // Test using Peek and MoreTokens
+        while (tokens.MoreTokens()) {
+            if (tokens.Peek(0).map(Token::getType).orElse(null) != Token.TokenType.BEGIN) {
+                assertEquals(tokens.MatchAndRemove(Token.TokenType.WORD).isPresent(), true);
+                if (!tokens.Peek(0).map(Token::getType).orElse(null).equals(Token.TokenType.NOTEQUAL)
+                        && !tokens.Peek(0).map(Token::getType).orElse(null).equals(Token.TokenType.NUMBER)) {
+                    assertEquals(tokens.MatchAndRemove(Token.TokenType.EQUAL).isPresent(), true);
+                    assertEquals(tokens.MatchAndRemove(Token.TokenType.NUMBER).isPresent(), true);
+                }
+            }
+            assertEquals(tokens.MatchAndRemove(Token.TokenType.OPENBRACE).isPresent(), true);
+
+            assertEquals(tokens.MatchAndRemove(Token.TokenType.PRINT).isPresent(), true);
+            assertEquals(tokens.MatchAndRemove(Token.TokenType.STRINGLITERAL).isPresent(), true);
+
+            assertEquals(tokens.MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent(), true);
+        }
+
+        // Ensure no more tokens are left
+        assertEquals(tokens.MoreTokens(), false);
+    }
+
+    @Test
+    public void testTokenHandler5() throws Exception {
+        var tokens = new TokenHandler(testLexContent("BEGIN { if (x > 5) { print \"x is greater than 5\"; } }",
+                new Token.TokenType[] {
+                        Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.GREATERTHAN, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.PRINT, Token.TokenType.STRINGLITERAL,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE
+                }));
+
+        // Test using Peek and MoreTokens
+        while (tokens.MoreTokens()) {
+            assertEquals(tokens.MatchAndRemove(Token.TokenType.BEGIN).isPresent(), true);
+            assertEquals(tokens.MatchAndRemove(Token.TokenType.OPENBRACE).isPresent(), true);
+            if (tokens.Peek(0).map(Token::getType).orElse(null) == Token.TokenType.IF) {
+                assertEquals(tokens.MatchAndRemove(Token.TokenType.IF).isPresent(), true);
+                assertEquals(tokens.MatchAndRemove(Token.TokenType.OPENPAREN).isPresent(), true);
+                assertEquals(tokens.MatchAndRemove(Token.TokenType.WORD).isPresent(), true);
+                assertEquals(tokens.MatchAndRemove(Token.TokenType.GREATERTHAN).isPresent(), true);
+                assertEquals(tokens.MatchAndRemove(Token.TokenType.NUMBER).isPresent(), true);
+                assertEquals(tokens.MatchAndRemove(Token.TokenType.CLOSEPAREN).isPresent(), true);
+                assertEquals(tokens.MatchAndRemove(Token.TokenType.OPENBRACE).isPresent(), true);
+
+                while (tokens.Peek(0).map(Token::getType).orElse(null) != Token.TokenType.CLOSEBRACE) {
+                    assertEquals(tokens.MatchAndRemove(Token.TokenType.PRINT).isPresent(), true);
+                    assertEquals(tokens.MatchAndRemove(Token.TokenType.STRINGLITERAL).isPresent(), true);
+                    assertEquals(tokens.MatchAndRemove(Token.TokenType.SEPERATOR).isPresent(), true);
+                }
+
+                assertEquals(tokens.MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent(), true);
+
+            }
+            assertEquals(tokens.MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent(), true);
+        }
+
+        // Ensure no more tokens are left
+        assertEquals(tokens.MoreTokens(), false);
+    }
+
     @Test
     public void ParseBasicFunction() throws Exception {
-        var lexer = new Lexer("function function_name(argument1, argument2, a) {\n}");
-        var parser = new Parser(lexer.lex());
-        parser.Parse();
+        var lexer = testLexContent("function function_name(argument1, argument2, a) BEGIN END BEGIN ",
+                new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.WORD, Token.TokenType.COMMA,
+                        Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.BEGIN, Token.TokenType.END,
+                        Token.TokenType.BEGIN });
+        var parser = new Parser(lexer);
+        var parsed = parser.Parse();
+        assertEquals(parsed.getEndBlocks().size(), 1);
+        assertEquals(parsed.getBeginBlocks().size(), 2);
+        assertEquals(parsed.getFunctions().size(), 1);
+        assertEquals(parsed.getFunctions().get(0).getName(), "function_name");
+        assertEquals(parsed.getFunctions().get(0).getParameters().size(), 3);
+    }
+
+    // CHATGPT TEST
+
+    @Test
+    public void ParseBasicFunctionSignature() throws Exception {
+        var lexer = testLexContent("function function_name(argument1, argument2, a) \n BEGIN \n END \n BEGIN",
+                new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.WORD, Token.TokenType.COMMA,
+                        Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN });
+        var parser = new Parser(lexer);
+        var parsed = parser.Parse();
+
+        // Check the number of BEGIN and END tokens
+        assertEquals(1, parsed.getEndBlocks().size());
+        assertEquals(2, parsed.getBeginBlocks().size());
+
+        // Check the number of functions and their details
+        assertEquals(1, parsed.getFunctions().size());
+        assertEquals("function_name", parsed.getFunctions().get(0).getName());
+        assertEquals(3, parsed.getFunctions().get(0).getParameters().size());
+    }
+
+    @Test
+    public void ParseFunctionWithNoParameters() throws Exception {
+        var lexer = testLexContent("function func_no_params() \n BEGIN \n END",
+                new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END });
+        var parser = new Parser(lexer);
+        var parsed = parser.Parse();
+
+        // Check the number of BEGIN and END tokens
+        assertEquals(1, parsed.getEndBlocks().size());
+        assertEquals(1, parsed.getBeginBlocks().size());
+
+        // Check the number of functions and their details
+        assertEquals(1, parsed.getFunctions().size());
+        assertEquals("func_no_params", parsed.getFunctions().get(0).getName());
+        assertEquals(0, parsed.getFunctions().get(0).getParameters().size());
+    }
+
+    @Test
+    public void ParseFunctionWithMultipleParameters() throws Exception {
+        var lexer = testLexContent("function func_multi_params(param1, param2, param3) \n BEGIN \n END",
+                new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.WORD, Token.TokenType.COMMA,
+                        Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END });
+        var parser = new Parser(lexer);
+        var parsed = parser.Parse();
+
+        // Check the number of BEGIN and END tokens
+        assertEquals(1, parsed.getEndBlocks().size());
+        assertEquals(1, parsed.getBeginBlocks().size());
+
+        // Check the number of functions and their details
+        assertEquals(1, parsed.getFunctions().size());
+        assertEquals("func_multi_params", parsed.getFunctions().get(0).getName());
+        assertEquals(3, parsed.getFunctions().get(0).getParameters().size());
+    }
+
+    @Test
+    public void ParseMultipleFunctions() throws Exception {
+        var lexer = testLexContent("function func1() \n BEGIN \n END \n function func2(param1) \n BEGIN \n END END",
+                new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR, Token.TokenType.BEGIN,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.END, Token.TokenType.SEPERATOR, Token.TokenType.FUNCTION, Token.TokenType.WORD,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END,
+                        Token.TokenType.END });
+        var parser = new Parser(lexer);
+        var parsed = parser.Parse();
+
+        // Check the number of BEGIN and END tokens
+        assertEquals(3, parsed.getEndBlocks().size());
+        assertEquals(2, parsed.getBeginBlocks().size());
+
+        // Check the number of functions and their details
+        assertEquals(2, parsed.getFunctions().size());
+        assertEquals("func1", parsed.getFunctions().get(0).getName());
+        assertEquals(0, parsed.getFunctions().get(0).getParameters().size());
+        assertEquals("func2", parsed.getFunctions().get(1).getName());
+        assertEquals(1, parsed.getFunctions().get(1).getParameters().size());
+    }
+
+    @Test(expected = AwkException.class)
+    public void ParseInvalidFunctionSignature1() throws Exception {
+        var lexer = testLexContent("function () \n BEGIN \n END",
+                new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.OPENPAREN,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END });
+        var parser = new Parser(lexer);
+        parser.Parse(); // This should throw an AwkException
+    }
+
+    @Test(expected = AwkException.class)
+    public void ParseInvalidFunctionSignature2() throws Exception {
+        var lexer = testLexContent("function a a( \n BEGIN \n END",
+                new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.WORD,
+                        Token.TokenType.OPENPAREN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END });
+        var parser = new Parser(lexer);
+        parser.Parse(); // This should throw an AwkException
+    }
+
+    @Test(expected = AwkException.class)
+    public void ParseInvalidFunctionSignature3() throws Exception {
+        var lexer = testLexContent("function a(a,) \n BEGIN \n END",
+                new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.SEPERATOR, Token.TokenType.BEGIN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.END });
+        var parser = new Parser(lexer);
+        parser.Parse(); // This should throw an AwkException
+    }
+
+    @Test(expected = AwkException.class)
+    public void ParseInvalidFunctionSignature4() throws Exception {
+        var lexer = testLexContent("function func(,) \n BEGIN \n END",
+                new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.COMMA, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END });
+        var parser = new Parser(lexer);
+        parser.Parse(); // This should throw an AwkException
+    }
+
+    @Test(expected = AwkException.class)
+    public void ParseInvalidFunctionSignature5() throws Exception {
+        var lexer = testLexContent("function func(a,,b) \n BEGIN \n END",
+                new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.COMMA, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END });
+        var parser = new Parser(lexer);
+        parser.Parse(); // This should throw an AwkException
+    }
+
+    @Test(expected = AwkException.class)
+    public void ParseInvalidFunctionSignature6() throws Exception {
+        var lexer = testLexContent("function func(a,b c) \n BEGIN \n END",
+                new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.WORD, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END });
+        var parser = new Parser(lexer);
+        parser.Parse(); // This should throw an AwkException
+    }
+
+    @Test(expected = AwkException.class)
+    public void ParseInvalidFunctionSignatureWithoutClosingParenthesis() throws Exception {
+        var lexer = testLexContent("function func(a, b \n BEGIN \n END",
+                new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END });
+        var parser = new Parser(lexer);
+        parser.Parse(); // This should throw an AwkException
     }
 
 }

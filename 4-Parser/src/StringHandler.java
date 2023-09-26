@@ -22,7 +22,7 @@ public class StringHandler {
         return content.charAt(position + i);
     }
 
-    // peeking index starts at 1  because substring endbounds are 
+    // peeking index starts at 1 because substring endbounds are
     public String PeekString(int i) {
         return content.substring(position, position + i);
     }

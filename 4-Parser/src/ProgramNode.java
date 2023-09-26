@@ -1,22 +1,20 @@
 import java.util.LinkedList;
+import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 public class ProgramNode extends Node {
     @Override
     public String toString() {
-        return "functions:\n" + functions + "\nBEGIN:\n" + BeginBlocks + "\n" + RestBlocks + "\nEND:\n" + EndBlocks;
+        BiFunction<LinkedList<? extends Node>, String, String> listTosString = (s, p) -> s.stream()
+                .map(c -> p + c.toString()).collect(Collectors.joining("\n"));
+        return listTosString.apply(functions, "") + "\n" + listTosString.apply(BeginBlocks, "BEGIN ") + "\n"
+                + listTosString.apply(RestBlocks, "") + "\n" + listTosString.apply(EndBlocks, "END ");
     }
 
-    private LinkedList<BlockNode> BeginBlocks;
-    private LinkedList<BlockNode> EndBlocks;
-    private LinkedList<BlockNode> RestBlocks;
-    private LinkedList<FunctionNode> functions;
-
-    public ProgramNode() {
-        BeginBlocks = new LinkedList<BlockNode>();
-        EndBlocks = new LinkedList<BlockNode>();
-        RestBlocks = new LinkedList<BlockNode>();
-        functions = new LinkedList<FunctionNode>();
-    }
+    private LinkedList<BlockNode> BeginBlocks = new LinkedList<>();
+    private LinkedList<BlockNode> EndBlocks = new LinkedList<>();
+    private LinkedList<BlockNode> RestBlocks = new LinkedList<>();
+    private LinkedList<FunctionNode> functions = new LinkedList<>();
 
     public LinkedList<BlockNode> getBeginBlocks() {
         return BeginBlocks;

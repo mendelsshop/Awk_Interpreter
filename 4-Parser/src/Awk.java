@@ -14,8 +14,9 @@ public class Awk {
         String content;
         try {
             content = new String(Files.readAllBytes(myPath));
-            Lexer lexer = new Lexer(content);
+
             try {
+                Lexer lexer = new Lexer(content);
                 // print result token stream
                 var parser = new Parser(lexer.lex());
                 System.out.println(parser.Parse());

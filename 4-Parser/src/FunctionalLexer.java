@@ -118,7 +118,8 @@ public class FunctionalLexer extends Lexer {
             } else if (single.isPresent()) {
                 return Optional.ofNullable(new Token(start, currentLine, single.get()));
             } else {
-                throw new AwkException(currentLine, position, "Character `" + first + "` not recognized", AwkException.ExceptionType.LexicalError);
+                throw new AwkException(currentLine, position, "Character `" + first + "` not recognized",
+                        AwkException.ExceptionType.LexicalError);
             }
         };
 
@@ -170,7 +171,8 @@ public class FunctionalLexer extends Lexer {
                     tokens.add(maybeToken.get());
                 }
             } else {
-                throw new AwkException(currentLine, position, "Character `" + current + "` not recognized", AwkException.ExceptionType.LexicalError);
+                throw new AwkException(currentLine, position, "Character `" + current + "` not recognized",
+                        AwkException.ExceptionType.LexicalError);
             }
         }
 
