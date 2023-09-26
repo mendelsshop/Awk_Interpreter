@@ -134,7 +134,8 @@ public class Lexer {
             source.Swallow(1);
             return Optional.empty();
         } else {
-            throw new AwkException(currentLine, position, "Character `" + current + "` not recognized", AwkException.ExceptionType.LexicalError);
+            throw new AwkException(currentLine, position, "Character `" + current + "` not recognized",
+                    AwkException.ExceptionType.LexicalError);
         }
 
     }
@@ -150,7 +151,7 @@ public class Lexer {
     }
 
     // Some methods are protected to avoid duplication with FunctionalLexer
-    
+
     protected Token ProcessDigit() throws AwkException {
         int startPosition = position;
         // lex before decimal point
@@ -245,7 +246,8 @@ public class Lexer {
             // awk dowsnt allow nulti line strings
             if (source.Peek() == '\n') {
                 throw new AwkException(currentLine, position,
-                    name + " does not have an end found newline before end quote" + quote, AwkException.ExceptionType.LexicalError);
+                        name + " does not have an end found newline before end quote" + quote,
+                        AwkException.ExceptionType.LexicalError);
             }
             char currentChar = source.GetChar();
             lastChar = currentChar;

@@ -1,6 +1,6 @@
 // import java.util.Optional;
 
-public class VariableReferenceNode extends StatementNode{
+public class VariableReferenceNode extends StatementNode {
     private String name;
 
     public VariableReferenceNode(String name) {

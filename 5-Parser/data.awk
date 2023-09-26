@@ -1,12 +1,10 @@
 END {
-
+	a = 5
  }
-BEGIN {
-		a = 5
-}
+BEGIN {}
 {
-	a  + 5
-	print a
+	print 6 
 }
 BEGIN {
+	a
 	}

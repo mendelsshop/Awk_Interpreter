@@ -1,9 +1,8 @@
 import java.util.LinkedList;
-// import java.util.Optional;
-
 import java.util.function.Function;
 
 import Functional.CheckedBiFunction;
+import Functional.CheckedSupplier;
 
 public class Parser {
     private TokenHandler tokens;
@@ -17,8 +16,11 @@ public class Parser {
     public ProgramNode Parse() throws AwkException {
         var program = new ProgramNode();
         while (tokens.MoreTokens()) {
-            if (!ParseFunction(program)) {
-                ParseAction(program);
+            // and is short circuiting
+            // so if ParseFunction returns true then !true && !ParseAction(program) will
+            // return false
+            if (!ParseFunction(program) && !ParseAction(program)) {
+                throw createException("cannot parse program top level item was not a function or action");
             }
         }
         return program;
@@ -31,12 +33,6 @@ public class Parser {
             foundSeperators = true;
         }
         return foundSeperators;
-    }
-
-    // https://stackoverflow.com/questions/22687943/is-it-possible-to-declare-that-a-suppliert-needs-to-throw-an-AwkException
-
-    public interface CheckedSupplier<T> {
-        public T get() throws AwkException;
     }
 
     private boolean ParseFunction(ProgramNode program) throws AwkException {
@@ -52,55 +48,68 @@ public class Parser {
             // parsing function signature
             // CheckedSupplier is just like the Functional Supplier interface, but the
             // lambda it takes can through catchable exceptions
-            if (MatchAndRemove(Token.TokenType.WORD).CheckedMap(
-                    c -> {
+            AcceptSeperators();
+            // really Awk only allows newlines after each comma ie function a(v,\n\nc) is
+            // allowed but function q(\na) doesnt work along with function y(v\n, a) and
+            // function e(a\n)
+            if (MatchAndRemove(Token.TokenType.WORD).<CheckedSupplier<Boolean, AwkException>>map(
+                    c -> () -> {
                         parameters.add(c.getValue().get());
+                        AcceptSeperators();
                         return
                         // if we reach a `)` we are done with the function signature
                         MatchAndRemove(
                                 Token.TokenType.CLOSEPAREN)
-                                .map(
-                                        a -> true)
+                                .<CheckedSupplier<Boolean, AwkException>>map(
+                                        a -> () -> true)
                                 // if we hit a `,`, we make sure that the next token is also a function
-                                // parameter
-                                .CheckedOr(() -> MatchAndRemove(Token.TokenType.COMMA).CheckedMap(d -> tokens.Peek(0)
-                                        .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
-                                        // otherwise we through an AwkException
-                                        .orElseThrow(() -> createException(
-                                                "comma in function parameter list must be followed by another parameter"))))
+                                // parameter can have function_name(a ,,,) ...
+                                .or(() -> MatchAndRemove(Token.TokenType.COMMA).map(d -> () -> {
+                                    AcceptSeperators();
+                                    return tokens.Peek(0)
+                                            .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
+                                            // otherwise we through an AwkException
+                                            .orElseThrow(() -> createException(
+                                                    "comma in function parameter list must be followed by another parameter"));
+                                }))
                                 // if the next token after the name of a function parameter is not a `,` or `)`
                                 // we know we have an invalid function signature so we give back an error
                                 .orElseThrow(() -> createException(
-                                        "function parameter must be followed by a comma or closeing parenthesis"));
-                    }).or(() -> MatchAndRemove(Token.TokenType.CLOSEPAREN).map(c -> true))
-                    .orElseThrow(() -> createException("unknown token type in parameter list" + tokens.Peek(0)))) {
+                                        "function parameter must be followed by a comma or closeing parenthesis"))
+                                .get();
+                    }).or(() -> MatchAndRemove(Token.TokenType.CLOSEPAREN).map(c -> () -> true))
+                    .orElseThrow(() -> createException("unknown token type in parameter list" + tokens.Peek(0)))
+                    .get()) {
                 break;
             }
         }
+        // parse block eats up newlines before the {
 
-        var block = ParseBlock().getStatements();
+        var block = ParseBlock(false).getStatements();
         program.addFunction(new FunctionNode(functionName, parameters, block));
         return true;
     }
 
     private boolean ParseAction(ProgramNode program) throws AwkException {
-        // order doesnt matter according to awk ie you can have the BEGIN after the END
         if (MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
-            var block = ParseBlock();
+            var block = ParseBlock(false);
             program.addToBegin(block);
             return true;
         } else if (MatchAndRemove(Token.TokenType.END).isPresent()) {
-            var block = ParseBlock();
+            var block = ParseBlock(false);
             program.addToEnd(block);
             return true;
         }
+
         var Condition = ParseOperation();
-        var block = ParseBlock();
+        var block = ParseBlock(false);
         block.setCondition(Condition);
         program.addToRest(block);
         return true;
     }
 
+    // createException is here because it makes it easier to create exceptions, and
+    // not haveing to deal with keeping track of line numbers.
     public AwkException createException(String message) {
         return new AwkException(tokens.Peek(0).map(Token::getLineNumber).orElse(line),
                 tokens.Peek(0).map(Token::getStartPosition).orElse(column), message,
@@ -118,63 +127,8 @@ public class Parser {
     }
 
     private BlockNode ParseBlock(boolean supportsSingleLine) throws AwkException {
+        return new BlockNode(new LinkedList<>());
 
-        return new BlockNode(
-                MatchAndRemove(Token.TokenType.OPENBRACE).<CheckedSupplier<LinkedList<StatementNode>>>map(a -> () -> {
-                    LinkedList<StatementNode> nodes = new LinkedList<>();
-                    AcceptSeperators();
-                    while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
-
-                        AcceptSeperators();
-                        if (tokens.MoreTokens()) {
-                            // TODO: better error message
-                            nodes.add((StatementNode) ParseOperation().orElseThrow(() -> createException("")));
-                        }
-                    }
-                    return nodes;
-                }).orElse(() -> {
-                    if (supportsSingleLine) {
-                        return new LinkedList<>() {
-                            {
-                                add((StatementNode) ParseOperation()
-                                        .orElseThrow(() -> createException("single line block without expression")));
-                            }
-                        };
-                    } else {
-                        throw createException("block without open curly brace at start");
-                    }
-                }).get());
-        // .orElseThrow(() -> createException("block without open curly brace at
-        // start")).getValue();
-
-
-    }
-
-    private StatementNode ParseStatement() throws AwkException {
-
-    }
-
-    private IfNode ParseIf() throws AwkException {
-    }
-
-    private ContinueNode ParseContinue() throws AwkException {
-    }
-    private BreakNode ParseBreak() throws AwkException {
-    }
-        private ReturnNode ParseReturn() throws AwkException {
-    }
-
-
-    private WhileNode ParseWhile() throws AwkException {
-    }
-
-    private DoWhileNode ParseDoWhile() throws AwkException {
-    }
-
-    private StatementNode ParseFor() throws AwkException {
-    }
-
-    private FunctionCallNode ParseFunctionCall() throws AwkException {
     }
 
     @FunctionalInterface
@@ -183,12 +137,15 @@ public class Parser {
     }
 
     private Optional<Node> ParseBottomLevel() throws AwkException {
-        ParserBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>> parseUnary = (type,
+        CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> parseUnary = (type,
                 operation) -> Optional
                         // we use ofNullable to make it easier to it easy to make Optinal.Empty with
                         // ternary operator
                         .ofNullable(
-                                MatchAndRemove(type).isPresent() ? new OperationNode(operation, ParseOperation().get())
+                                MatchAndRemove(type).isPresent()
+                                        ? new OperationNode(operation,
+                                                ParseOperation().orElseThrow(() -> createException("operation "
+                                                        + operation + " is not followed by an expression")))
                                         : null);
         Function<Optional<Token>, String> getValue = (token) -> token.get().getValue().get();
         Optional<Token> string = MatchAndRemove(Token.TokenType.STRINGLITERAL);
@@ -207,7 +164,6 @@ public class Parser {
             if (!MatchAndRemove(Token.TokenType.CLOSEPAREN).isPresent()) {
                 throw createException("Expected close parenthesis after `(" + operation + "`");
             }
-            // should probably check for optional operation being empty
             if (operation.isEmpty()) {
                 throw createException("value inbetween `(`, `)` is either empty or invalid");
             }
@@ -216,39 +172,17 @@ public class Parser {
         return parseUnary.apply(Token.TokenType.NOT, OperationNode.Operation.NOT)
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUS, OperationNode.Operation.UNARYNEG))
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUS, OperationNode.Operation.UNARYPOS))
-                // Should ony work if expr is variable lvalue
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUSMINUS, OperationNode.Operation.PREINC))
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUSPLUS, OperationNode.Operation.POSTINC))
                 .CheckedOr(() -> ParseLValue());
     }
 
     private Optional<Node> ParseLValue() throws AwkException {
-        // if (MatchAndRemove(Token.TokenType.DOLLAR).isPresent()) {
-        // var value = ParseBottomLevel();
-        // // probably need to unwrap value error if not present
-        // return Optional.of(new OperationNode(OperationNode.Operation.DOLLAR,
-        // value.get()));
-        // }
-        // var varName = MatchAndRemove(Token.TokenType.WORD);
-        // if (varName.isPresent()) {
-        // String name = varName.get().getValue().get();
-        // if (MatchAndRemove(Token.TokenType.OPENBRACKET).isPresent()) {
-        // var index = ParseOperation().get();
-        // // we should probably error if parseoperation returns empty optinal
-        // MatchAndRemove(Token.TokenType.CLOSEBRACKET).get();
-        // return Optional.of(new VariableReferenceNode(name, Optional.of(index)));
-        // }
-
-        // return Optional.of(new VariableReferenceNode(name));
-        // }
-
-        return MatchAndRemove(Token.TokenType.DOLLAR).<Optional<Node>, AwkException>CheckedMap(c -> {
+        return MatchAndRemove(Token.TokenType.DOLLAR).<Node, AwkException>CheckedMap(c -> {
             var value = ParseBottomLevel();
-            // probably need to unwrap value error if not present
-            return Optional
-                    .of(new OperationNode(OperationNode.Operation.DOLLAR, value.orElseThrow(() -> createException(
-                            "`$` is either not followed by an expression or the expression is invalid"))));
-        }).CheckedOrElseGet(() -> MatchAndRemove(Token.TokenType.WORD).<Node, AwkException>CheckedMap(v -> {
+            return new OperationNode(OperationNode.Operation.DOLLAR, value.orElseThrow(
+                    () -> createException("`$` is either not followed by an expression or the expression is invalid")));
+        }).<AwkException>CheckedOr(() -> MatchAndRemove(Token.TokenType.WORD).<Node, AwkException>CheckedMap(v -> {
             String name = v.getValue().get();
             return MatchAndRemove(Token.TokenType.OPENBRACKET).CheckedMap(g -> {
                 var index = ParseOperation().orElseThrow(() -> createException(
@@ -391,5 +325,4 @@ public class Parser {
                 // if no assignment just return the variableNode itself?
                 .orElse(var);
     }
-
 }
