@@ -131,11 +131,6 @@ public class Parser {
 
     }
 
-    @FunctionalInterface
-    private interface ParserBiFunction<T, U, R> {
-        R apply(T t, U u) throws AwkException;
-    }
-
     private Optional<Node> ParseBottomLevel() throws AwkException {
         CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> parseUnary = (type,
                 operation) -> Optional
@@ -194,8 +189,11 @@ public class Parser {
     }
 
     private Optional<Node> ParseOperation() throws AwkException {
-        return ParseBottomLevel();
+        return Optional.of(ParseAssignment());
     }
+
+    // i think all levels of functions need to be Optional<Node> not just Node
+    // and should essentially do ? on the first expr
 
     // Post Increment / Decrement should this be ParseBottomLevel
     // Exponents ^
@@ -273,7 +271,7 @@ public class Parser {
         return new OperationNode(op.get(), left, right);
     }
 
-    // Array membership - already in ParseLValue
+    // Array membership - already in ParseLValue maybe -- what about in?
     // AND &&
     private Node ParseAnd() throws AwkException {
         var node = ParseMatch();
@@ -296,12 +294,13 @@ public class Parser {
 
     // Ternary ?: I dont get what right asscotivity does here shouldnt this call to
     // ParseOperation
+    // do we need seperate TernaryOperationNode
     private Node ParseTernary() throws AwkException {
-        var cond = ParseOperation().orElseThrow();
+        var cond = ParseOr();
         return MatchAndRemove(Token.TokenType.QUESTION).<Node, AwkException>CheckedMap(s -> {
             var then = ParseOperation().orElseThrow();
             MatchAndRemove(Token.TokenType.COLON).orElseThrow();
-            var alt = ParseOperation().orElseThrow();
+            var alt = ParseTernary();
             return new TernaryOperationNode(cond, then, alt);
 
         }).orElse(cond);
@@ -312,9 +311,9 @@ public class Parser {
         var var = ParseLValue().orElseThrow();
         CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> OPEquals = (opeq,
                 op) -> MatchAndRemove(opeq).<Node, AwkException>CheckedMap(
-                        s -> new OperationNode(op, var, ParseOperation().orElseThrow()));
+                        s -> new OperationNode(op, var, ParseTernary()));
         return MatchAndRemove(Token.TokenType.ASSIGN)
-                .<Node, AwkException>CheckedMap(s -> ParseOperation().orElseThrow())
+                .<Node, AwkException>CheckedMap(s -> ParseTernary())
                 .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
                 .CheckedOr(() -> OPEquals.apply(Token.TokenType.MODULOEQUAL, OperationNode.Operation.MODULO))
                 .CheckedOr(() -> OPEquals.apply(Token.TokenType.MULTIPLYEQUAL, OperationNode.Operation.MULTIPLY))
