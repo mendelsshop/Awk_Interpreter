@@ -25,7 +25,7 @@ public class BlockNode extends Node {
 
     @Override
     public String toString() {
-        return Condition.map(c -> c.toString() + "? ").orElse("") + "{\n"
+        return Condition.map(c -> c + "? ").orElse("") + "{\n"
                 + statements.stream().map(c -> c.toString()).collect(Collectors.joining("\n")) + "\n}";
     }
 }

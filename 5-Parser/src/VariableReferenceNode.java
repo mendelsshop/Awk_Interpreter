@@ -1,5 +1,3 @@
-// import java.util.Optional;
-
 public class VariableReferenceNode extends StatementNode {
     private String name;
 

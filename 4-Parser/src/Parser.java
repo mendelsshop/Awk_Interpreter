@@ -16,10 +16,8 @@ public class Parser {
     public ProgramNode Parse() throws AwkException {
         var program = new ProgramNode();
         while (tokens.MoreTokens()) {
-            // and is short circuiting
-            // so if ParseFunction returns true then !true && !ParseAction(program) will
-            // return false
-            if (!ParseFunction(program) && !ParseAction(program)) {
+            // if its not an action of function error
+            if (ParseFunction(program) || ParseAction(program)) {
                 throw createException("cannot parse program top level item was not a function or action");
             }
         }
@@ -131,11 +129,6 @@ public class Parser {
 
     }
 
-    @FunctionalInterface
-    private interface ParserBiFunction<T, U, R> {
-        R apply(T t, U u) throws AwkException;
-    }
-
     private Optional<Node> ParseBottomLevel() throws AwkException {
         CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> parseUnary = (type,
                 operation) -> Optional
@@ -150,11 +143,11 @@ public class Parser {
         Function<Optional<Token>, String> getValue = (token) -> token.get().getValue().get();
         Optional<Token> string = MatchAndRemove(Token.TokenType.STRINGLITERAL);
         if (string.isPresent()) {
-            return Optional.of(new ConstantNode(getValue.apply(string), ConstantNode.ValueType.String));
+            return Optional.of(new ConstantNode(getValue.apply(string)));
         }
         Optional<Token> number = MatchAndRemove(Token.TokenType.NUMBER);
         if (number.isPresent()) {
-            return Optional.of(new ConstantNode(getValue.apply(number), ConstantNode.ValueType.Number));
+            return Optional.of(new ConstantNode(getValue.apply(number)));
         }
         Optional<Token> pattern = MatchAndRemove(Token.TokenType.PATTERN);
         if (pattern.isPresent()) {

@@ -1,6 +1,5 @@
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Optional;
 
 public class Lexer {
     // protected so I don't have to duplicate this for FunctionalLexer

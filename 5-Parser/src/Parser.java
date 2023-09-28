@@ -16,10 +16,8 @@ public class Parser {
     public ProgramNode Parse() throws AwkException {
         var program = new ProgramNode();
         while (tokens.MoreTokens()) {
-            // and is short circuiting
-            // so if ParseFunction returns true then !true && !ParseAction(program) will
-            // return false
-            if (!ParseFunction(program) && !ParseAction(program)) {
+            // if its not an action of function error
+            if (ParseFunction(program) || ParseAction(program)) {
                 throw createException("cannot parse program top level item was not a function or action");
             }
         }
@@ -145,11 +143,11 @@ public class Parser {
         Function<Optional<Token>, String> getValue = (token) -> token.get().getValue().get();
         Optional<Token> string = MatchAndRemove(Token.TokenType.STRINGLITERAL);
         if (string.isPresent()) {
-            return Optional.of(new ConstantNode(getValue.apply(string), ConstantNode.ValueType.String));
+            return Optional.of(new ConstantNode(getValue.apply(string)));
         }
         Optional<Token> number = MatchAndRemove(Token.TokenType.NUMBER);
         if (number.isPresent()) {
-            return Optional.of(new ConstantNode(getValue.apply(number), ConstantNode.ValueType.Number));
+            return Optional.of(new ConstantNode(getValue.apply(number)));
         }
         Optional<Token> pattern = MatchAndRemove(Token.TokenType.PATTERN);
         if (pattern.isPresent()) {
@@ -167,8 +165,8 @@ public class Parser {
         return parseUnary.apply(Token.TokenType.NOT, OperationNode.Operation.NOT)
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUS, OperationNode.Operation.UNARYNEG))
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUS, OperationNode.Operation.UNARYPOS))
-                .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUSMINUS, OperationNode.Operation.PREINC))
-                .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUSPLUS, OperationNode.Operation.POSTINC))
+                .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUSMINUS, OperationNode.Operation.PREDEC))
+                .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUSPLUS, OperationNode.Operation.PREINC))
                 .CheckedOr(() -> ParseLValue());
     }
 
@@ -194,6 +192,8 @@ public class Parser {
 
     // i think all levels of functions need to be Optional<Node> not just Node
     // and should essentially do ? on the first expr
+
+    // TODO: exp{++|--}
 
     // Post Increment / Decrement should this be ParseBottomLevel
     // Exponents ^
@@ -242,7 +242,7 @@ public class Parser {
     }
 
     // Term maybe means ParseBottomLevel
-    // Concatenation >>
+    // Concatenation >> maybe also expr expr
     // Boolean Compare <= < != ...
     private Node ParseBooleanCompare() throws AwkException {
         var left = ParseExpression();
@@ -271,7 +271,7 @@ public class Parser {
         return new OperationNode(op.get(), left, right);
     }
 
-    // Array membership - already in ParseLValue maybe -- what about in?
+    // Array membership - already in ParseLValue need `in`
     // AND &&
     private Node ParseAnd() throws AwkException {
         var node = ParseMatch();
@@ -292,8 +292,7 @@ public class Parser {
         return node;
     }
 
-    // Ternary ?: I dont get what right asscotivity does here shouldnt this call to
-    // ParseOperation
+    // Ternary ?: I dont get what right asscotivity does here
     // do we need seperate TernaryOperationNode
     private Node ParseTernary() throws AwkException {
         var cond = ParseOr();

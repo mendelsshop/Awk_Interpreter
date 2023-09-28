@@ -1,4 +1,3 @@
-
 public class TernaryOperationNode extends Node {
     private Node cond; 
     private Node then; 
