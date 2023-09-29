@@ -180,7 +180,7 @@ public class Parser {
             return MatchAndRemove(Token.TokenType.OPENBRACKET).CheckedMap(g -> {
                 var index = ParseOperation().orElseThrow(() -> createException(
                         "found open bracket for indexing " + name + ", but no actual index value"));
-                MatchAndRemove(Token.TokenType.CLOSEBRACKET).get();
+                MatchAndRemove(Token.TokenType.CLOSEBRACKET).orElseThrow(() -> createException("expected close bracket ([) for indexing " + name));
                 return new VariableReferenceNode(name, Optional.of(index));
             }).orElse(new VariableReferenceNode(name));
         }));

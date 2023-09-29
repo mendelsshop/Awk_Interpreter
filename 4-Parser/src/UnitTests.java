@@ -1378,4 +1378,31 @@ public class UnitTests {
         }
     }
 
+    // testing invalid parsing
+    private void testInvalidOperation(String content, Token.TokenType[] expected) throws Exception {
+        var parser = new Parser(
+                testLexContent(content, expected));
+        assertThrows(AwkException.class, () -> parser.ParseOperation());
+
+    }
+
+    @Test
+    public void noexpr() throws Exception {
+        testInvalidOperation("()", new Token.TokenType[] { Token.TokenType.OPENPAREN, Token.TokenType.CLOSEPAREN });
+        testInvalidOperation("+", new Token.TokenType[] { Token.TokenType.PLUS });
+        testInvalidOperation("-", new Token.TokenType[] { Token.TokenType.MINUS });
+        testInvalidOperation("!", new Token.TokenType[] { Token.TokenType.NOT });
+        testInvalidOperation("++", new Token.TokenType[] { Token.TokenType.PLUSPLUS });
+        testInvalidOperation("--", new Token.TokenType[] { Token.TokenType.MINUSMINUS });
+        testInvalidOperation("var[]", new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
+                Token.TokenType.CLOSEBRACKET });
+    }
+
+    @Test
+    public void unbalancedbrace() throws Exception {
+        testInvalidOperation("($--4", new Token.TokenType[] { Token.TokenType.OPENPAREN,Token.TokenType.DOLLAR, Token.TokenType.MINUSMINUS, Token.TokenType.NUMBER, });
+        testInvalidOperation("var[`5#`", new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.OPENBRACKET,Token.TokenType.PATTERN
+                });
+
+    }
 }
