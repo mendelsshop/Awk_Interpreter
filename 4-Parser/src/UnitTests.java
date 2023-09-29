@@ -1331,4 +1331,50 @@ public class UnitTests {
             throw new Exception("test failed");
         }
     }
+
+    @Test
+    public void dollarparse() throws Exception {
+        var parser = new Parser(
+                testLexContent("$4 $-1",
+                        new Token.TokenType[] { Token.TokenType.DOLLAR, Token.TokenType.NUMBER,
+                                Token.TokenType.DOLLAR, Token.TokenType.MINUS, Token.TokenType.NUMBER }));
+        var d1 = parser.ParseOperation().get();
+        var d2 = parser.ParseOperation().get();
+        if (d1 instanceof OperationNode d11 && d11.getLeft() instanceof ConstantNode i1
+                && d2 instanceof OperationNode d22 && d22.getLeft() instanceof OperationNode i2
+                && i2.getLeft() instanceof ConstantNode i22) {
+            assertEquals(d11.getOperation(), OperationNode.Operation.DOLLAR);
+            assertEquals(i1.getValue(), "4");
+            assertEquals(d22.getOperation(), OperationNode.Operation.DOLLAR);
+            assertEquals(i2.getOperation(), OperationNode.Operation.UNARYNEG);
+            assertEquals(i22.getValue(), "1");
+        } else {
+            throw new Exception("test failed");
+        }
+    }
+
+    @Test
+    public void indexparse() throws Exception {
+        var parser = new Parser(
+                testLexContent("   variable\t[++(\t+ $ u ) ]  \t",
+                        new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
+                                Token.TokenType.PLUSPLUS, Token.TokenType.OPENPAREN, Token.TokenType.PLUS,
+                                Token.TokenType.DOLLAR, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                                Token.TokenType.CLOSEBRACKET }));
+        var v = parser.ParseOperation().get();
+        System.out.println(v);
+        if (v instanceof VariableReferenceNode v1 && v1.getIndex().get() instanceof OperationNode index
+                && index.getLeft() instanceof OperationNode index1 && index1.getLeft() instanceof OperationNode index2
+                && index2.getLeft() instanceof VariableReferenceNode index3) {
+            assertEquals(v1.getName(), "variable");
+            assertEquals(index.getOperation(), OperationNode.Operation.PREINC);
+            assertEquals(index1.getOperation(), OperationNode.Operation.UNARYPOS);
+            assertEquals(index2.getOperation(), OperationNode.Operation.DOLLAR);
+            assertEquals(index3.getName(), "u");
+
+        } else {
+            throw new Exception("test failed");
+        }
+    }
+
 }
