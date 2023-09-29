@@ -1284,6 +1284,7 @@ public class UnitTests {
     }
 
     // parser 2 tests
+    // these tests should use instanceof pattern matching (java 21 preview)
     @Test
     public void predecparse() throws Exception {
         var parser = new Parser(
