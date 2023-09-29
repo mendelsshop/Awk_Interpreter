@@ -38,7 +38,7 @@ root
     └── VariableReferenceNode.java
 ```
 
-The awk files are generated from using `get_awk_files.py` and are required for the first unit test to work (see `root/src/UnitTests.java` for more info)
+The awk files are generated from using `get_awk_files.py` (and will probably be different then the ones shown here) are required for the first unit test to work (see `root/src/UnitTests.java` for more info)
 
 The reason there is no `import java.util.Optional` is because I am using a custom version of `Optional` in `root/src/Optional.java`.
 
