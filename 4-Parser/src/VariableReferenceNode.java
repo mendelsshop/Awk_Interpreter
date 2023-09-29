@@ -1,5 +1,3 @@
-// import java.util.Optional;
-
 public class VariableReferenceNode extends StatementNode {
     private String name;
 
@@ -8,19 +6,20 @@ public class VariableReferenceNode extends StatementNode {
     }
 
     public VariableReferenceNode(String name) {
-        this(name, Optional.empty());
+        this.name = name;
+
     }
 
     // what does index mean?
-    private Optional<Node> index;
+    private Optional<Node> index = Optional.empty();
 
     public Optional<Node> getIndex() {
         return index;
     }
 
-    public VariableReferenceNode(String name, Optional<Node> index) {
+    public VariableReferenceNode(String name, Node index) {
         this.name = name;
-        this.index = index;
+        this.index = Optional.of(index);
     }
 
     @Override
