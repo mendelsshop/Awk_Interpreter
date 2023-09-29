@@ -193,12 +193,13 @@ public class Parser {
     // i think all levels of functions need to be Optional<Node> not just Node
     // and should essentially do ? on the first expr
 
-    // TODO: exp{++|--}
-
     // Post Increment / Decrement should this be ParseBottomLevel
+    private Optional<Node> ParsePostIncDec() throws AwkException {
+        return ParseBottomLevel().<Node>map((expr)->MatchAndRemove(Token.TokenType.PLUSPLUS).map(c->OperationNode.Operation.PREINC).or(()->MatchAndRemove(Token.TokenType.MINUSMINUS).map(c->OperationNode.Operation.POSTDEC)).<Node>map(op->new OperationNode(op,expr)).orElse(expr));
+    }
     // Exponents ^
     private Node ParseExponent() throws AwkException {
-        var node = ParseBottomLevel().orElseThrow();
+        var node = ParsePostIncDec().orElseThrow();
         while (MatchAndRemove(Token.TokenType.EXPONENT).isPresent()) {
             var right = ParseExponent();
             node = new OperationNode(OperationNode.Operation.EXPONENT, node, right);
@@ -272,9 +273,24 @@ public class Parser {
     }
 
     // Array membership - already in ParseLValue need `in`
+    private Node ParseArrayIn() throws AwkException {
+        var left = ParseMatch();
+        do {
+            Optional<OperationNode.Operation> op = MatchAndRemove(Token.TokenType.IN)
+                    .map(a -> OperationNode.Operation.IN);
+            if (op.isEmpty()) {
+                break;
+            }
+            // should be parseterm
+            var right = ParseMatch();
+            left = new OperationNode(op.get(), left, right);
+        } while (true);
+        return left;
+    }
+
     // AND &&
     private Node ParseAnd() throws AwkException {
-        var node = ParseMatch();
+        var node = ParseArrayIn();
         while (MatchAndRemove(Token.TokenType.AND).isPresent()) {
             var right = ParseAnd();
             node = new OperationNode(OperationNode.Operation.AND, node, right);

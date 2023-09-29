@@ -165,8 +165,8 @@ public class Parser {
         return parseUnary.apply(Token.TokenType.NOT, OperationNode.Operation.NOT)
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUS, OperationNode.Operation.UNARYNEG))
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUS, OperationNode.Operation.UNARYPOS))
-                .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUSMINUS, OperationNode.Operation.PREINC))
-                .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUSPLUS, OperationNode.Operation.POSTINC))
+                .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUSMINUS, OperationNode.Operation.PREDEC))
+                .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUSPLUS, OperationNode.Operation.PREINC))
                 .CheckedOr(() -> ParseLValue());
     }
 
@@ -186,7 +186,7 @@ public class Parser {
         }));
     }
 
-    private Optional<Node> ParseOperation() throws AwkException {
+    public Optional<Node> ParseOperation() throws AwkException {
         return ParseBottomLevel();
     }
 }

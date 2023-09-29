@@ -12,11 +12,23 @@ public class OperationNode extends StatementNode {
     private Operation operation;
     private Node Left;
 
+    public Operation getOperation() {
+        return operation;
+    }
+
+    public Node getLeft() {
+        return Left;
+    }
+
     public OperationNode(OperationNode.Operation operation, Node left) {
         this(operation, left, Optional.empty());
     }
 
     private Optional<Node> Right;
+
+    public Optional<Node> getRight() {
+        return Right;
+    }
 
     public OperationNode(OperationNode.Operation operation, Node left, Optional<Node> right) {
         this.operation = operation;

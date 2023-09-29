@@ -1283,4 +1283,52 @@ public class UnitTests {
         parser.Parse(); // This should throw an AwkException
     }
 
+    // parser 2 tests
+    @Test
+    public void predecparse() throws Exception {
+        var parser = new Parser(
+                testLexContent("--a", new Token.TokenType[] { Token.TokenType.MINUSMINUS, Token.TokenType.WORD }));
+        var res = parser.ParseOperation().get();
+        if (res instanceof OperationNode op && op.getLeft() instanceof VariableReferenceNode variable) {
+            System.out.println(op);
+            assertEquals(op.getOperation(), OperationNode.Operation.PREDEC);
+            assertEquals(variable.getName(), "a");
+        } else {
+            throw new Exception("test failed");
+        }
+    }
+
+    @Test
+    public void preincparse() throws Exception {
+        var parser = new Parser(
+                testLexContent("++a", new Token.TokenType[] { Token.TokenType.PLUSPLUS, Token.TokenType.WORD }));
+        var res = parser.ParseOperation().get();
+        if (res instanceof OperationNode op && op.getLeft() instanceof VariableReferenceNode variable) {
+            System.out.println(op);
+            assertEquals(op.getOperation(), OperationNode.Operation.PREINC);
+            assertEquals(variable.getName(), "a");
+        } else {
+            throw new Exception("test failed");
+        }
+
+    }
+
+    @Test
+    public void constantparse() throws Exception {
+        var parser = new Parser(
+                testLexContent("1.75 \"a\\\"aa\" `a[0]*`",
+                        new Token.TokenType[] { Token.TokenType.NUMBER, Token.TokenType.STRINGLITERAL,
+                                Token.TokenType.PATTERN }));
+        var num = parser.ParseOperation().get();
+        var word = parser.ParseOperation().get();
+        var pat = parser.ParseOperation().get();
+        if (num instanceof ConstantNode number && word instanceof ConstantNode string
+                && pat instanceof PatternNode pattern) {
+            assertEquals(number.getValue(), "1.75");
+            assertEquals(string.getValue(), "a\"aa");
+            assertEquals(pattern.getPattern(), "a[0]*");
+        } else {
+            throw new Exception("test failed");
+        }
+    }
 }
