@@ -254,7 +254,19 @@ public class Parser {
     }
 
     // Term maybe means ParseBottomLevel
-    // Concatenation >> maybe also expr expr
+    // Concatenation expr expr
+    private Optional<Node> ParseConcatination() throws AwkException {
+        // keep going while there are more expressions
+        return ParseExpression().CheckedMap(left -> {
+            do {
+                var right = ParseExpression();
+                if (right.isEmpty()) {
+                    return left;
+                }
+                left = new OperationNode(OperationNode.Operation.CONCATENATION, left, right.get());
+            } while (true);
+        });
+    }
 
     private Optional<Node> ParseNoAssociative(CheckedSupplier<Optional<Node>, AwkException> getExpression,
             Function<Token.TokenType, Optional<OperationNode.Operation>> getOP) {
@@ -270,7 +282,7 @@ public class Parser {
 
     // Boolean Compare <= < != ...
     private Optional<Node> ParseBooleanCompare() throws AwkException {
-        return ParseLeftAssociative(this::ParseExpression,
+        return ParseLeftAssociative(this::ParseConcatination,
                 op -> Optional.ofNullable(switch (op) {
                     case LESSTHAN -> OperationNode.Operation.LT;
                     case GREATERTHAN -> OperationNode.Operation.GT;
@@ -285,7 +297,7 @@ public class Parser {
 
     // Match ~ !~
     private Optional<Node> ParseMatch() throws AwkException {
-        return ParseNoAssociative(this::ParseArrayIn,
+        return ParseNoAssociative(this::ParseBooleanCompare,
                 token -> Optional.ofNullable(token == Token.TokenType.NOTMATCH ? OperationNode.Operation.NOTMATCH
                         : token == Token.TokenType.MATCH ? OperationNode.Operation.MATCH : null));
     }
@@ -314,32 +326,37 @@ public class Parser {
     // Ternary ?: I dont get what right asscotivity does here
     // do we need seperate TernaryOperationNode
     private Optional<Node> ParseTernary() throws AwkException {
-        var cond = ParseOr();
-        return MatchAndRemove(Token.TokenType.QUESTION).<Node, AwkException>CheckedMap(s -> {
-            var then = ParseOperation().orElseThrow();
-            MatchAndRemove(Token.TokenType.COLON).orElseThrow();
-            var alt = ParseTernary();
-            return new TernaryOperationNode(cond, then, alt);
+        return ParseOr().<Node, AwkException>CheckedMap(cond -> {
+            if (MatchAndRemove(Token.TokenType.QUESTION).isPresent()) {
+                var then = ParseOr().orElseThrow(() -> createException("ternary then part missing"));
+                MatchAndRemove(Token.TokenType.COLON).orElseThrow(() -> createException("ternary colon part missing"));
+                var alt = ParseTernary().orElseThrow(() -> createException("ternary alternate part missing"));
+                cond = new TernaryOperationNode(cond, then, alt);
+            }
+            return cond;
 
-        }).orElse(cond);
+        });
     }
 
     // Assignment == += ...
     private Optional<Node> ParseAssignment() throws AwkException {
-        var var = ParseLValue().orElseThrow();
-        CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> OPEquals = (opeq,
-                op) -> MatchAndRemove(opeq).<Node, AwkException>CheckedMap(
-                        s -> new OperationNode(op, var, ParseTernary()));
-        return MatchAndRemove(Token.TokenType.ASSIGN)
-                .<Node, AwkException>CheckedMap(s -> ParseTernary())
-                .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
-                .CheckedOr(() -> OPEquals.apply(Token.TokenType.MODULOEQUAL, OperationNode.Operation.MODULO))
-                .CheckedOr(() -> OPEquals.apply(Token.TokenType.MULTIPLYEQUAL, OperationNode.Operation.MULTIPLY))
-                .CheckedOr(() -> OPEquals.apply(Token.TokenType.DIVIDEEQUAL, OperationNode.Operation.DIVIDE))
-                .CheckedOr(() -> OPEquals.apply(Token.TokenType.MINUSEQUAL, OperationNode.Operation.SUBTRACT))
-                .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
-                .<Node>map(value -> new AssignmentNode(var, value))
-                // if no assignment just return the variableNode itself?
-                .orElse(var);
+        // how can i make this right associative b/c the first part must be lvalue so it cannot be ternary
+        // boils down to same problem with --,++ which can only have lvalue ($n, var[] var) so ----a is not valid
+        return ParseLValue().CheckedMap(var -> {
+            CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> OPEquals = (opeq,
+                    op) -> MatchAndRemove(opeq).<Node, AwkException>CheckedMap(
+                            s -> new OperationNode(op, var, ParseTernary()));
+            return MatchAndRemove(Token.TokenType.ASSIGN)
+                    .<Node, AwkException>CheckedMap(s -> ParseAssignment())
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.MODULOEQUAL, OperationNode.Operation.MODULO))
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.MULTIPLYEQUAL, OperationNode.Operation.MULTIPLY))
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.DIVIDEEQUAL, OperationNode.Operation.DIVIDE))
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.MINUSEQUAL, OperationNode.Operation.SUBTRACT))
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
+                    .<Node>map(value -> new AssignmentNode(var, value))
+                    // if no assignment just return the variableNode itself?
+                    .orElse(var);
+        });
     }
 }
