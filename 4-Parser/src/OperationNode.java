@@ -1,5 +1,3 @@
-import java.util.Optional;
-
 public class OperationNode extends StatementNode {
     @Override
     public String toString() {
