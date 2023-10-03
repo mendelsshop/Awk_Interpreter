@@ -1,16 +1,24 @@
 public class VariableReferenceNode extends StatementNode {
     private String name;
 
-    public VariableReferenceNode(String name) {
-        this(name, Optional.empty());
+    public String getName() {
+        return name;
     }
 
-    // what does index mean?
-    private Optional<Node> index;
-
-    public VariableReferenceNode(String name, Optional<Node> index) {
+    public VariableReferenceNode(String name) {
         this.name = name;
-        this.index = index;
+
+    }
+
+    private Optional<Node> index = Optional.empty();
+
+    public Optional<Node> getIndex() {
+        return index;
+    }
+
+    public VariableReferenceNode(String name, Node index) {
+        this.name = name;
+        this.index = Optional.of(index);
     }
 
     @Override

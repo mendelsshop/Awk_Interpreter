@@ -1283,4 +1283,127 @@ public class UnitTests {
         parser.Parse(); // This should throw an AwkException
     }
 
+    // parser 2 tests
+    // these tests should use instanceof pattern matching (java 21 preview)
+    // TODO: remake these tests for parser 3
+    // @Test
+    // public void predecparse() throws Exception {
+    //     var parser = new Parser(
+    //             testLexContent("--a", new Token.TokenType[] { Token.TokenType.MINUSMINUS, Token.TokenType.WORD }));
+    //     var res = parser.ParseOperation().get();
+    //     if (res instanceof OperationNode op && op.getLeft() instanceof VariableReferenceNode variable) {
+    //         System.out.println(op);
+    //         assertEquals(op.getOperation(), OperationNode.Operation.PREDEC);
+    //         assertEquals(variable.getName(), "a");
+    //     } else {
+    //         throw new Exception("test failed");
+    //     }
+    // }
+
+    // @Test
+    // public void preincparse() throws Exception {
+    //     var parser = new Parser(
+    //             testLexContent("++a", new Token.TokenType[] { Token.TokenType.PLUSPLUS, Token.TokenType.WORD }));
+    //     var res = parser.ParseOperation().get();
+    //     if (res instanceof OperationNode op && op.getLeft() instanceof VariableReferenceNode variable) {
+    //         System.out.println(op);
+    //         assertEquals(op.getOperation(), OperationNode.Operation.PREINC);
+    //         assertEquals(variable.getName(), "a");
+    //     } else {
+    //         throw new Exception("test failed");
+    //     }
+
+    // }
+
+    // @Test
+    // public void constantparse() throws Exception {
+    //     var parser = new Parser(
+    //             testLexContent("1.75 \"a\\\"aa\" `a[0]*`",
+    //                     new Token.TokenType[] { Token.TokenType.NUMBER, Token.TokenType.STRINGLITERAL,
+    //                             Token.TokenType.PATTERN }));
+    //     var num = parser.ParseOperation().get();
+    //     var word = parser.ParseOperation().get();
+    //     var pat = parser.ParseOperation().get();
+    //     if (num instanceof ConstantNode number && word instanceof ConstantNode string
+    //             && pat instanceof PatternNode pattern) {
+    //         assertEquals(number.getValue(), "1.75");
+    //         assertEquals(string.getValue(), "a\"aa");
+    //         assertEquals(pattern.getPattern(), "a[0]*");
+    //     } else {
+    //         throw new Exception("test failed");
+    //     }
+    // }
+
+    // @Test
+    // public void dollarparse() throws Exception {
+    //     var parser = new Parser(
+    //             testLexContent("$4 $-1",
+    //                     new Token.TokenType[] { Token.TokenType.DOLLAR, Token.TokenType.NUMBER,
+    //                             Token.TokenType.DOLLAR, Token.TokenType.MINUS, Token.TokenType.NUMBER }));
+    //     var d1 = parser.ParseOperation().get();
+    //     var d2 = parser.ParseOperation().get();
+    //     if (d1 instanceof OperationNode d11 && d11.getLeft() instanceof ConstantNode i1
+    //             && d2 instanceof OperationNode d22 && d22.getLeft() instanceof OperationNode i2
+    //             && i2.getLeft() instanceof ConstantNode i22) {
+    //         assertEquals(d11.getOperation(), OperationNode.Operation.DOLLAR);
+    //         assertEquals(i1.getValue(), "4");
+    //         assertEquals(d22.getOperation(), OperationNode.Operation.DOLLAR);
+    //         assertEquals(i2.getOperation(), OperationNode.Operation.UNARYNEG);
+    //         assertEquals(i22.getValue(), "1");
+    //     } else {
+    //         throw new Exception("test failed");
+    //     }
+    // }
+
+    // @Test
+    // public void indexparse() throws Exception {
+    //     var parser = new Parser(
+    //             testLexContent("   variable\t[++(\t+ $ u ) ]  \t",
+    //                     new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
+    //                             Token.TokenType.PLUSPLUS, Token.TokenType.OPENPAREN, Token.TokenType.PLUS,
+    //                             Token.TokenType.DOLLAR, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+    //                             Token.TokenType.CLOSEBRACKET }));
+    //     var v = parser.ParseOperation().get();
+    //     System.out.println(v);
+    //     if (v instanceof VariableReferenceNode v1 && v1.getIndex().get() instanceof OperationNode index
+    //             && index.getLeft() instanceof OperationNode index1 && index1.getLeft() instanceof OperationNode index2
+    //             && index2.getLeft() instanceof VariableReferenceNode index3) {
+    //         assertEquals(v1.getName(), "variable");
+    //         assertEquals(index.getOperation(), OperationNode.Operation.PREINC);
+    //         assertEquals(index1.getOperation(), OperationNode.Operation.UNARYPOS);
+    //         assertEquals(index2.getOperation(), OperationNode.Operation.DOLLAR);
+    //         assertEquals(index3.getName(), "u");
+
+    //     } else {
+    //         throw new Exception("test failed");
+    //     }
+    // }
+
+    // // testing invalid parsing
+    // private void testInvalidOperation(String content, Token.TokenType[] expected) throws Exception {
+    //     var parser = new Parser(
+    //             testLexContent(content, expected));
+    //     assertThrows(AwkException.class, () -> parser.ParseOperation());
+
+    // }
+
+    // @Test
+    // public void noexpr() throws Exception {
+    //     testInvalidOperation("()", new Token.TokenType[] { Token.TokenType.OPENPAREN, Token.TokenType.CLOSEPAREN });
+    //     testInvalidOperation("+", new Token.TokenType[] { Token.TokenType.PLUS });
+    //     testInvalidOperation("-", new Token.TokenType[] { Token.TokenType.MINUS });
+    //     testInvalidOperation("!", new Token.TokenType[] { Token.TokenType.NOT });
+    //     testInvalidOperation("++", new Token.TokenType[] { Token.TokenType.PLUSPLUS });
+    //     testInvalidOperation("--", new Token.TokenType[] { Token.TokenType.MINUSMINUS });
+    //     testInvalidOperation("var[]", new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
+    //             Token.TokenType.CLOSEBRACKET });
+    // }
+
+    // @Test
+    // public void unbalancedbrace() throws Exception {
+    //     testInvalidOperation("($--4", new Token.TokenType[] { Token.TokenType.OPENPAREN,Token.TokenType.DOLLAR, Token.TokenType.MINUSMINUS, Token.TokenType.NUMBER, });
+    //     testInvalidOperation("var[`5#`", new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.OPENBRACKET,Token.TokenType.PATTERN
+    //             });
+
+    // }
 }

@@ -130,6 +130,7 @@ public class Parser {
     }
 
     private Optional<Node> ParseBottomLevel() throws AwkException {
+        // a functiin that maps a tokentype into a OperationNode
         CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> parseUnary = (type,
                 operation) -> Optional
                         // we use ofNullable to make it easier to it easy to make Optinal.Empty with
@@ -140,7 +141,10 @@ public class Parser {
                                                 ParseOperation().orElseThrow(() -> createException("operation "
                                                         + operation + " is not followed by an expression")))
                                         : null);
+        // simplifies getting the constant value out of a token
         Function<Optional<Token>, String> getValue = (token) -> token.get().getValue().get();
+
+        // constant nodes
         Optional<Token> string = MatchAndRemove(Token.TokenType.STRINGLITERAL);
         if (string.isPresent()) {
             return Optional.of(new ConstantNode(getValue.apply(string)));
@@ -152,7 +156,9 @@ public class Parser {
         Optional<Token> pattern = MatchAndRemove(Token.TokenType.PATTERN);
         if (pattern.isPresent()) {
             return Optional.of(new PatternNode(getValue.apply(pattern)));
-        } else if (MatchAndRemove(Token.TokenType.OPENPAREN).isPresent()) {
+        }
+        // (expr)
+        else if (MatchAndRemove(Token.TokenType.OPENPAREN).isPresent()) {
             var operation = ParseOperation();
             if (!MatchAndRemove(Token.TokenType.CLOSEPAREN).isPresent()) {
                 throw createException("Expected close parenthesis after `(" + operation + "`");
@@ -162,6 +168,7 @@ public class Parser {
             }
             return operation;
         }
+        // prefix unary operation
         return parseUnary.apply(Token.TokenType.NOT, OperationNode.Operation.NOT)
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUS, OperationNode.Operation.UNARYNEG))
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUS, OperationNode.Operation.UNARYPOS))
@@ -171,20 +178,27 @@ public class Parser {
     }
 
     private Optional<Node> ParseLValue() throws AwkException {
-        return MatchAndRemove(Token.TokenType.DOLLAR).<Node, AwkException>CheckedMap(c -> {
+        return
+        // first see if its a dollar operation
+        MatchAndRemove(Token.TokenType.DOLLAR).<Node, AwkException>CheckedMap(c -> {
             var value = ParseBottomLevel();
             return new OperationNode(OperationNode.Operation.DOLLAR, value.orElseThrow(
                     () -> createException("`$` is either not followed by an expression or the expression is invalid")));
-        }).<AwkException>CheckedOr(() -> MatchAndRemove(Token.TokenType.WORD).<Node, AwkException>CheckedMap(v -> {
+        }).
+        // otherwise it might be a varaible refernce
+        <AwkException>CheckedOr(() -> MatchAndRemove(Token.TokenType.WORD).<Node, AwkException>CheckedMap(v -> {
             String name = v.getValue().get();
+            // check if its an array index
             return MatchAndRemove(Token.TokenType.OPENBRACKET).CheckedMap(g -> {
                 var index = ParseOperation().orElseThrow(() -> createException(
                         "found open bracket for indexing " + name + ", but no actual index value"));
-                MatchAndRemove(Token.TokenType.CLOSEBRACKET).get();
-                return new VariableReferenceNode(name, Optional.of(index));
+                MatchAndRemove(Token.TokenType.CLOSEBRACKET).orElseThrow(() -> createException("expected close bracket ([) for indexing " + name));
+                return new VariableReferenceNode(name, index);
+    
             }).orElse(new VariableReferenceNode(name));
         }));
     }
+
 
     private Optional<Node> ParseOperation() throws AwkException {
         return ParseAssignment();
