@@ -9,6 +9,6 @@ public class TernaryOperationNode extends Node {
     }
     @Override
     public String toString() {
-        return  cond + " ? " + then + " : " + alt;
+        return "(" + cond + " ? " + then + " : " + alt + ")";
     }
 }

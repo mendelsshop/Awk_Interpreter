@@ -19,7 +19,18 @@ public class Awk {
                 Lexer lexer = new Lexer(content);
                 // print result token stream
                 var parser = new Parser(lexer.lex());
-                System.out.println(parser.Parse());
+                // System.out.println(parser.Parse());
+                while (true) {
+                    parser.AcceptSeperators();
+                Optional<Node> parseOperation = parser.ParseOperation();
+               
+                if (parseOperation.isPresent()) {
+                      System.out.println(parseOperation.get());
+                } else {
+                    break;
+                }
+              
+                }
             } catch (AwkException e) {
                 e.DisplayError(content, myPath.toString());
             }

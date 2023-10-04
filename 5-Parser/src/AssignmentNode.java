@@ -7,6 +7,6 @@ public class AssignmentNode extends Node {
     }
     @Override
     public String toString() {
-        return target + " = " + expression;
+        return "("+ target + " = " + expression + ")";
     }
 }

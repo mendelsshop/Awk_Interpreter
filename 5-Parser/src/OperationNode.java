@@ -1,7 +1,7 @@
 public class OperationNode extends StatementNode {
     @Override
     public String toString() {
-        return Right.isPresent() ? Left + " " + operation + " " + Right.get() : operation + " " + Left;
+        return "("+  (Right.isPresent() ? Left + " " + operation + " " + Right.get() : operation + " " + Left) + ")";
     }
 
     // and a list of possible operations – use an enum for this. Mine are:

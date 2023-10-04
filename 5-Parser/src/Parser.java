@@ -24,7 +24,8 @@ public class Parser {
         return program;
     }
 
-    private boolean AcceptSeperators() {
+    // TODO: unpublic thid
+    public boolean AcceptSeperators() {
         boolean foundSeperators = false;
         // since MatchAndRemove does out of bounds checks
         while (MatchAndRemove(Token.TokenType.SEPERATOR).isPresent()) {
@@ -161,7 +162,7 @@ public class Parser {
         else if (MatchAndRemove(Token.TokenType.OPENPAREN).isPresent()) {
             var operation = ParseOperation();
             if (!MatchAndRemove(Token.TokenType.CLOSEPAREN).isPresent()) {
-                throw createException("Expected close parenthesis after `(" + operation + "`");
+                throw createException("Expected close parenthesis after `(" + operation.get() + "`");
             }
             if (operation.isEmpty()) {
                 throw createException("value inbetween `(`, `)` is either empty or invalid");
@@ -172,6 +173,7 @@ public class Parser {
         return parseUnary.apply(Token.TokenType.NOT, OperationNode.Operation.NOT)
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUS, OperationNode.Operation.UNARYNEG))
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUS, OperationNode.Operation.UNARYPOS))
+                // both of these should be lvalue
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUSMINUS, OperationNode.Operation.PREDEC))
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUSPLUS, OperationNode.Operation.PREINC))
                 .CheckedOr(() -> ParseLValue());
@@ -192,24 +194,24 @@ public class Parser {
             return MatchAndRemove(Token.TokenType.OPENBRACKET).CheckedMap(g -> {
                 var index = ParseOperation().orElseThrow(() -> createException(
                         "found open bracket for indexing " + name + ", but no actual index value"));
-                MatchAndRemove(Token.TokenType.CLOSEBRACKET).orElseThrow(() -> createException("expected close bracket ([) for indexing " + name));
+                MatchAndRemove(Token.TokenType.CLOSEBRACKET)
+                        .orElseThrow(() -> createException("expected close bracket ([) for indexing " + name));
                 return new VariableReferenceNode(name, index);
-    
+
             }).orElse(new VariableReferenceNode(name));
         }));
     }
 
-
-    private Optional<Node> ParseOperation() throws AwkException {
+    public Optional<Node> ParseOperation() throws AwkException {
         return ParseAssignment();
     }
 
-    // and should essentially do ? on the first expr
-
     // Post Increment / Decrement should this be ParseBottomLevel
+    // this should be ParseBottomLevel b/c each variable can only be pre or post not both so it can use lvalue instead of parseoperation
+    // as i dont see any bugs like with assignment same for pre
     private Optional<Node> ParsePostIncDec() throws AwkException {
         return ParseBottomLevel()
-                .<Node>map((expr) -> MatchAndRemove(Token.TokenType.PLUSPLUS).map(c -> OperationNode.Operation.PREINC)
+                .<Node>map((expr) -> MatchAndRemove(Token.TokenType.PLUSPLUS).map(c -> OperationNode.Operation.POSTINC)
                         .or(() -> MatchAndRemove(Token.TokenType.MINUSMINUS).map(c -> OperationNode.Operation.POSTDEC))
                         .<Node>map(op -> new OperationNode(op, expr)).orElse(expr));
     }
@@ -240,21 +242,20 @@ public class Parser {
     }
 
     private Optional<Node> ParseLeftAssociative(CheckedSupplier<Optional<Node>, AwkException> getExpression,
-            Function<Token.TokenType, Optional<OperationNode.Operation>> getOP) {
+            Function<Token.TokenType, Optional<OperationNode.Operation>> getOP) throws AwkException {
         return getExpression.get().CheckedMap(left -> {
             do {
                 var opToken = tokens.Peek(0).map(Token::getType);
-                Optional<OperationNode.Operation> OP = opToken.flatMap(getOP);
-                if (OP.isEmpty()) {
+                Optional<OperationNode.Operation> op = opToken.flatMap(getOP);
+                if (op.isEmpty()) {
                     return left;
                 }
-                // using ifPresent is nicer as we don't have to explicitly unwrap the value
-                OP.ifPresent(op -> {
-                    MatchAndRemove(opToken.get());
-                    var right = getExpression.get()
-                            .orElseThrow(() -> createException("Expected expression after " + op));
-                    left = new OperationNode(op, left, right);
-                });
+                // absorb the peek
+                MatchAndRemove(opToken.get());
+                var right = getExpression.get()
+                        .orElseThrow(() -> createException("Expected expression after " + op.get()));
+                left = new OperationNode(op.get(), left, right);
+
             } while (true);
         });
 
@@ -283,10 +284,12 @@ public class Parser {
     }
 
     private Optional<Node> ParseNoAssociative(CheckedSupplier<Optional<Node>, AwkException> getExpression,
-            Function<Token.TokenType, Optional<OperationNode.Operation>> getOP) {
-        return getExpression.get().CheckedFlatMap(left -> {
+            Function<Token.TokenType, Optional<OperationNode.Operation>> getOP) throws AwkException {
+        return getExpression.get().CheckedMap(left -> {
             var opToken = tokens.Peek(0).map(Token::getType);
             return opToken.flatMap(getOP).<Node, AwkException>CheckedMap(op -> {
+                // absorb the peek
+                MatchAndRemove(opToken.get());
                 var right = getExpression.get()
                         .orElseThrow(() -> createException("Expected expression after " + op));
                 return new OperationNode(op, left, right);
@@ -342,7 +345,7 @@ public class Parser {
     private Optional<Node> ParseTernary() throws AwkException {
         return ParseOr().<Node, AwkException>CheckedMap(cond -> {
             if (MatchAndRemove(Token.TokenType.QUESTION).isPresent()) {
-                var then = ParseOr().orElseThrow(() -> createException("ternary then part missing"));
+                var then = ParseOperation().orElseThrow(() -> createException("ternary then part missing"));
                 MatchAndRemove(Token.TokenType.COLON).orElseThrow(() -> createException("ternary colon part missing"));
                 var alt = ParseTernary().orElseThrow(() -> createException("ternary alternate part missing"));
                 cond = new TernaryOperationNode(cond, then, alt);
@@ -354,14 +357,18 @@ public class Parser {
 
     // Assignment == += ...
     private Optional<Node> ParseAssignment() throws AwkException {
-        // how can i make this right associative b/c the first part must be lvalue so it cannot be ternary
-        // boils down to same problem with --,++ which can only have lvalue ($n, var[] var) so ----a is not valid
-        return ParseLValue().CheckedMap(var -> {
+        // how can i make this right associative b/c the first part must be lvalue so it
+        // cannot be ternary
+        // boils down to same problem with --,++ which can only have lvalue ($n, var[]
+        // var) so ----a is not valid
+        return ParseTernary().CheckedMap(var -> {
             CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> OPEquals = (opeq,
                     op) -> MatchAndRemove(opeq).<Node, AwkException>CheckedMap(
-                            s -> new OperationNode(op, var, ParseTernary()));
+                            s -> new OperationNode(op, var, ParseAssignment().orElseThrow(
+                                    () -> createException("assignment " + op + " missing assignment value"))));
             return MatchAndRemove(Token.TokenType.ASSIGN)
-                    .<Node, AwkException>CheckedMap(s -> ParseAssignment())
+                    .<Node, AwkException>CheckedMap(s -> ParseAssignment()
+                            .orElseThrow(() -> createException("assignment missing assignment value")))
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.MODULOEQUAL, OperationNode.Operation.MODULO))
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.MULTIPLYEQUAL, OperationNode.Operation.MULTIPLY))
@@ -369,7 +376,7 @@ public class Parser {
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.MINUSEQUAL, OperationNode.Operation.SUBTRACT))
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
                     .<Node>map(value -> new AssignmentNode(var, value))
-                    // if no assignment just return the variableNode itself?
+                    // if no assignment just return the variableNode itself (which is not really a variableNode)
                     .orElse(var);
         });
     }
