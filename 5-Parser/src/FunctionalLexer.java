@@ -88,7 +88,7 @@ public class FunctionalLexer extends Lexer {
             put('+', makeTwoSymbolProccesor(Optional.of(Token.TokenType.PLUS), c -> Optional
                     .ofNullable(c == '=' ? Token.TokenType.PLUSEQUAL : c == '+' ? Token.TokenType.PLUSPLUS : null)));
             put('^', makeTwoSymbolProccesor(Optional.of(Token.TokenType.EXPONENT),
-                    c -> Optional.of(c == '=' ? Token.TokenType.EXPONENTEQUAL : null)));
+                    c -> Optional.ofNullable(c == '=' ? Token.TokenType.EXPONENTEQUAL : null)));
             put('-', makeTwoSymbolProccesor(Optional.of(Token.TokenType.MINUS), c -> Optional
                     .ofNullable(c == '=' ? Token.TokenType.MINUSEQUAL : c == '-' ? Token.TokenType.MINUSMINUS : null)));
             put('*', makeTwoSymbolProccesor(Optional.of(Token.TokenType.MULTIPLY),
