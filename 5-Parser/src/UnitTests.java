@@ -1319,12 +1319,13 @@ public class UnitTests {
     public void constantparse() throws Exception {
         var parser = new Parser(
                 testLexContent("1.75\n \"a\\\"aa\"\n `a[0]*`",
-                        new Token.TokenType[] { Token.TokenType.NUMBER,Token.TokenType.SEPERATOR, Token.TokenType.STRINGLITERAL,Token.TokenType.SEPERATOR,
+                        new Token.TokenType[] { Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                                Token.TokenType.STRINGLITERAL, Token.TokenType.SEPERATOR,
                                 Token.TokenType.PATTERN }));
         var num = parser.ParseOperation().get();
-                parser.AcceptSeperators();
+        parser.AcceptSeperators();
         var word = parser.ParseOperation().get();
-                parser.AcceptSeperators();
+        parser.AcceptSeperators();
         var pat = parser.ParseOperation().get();
         if (num instanceof ConstantNode number && word instanceof ConstantNode string
                 && pat instanceof PatternNode pattern) {
@@ -1340,7 +1341,8 @@ public class UnitTests {
     public void dollarparse() throws Exception {
         var parser = new Parser(
                 testLexContent("$4\n$-1",
-                        new Token.TokenType[] { Token.TokenType.DOLLAR, Token.TokenType.NUMBER,Token.TokenType.SEPERATOR,
+                        new Token.TokenType[] { Token.TokenType.DOLLAR, Token.TokenType.NUMBER,
+                                Token.TokenType.SEPERATOR,
                                 Token.TokenType.DOLLAR, Token.TokenType.MINUS, Token.TokenType.NUMBER }));
         var d1 = parser.ParseOperation().get();
         parser.AcceptSeperators();
@@ -1361,9 +1363,9 @@ public class UnitTests {
     @Test
     public void indexparse() throws Exception {
         var parser = new Parser(
-                testLexContent("   variable\t[++(\t+ $ u ) ]  \t",
+                testLexContent("   variable\t[+(++ $ u )]  \t",
                         new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
-                                Token.TokenType.PLUSPLUS, Token.TokenType.OPENPAREN, Token.TokenType.PLUS,
+                                Token.TokenType.PLUS, Token.TokenType.OPENPAREN, Token.TokenType.PLUSPLUS,
                                 Token.TokenType.DOLLAR, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
                                 Token.TokenType.CLOSEBRACKET }));
         var v = parser.ParseOperation().get();
@@ -1372,8 +1374,8 @@ public class UnitTests {
                 && index.getLeft() instanceof OperationNode index1 && index1.getLeft() instanceof OperationNode index2
                 && index2.getLeft() instanceof VariableReferenceNode index3) {
             assertEquals(v1.getName(), "variable");
-            assertEquals(index.getOperation(), OperationNode.Operation.PREINC);
-            assertEquals(index1.getOperation(), OperationNode.Operation.UNARYPOS);
+            assertEquals(index.getOperation(), OperationNode.Operation.UNARYPOS);
+            assertEquals(index1.getOperation(), OperationNode.Operation.PREINC);
             assertEquals(index2.getOperation(), OperationNode.Operation.DOLLAR);
             assertEquals(index3.getName(), "u");
 
@@ -1453,7 +1455,7 @@ public class UnitTests {
     @Test
     public void really_complex() throws Exception {
         var parser = new Parser(
-                testLexContent("z[a[5---8++]--] = 5 ?  (9<=9) ? 7 : 7 : a? 6:7\n" + //
+                testLexContent("z[a[5-8++]--] = 5 ?  (9<=9) ? 7 : 7 : a? 6:7\n" + //
                         "9++\n" + //
                         "a = 5 - 50.9  67 * 8 76 .6 .7? 6^-a:7\n" + //
                         "\n" + //
@@ -1462,7 +1464,7 @@ public class UnitTests {
                         "\n" + //
                         "1 * 3 + 6 ^ 6 - 7 / 6 % 6 >= 8 ? 8 == !8: 4~1>9\n" + //
                         "\n" + //
-                        "++(5 += (6 = 7 - 7 * 7 - -6) % 6--)--\n" + //
+                        "(5 += (6 = 7 - 7 * 7 - -6) % 6--)--\n" + //
                         "\n" + //
                         "(a > 5 ? a : b) /= 7\n" + //
                         "\n" + //
@@ -1477,7 +1479,7 @@ public class UnitTests {
                         "-!+t^2+1",
                         new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
                                 Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER,
-                                Token.TokenType.MINUSMINUS, Token.TokenType.MINUS, Token.TokenType.NUMBER,
+                                Token.TokenType.MINUS, Token.TokenType.NUMBER,
                                 Token.TokenType.PLUSPLUS, Token.TokenType.CLOSEBRACKET, Token.TokenType.MINUSMINUS,
                                 Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
                                 Token.TokenType.QUESTION, Token.TokenType.OPENPAREN, Token.TokenType.NUMBER,
@@ -1520,7 +1522,7 @@ public class UnitTests {
                                 Token.TokenType.COLON, Token.TokenType.NUMBER, Token.TokenType.MATCH,
                                 Token.TokenType.NUMBER,
                                 Token.TokenType.GREATERTHAN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.PLUSPLUS, Token.TokenType.OPENPAREN,
+                                Token.TokenType.SEPERATOR, Token.TokenType.OPENPAREN,
                                 Token.TokenType.NUMBER, Token.TokenType.PLUSEQUAL, Token.TokenType.OPENPAREN,
                                 Token.TokenType.NUMBER, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
                                 Token.TokenType.MINUS,
@@ -1637,31 +1639,36 @@ public class UnitTests {
     @Test
     public void errorHandlingTest() throws Exception {
         var parser = new Parser(
-            testLexContent(
-                "\n" +
-                "1 +\n" +           // Incomplete addition
-                "2 *\n" +           // Incomplete multiplication
-                "a &&\n" +          // Incomplete logical AND
-                "b || c =\n" +      // Incomplete assignment
-                "(3 + 4\n" +         // Unbalanced parentheses
-                "x ? y \n" +   // Ternary operator with missing colon
-                // "-- --a\n" +        // Double decrement without operand
-                "1 ^ ^ 2\n" +       // Consecutive exponents
-                "x % / y",          // Consecutive modulo and division
-                new Token.TokenType[] { 
-                    Token.TokenType.SEPERATOR, Token.TokenType.NUMBER, Token.TokenType.PLUS, Token.TokenType.SEPERATOR,
-                    Token.TokenType.NUMBER, Token.TokenType.MULTIPLY, Token.TokenType.SEPERATOR,
-                    Token.TokenType.WORD, Token.TokenType.AND, Token.TokenType.SEPERATOR,
-                    Token.TokenType.WORD, Token.TokenType.OR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.SEPERATOR,
-                    Token.TokenType.OPENPAREN, Token.TokenType.NUMBER, Token.TokenType.PLUS, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                    Token.TokenType.WORD, Token.TokenType.QUESTION,Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                    // Token.TokenType.MINUSMINUS, Token.TokenType.MINUSMINUS, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                    Token.TokenType.NUMBER, Token.TokenType.EXPONENT, Token.TokenType.EXPONENT, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                    Token.TokenType.WORD, Token.TokenType.MODULO, Token.TokenType.DIVIDE, Token.TokenType.WORD
-                }
-            )
-        );
-    
+                testLexContent(
+                        "\n" +
+                                "1 +\n" + // Incomplete addition
+                                "2 *\n" + // Incomplete multiplication
+                                "a &&\n" + // Incomplete logical AND
+                                "b || c =\n" + // Incomplete assignment
+                                "(3 + 4\n" + // Unbalanced parentheses
+                                "x ? y \n" + // Ternary operator with missing colon
+                                // "-- --a\n" + // Double decrement without operand
+                                "1 ^ ^ 2\n" + // Consecutive exponents
+                                "x % / y", // Consecutive modulo and division
+                        new Token.TokenType[] {
+                                Token.TokenType.SEPERATOR, Token.TokenType.NUMBER, Token.TokenType.PLUS,
+                                Token.TokenType.SEPERATOR,
+                                Token.TokenType.NUMBER, Token.TokenType.MULTIPLY, Token.TokenType.SEPERATOR,
+                                Token.TokenType.WORD, Token.TokenType.AND, Token.TokenType.SEPERATOR,
+                                Token.TokenType.WORD, Token.TokenType.OR, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                                Token.TokenType.SEPERATOR,
+                                Token.TokenType.OPENPAREN, Token.TokenType.NUMBER, Token.TokenType.PLUS,
+                                Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                                Token.TokenType.WORD, Token.TokenType.QUESTION, Token.TokenType.WORD,
+                                Token.TokenType.SEPERATOR,
+                                // Token.TokenType.MINUSMINUS, Token.TokenType.MINUSMINUS, Token.TokenType.WORD,
+                                // Token.TokenType.SEPERATOR,
+                                Token.TokenType.NUMBER, Token.TokenType.EXPONENT, Token.TokenType.EXPONENT,
+                                Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                                Token.TokenType.WORD, Token.TokenType.MODULO, Token.TokenType.DIVIDE,
+                                Token.TokenType.WORD
+                        }));
+
         while (parser.AcceptSeperators()) {
             assertThrows(AwkException.class, () -> parser.ParseOperation());
         }
@@ -1961,7 +1968,7 @@ public class UnitTests {
 
         // Logical OR (||) should have lower precedence than inequality (!=)
         assertEquals(result5, new OperationNode(OperationNode.Operation.OR,
-        new VariableReferenceNode("n"),
+                new VariableReferenceNode("n"),
                 new OperationNode(OperationNode.Operation.NE,
                         new VariableReferenceNode("o"),
                         new VariableReferenceNode("p"))));
@@ -1989,145 +1996,146 @@ public class UnitTests {
                                 new VariableReferenceNode("y")),
                         new VariableReferenceNode("z"))));
     }
+
     @Test
     public void orderOfOperationsTest1() throws Exception {
         var parser = new Parser(testLexContent(
-            "a + b * c\n" +
-            "d / e - f\n" +
-            "g % h ^ i\n" +
-            "j == k && l > m\n" +
-            "n || o != p\n" +
-            "q ? r + s : t - u\n" +
-            "v = w * x / y + z\n" +
-            "x++ * y--\n" +
-            "++a - --b",
-            new Token.TokenType[] {
-                Token.TokenType.WORD, Token.TokenType.PLUS, Token.TokenType.WORD, Token.TokenType.MULTIPLY,
-                Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                Token.TokenType.WORD, Token.TokenType.DIVIDE, Token.TokenType.WORD, Token.TokenType.MINUS,
-                Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                Token.TokenType.WORD, Token.TokenType.MODULO, Token.TokenType.WORD, Token.TokenType.EXPONENT,
-                Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                Token.TokenType.WORD, Token.TokenType.EQUAL, Token.TokenType.WORD, Token.TokenType.AND,
-                Token.TokenType.WORD, Token.TokenType.GREATERTHAN, Token.TokenType.WORD,
-                Token.TokenType.SEPERATOR,
-                Token.TokenType.WORD, Token.TokenType.OR, Token.TokenType.WORD, Token.TokenType.NOTEQUAL,
-                Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                Token.TokenType.WORD, Token.TokenType.QUESTION, Token.TokenType.WORD, Token.TokenType.PLUS,
-                Token.TokenType.WORD, Token.TokenType.COLON,
-                Token.TokenType.WORD, Token.TokenType.MINUS, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.MULTIPLY,
-                Token.TokenType.WORD, Token.TokenType.DIVIDE, Token.TokenType.WORD, Token.TokenType.PLUS,
-                Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                Token.TokenType.WORD, Token.TokenType.PLUSPLUS, Token.TokenType.MULTIPLY, Token.TokenType.WORD,
-                Token.TokenType.MINUSMINUS, Token.TokenType.SEPERATOR,
-                Token.TokenType.PLUSPLUS, Token.TokenType.WORD, Token.TokenType.MINUS, Token.TokenType.MINUSMINUS, Token.TokenType.WORD
-            }
-        ));
-    
+                "a + b * c\n" +
+                        "d / e - f\n" +
+                        "g % h ^ i\n" +
+                        "j == k && l > m\n" +
+                        "n || o != p\n" +
+                        "q ? r + s : t - u\n" +
+                        "v = w * x / y + z\n" +
+                        "x++ * y--\n" +
+                        "++a - --b",
+                new Token.TokenType[] {
+                        Token.TokenType.WORD, Token.TokenType.PLUS, Token.TokenType.WORD, Token.TokenType.MULTIPLY,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.DIVIDE, Token.TokenType.WORD, Token.TokenType.MINUS,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.MODULO, Token.TokenType.WORD, Token.TokenType.EXPONENT,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.EQUAL, Token.TokenType.WORD, Token.TokenType.AND,
+                        Token.TokenType.WORD, Token.TokenType.GREATERTHAN, Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.OR, Token.TokenType.WORD, Token.TokenType.NOTEQUAL,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.QUESTION, Token.TokenType.WORD, Token.TokenType.PLUS,
+                        Token.TokenType.WORD, Token.TokenType.COLON,
+                        Token.TokenType.WORD, Token.TokenType.MINUS, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.MULTIPLY,
+                        Token.TokenType.WORD, Token.TokenType.DIVIDE, Token.TokenType.WORD, Token.TokenType.PLUS,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.PLUSPLUS, Token.TokenType.MULTIPLY, Token.TokenType.WORD,
+                        Token.TokenType.MINUSMINUS, Token.TokenType.SEPERATOR,
+                        Token.TokenType.PLUSPLUS, Token.TokenType.WORD, Token.TokenType.MINUS,
+                        Token.TokenType.MINUSMINUS, Token.TokenType.WORD
+                }));
+
         var result1 = parser.ParseOperation().get();
         parser.AcceptSeperators();
-    
+
         var result2 = parser.ParseOperation().get();
         parser.AcceptSeperators();
-    
+
         var result3 = parser.ParseOperation().get();
         parser.AcceptSeperators();
-    
+
         var result4 = parser.ParseOperation().get();
         parser.AcceptSeperators();
-    
+
         var result5 = parser.ParseOperation().get();
         parser.AcceptSeperators();
-    
+
         var result6 = parser.ParseOperation().get();
         parser.AcceptSeperators();
-    
+
         var result7 = parser.ParseOperation().get();
         parser.AcceptSeperators();
-    
+
         var result8 = parser.ParseOperation().get();
         parser.AcceptSeperators();
-    
+
         var result9 = parser.ParseOperation().get();
         parser.AcceptSeperators();
-    
+
         // Test cases to check order of operations
-    
+
         // Multiplication (*) should have higher precedence than addition (+)
         assertEquals(result1, new OperationNode(OperationNode.Operation.ADD,
-            new VariableReferenceNode("a"),
-            new OperationNode(OperationNode.Operation.MULTIPLY,
-                new VariableReferenceNode("b"),
-                new VariableReferenceNode("c"))));
-    
+                new VariableReferenceNode("a"),
+                new OperationNode(OperationNode.Operation.MULTIPLY,
+                        new VariableReferenceNode("b"),
+                        new VariableReferenceNode("c"))));
+
         // Division (/) should have higher precedence than subtraction (-)
         assertEquals(result2, new OperationNode(OperationNode.Operation.SUBTRACT,
-            new OperationNode(OperationNode.Operation.DIVIDE,
-                new VariableReferenceNode("d"),
-                new VariableReferenceNode("e")),
-            new VariableReferenceNode("f")));
-    
+                new OperationNode(OperationNode.Operation.DIVIDE,
+                        new VariableReferenceNode("d"),
+                        new VariableReferenceNode("e")),
+                new VariableReferenceNode("f")));
+
         // Exponent (^) should have higher precedence than modulo (%)
         assertEquals(result3, new OperationNode(OperationNode.Operation.MODULO,
-            new VariableReferenceNode("g"),
-            new OperationNode(OperationNode.Operation.EXPONENT,
-                new VariableReferenceNode("h"),
-                new VariableReferenceNode("i"))));
-    
+                new VariableReferenceNode("g"),
+                new OperationNode(OperationNode.Operation.EXPONENT,
+                        new VariableReferenceNode("h"),
+                        new VariableReferenceNode("i"))));
+
         // Comparison (==) should have higher precedence than logical AND (&&)
         assertEquals(result4, new OperationNode(OperationNode.Operation.AND,
-            new OperationNode(OperationNode.Operation.EQ,
-                new VariableReferenceNode("j"),
-                new VariableReferenceNode("k")),
-            new OperationNode(OperationNode.Operation.GT,
-                new VariableReferenceNode("l"),
-                new VariableReferenceNode("m"))));
-    
+                new OperationNode(OperationNode.Operation.EQ,
+                        new VariableReferenceNode("j"),
+                        new VariableReferenceNode("k")),
+                new OperationNode(OperationNode.Operation.GT,
+                        new VariableReferenceNode("l"),
+                        new VariableReferenceNode("m"))));
+
         // Logical OR (||) should have lower precedence than inequality (!=)
         assertEquals(result5, new OperationNode(OperationNode.Operation.OR,
-            new VariableReferenceNode("n"),
-            new OperationNode(OperationNode.Operation.NE,
-                new VariableReferenceNode("o"),
-                new VariableReferenceNode("p"))));
-    
+                new VariableReferenceNode("n"),
+                new OperationNode(OperationNode.Operation.NE,
+                        new VariableReferenceNode("o"),
+                        new VariableReferenceNode("p"))));
+
         // Ternary operator should have lower precedence than addition (+) and
         // subtraction (-)
         assertEquals(result6, new TernaryOperationNode(
-            new VariableReferenceNode("q"),
-            new OperationNode(OperationNode.Operation.ADD,
-                new VariableReferenceNode("r"),
-                new VariableReferenceNode("s")),
-            new OperationNode(OperationNode.Operation.SUBTRACT,
-                new VariableReferenceNode("t"),
-                new VariableReferenceNode("u"))));
-    
+                new VariableReferenceNode("q"),
+                new OperationNode(OperationNode.Operation.ADD,
+                        new VariableReferenceNode("r"),
+                        new VariableReferenceNode("s")),
+                new OperationNode(OperationNode.Operation.SUBTRACT,
+                        new VariableReferenceNode("t"),
+                        new VariableReferenceNode("u"))));
+
         // Assignment (=) should have lower precedence than multiplication (*) and
         // division (/)
         assertEquals(result7, new AssignmentNode(
-            new VariableReferenceNode("v"),
-            new OperationNode(OperationNode.Operation.ADD,
-                new OperationNode(OperationNode.Operation.DIVIDE,
-                    new OperationNode(OperationNode.Operation.MULTIPLY,
-                        new VariableReferenceNode("w"),
-                        new VariableReferenceNode("x")),
-                    new VariableReferenceNode("y")),
-                new VariableReferenceNode("z"))));
-    
+                new VariableReferenceNode("v"),
+                new OperationNode(OperationNode.Operation.ADD,
+                        new OperationNode(OperationNode.Operation.DIVIDE,
+                                new OperationNode(OperationNode.Operation.MULTIPLY,
+                                        new VariableReferenceNode("w"),
+                                        new VariableReferenceNode("x")),
+                                new VariableReferenceNode("y")),
+                        new VariableReferenceNode("z"))));
+
         // Post-PLUSPLUS (++) should have higher precedence than multiplication (*)
         // Post-MINUSMINUS (--) should have higher precedence than multiplication (*)
         assertEquals(result8, new OperationNode(OperationNode.Operation.MULTIPLY,
-            new OperationNode(OperationNode.Operation.POSTINC,
-                new VariableReferenceNode("x")),
-            new OperationNode(OperationNode.Operation.POSTDEC,
-                new VariableReferenceNode("y"))));
-    
+                new OperationNode(OperationNode.Operation.POSTINC,
+                        new VariableReferenceNode("x")),
+                new OperationNode(OperationNode.Operation.POSTDEC,
+                        new VariableReferenceNode("y"))));
+
         // Pre-PLUSPLUS (++) should have higher precedence than subtraction (-)
         // Pre-MINUSMINUS (--) should have higher precedence than subtraction (-)
         assertEquals(result9, new OperationNode(OperationNode.Operation.SUBTRACT,
-            new OperationNode(OperationNode.Operation.PREINC,
-                new VariableReferenceNode("a")),
-            new OperationNode(OperationNode.Operation.PREDEC,
-                new VariableReferenceNode("b"))));
+                new OperationNode(OperationNode.Operation.PREINC,
+                        new VariableReferenceNode("a")),
+                new OperationNode(OperationNode.Operation.PREDEC,
+                        new VariableReferenceNode("b"))));
     }
 }
