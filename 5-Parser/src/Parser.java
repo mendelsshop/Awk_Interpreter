@@ -206,8 +206,17 @@ public class Parser {
         return ParseAssignment();
     }
 
+    // all the following methods have a similar structure
+    // call the function for the level before them if it returns something than we
+    // check for op token like +, - ... and if that is present we check for another
+    // expression if there isnt another expression we panic otherwise if theres is
+    // no op token we just return first expression
+    // wether we use loops/recursive functions depends on the associativity of the
+    // op(s)
+
     // Post Increment / Decrement should this be ParseBottomLevel
-    // this should be ParseBottomLevel b/c each variable can only be pre or post not both so it can use lvalue instead of parseoperation
+    // this should be ParseBottomLevel b/c each variable can only be pre or post not
+    // both so it can use lvalue instead of parseoperation
     // as i dont see any bugs like with assignment same for pre
     private Optional<Node> ParsePostIncDec() throws AwkException {
         return ParseBottomLevel()
@@ -232,6 +241,7 @@ public class Parser {
     // Term / * (%)?
     private Optional<Node> ParseFactor() throws AwkException {
         return ParseLeftAssociative(this::ParseExponent,
+                // might require java21 preview
                 token -> Optional.ofNullable(switch (token) {
                     case MULTIPLY -> OperationNode.Operation.MULTIPLY;
                     case DIVIDE -> OperationNode.Operation.DIVIDE;
@@ -241,10 +251,17 @@ public class Parser {
 
     }
 
+    // since left associative parsing is very common, we create a function that
+    // takes in a function to parse the next level (getExpression)
+    // and another function check if the op token makes sense at the current level
+    // and turns the op token into an OperationNode.Operation (getOp)
     private Optional<Node> ParseLeftAssociative(CheckedSupplier<Optional<Node>, AwkException> getExpression,
             Function<Token.TokenType, Optional<OperationNode.Operation>> getOP) throws AwkException {
         return getExpression.get().CheckedMap(left -> {
             do {
+                // we peek instead of matchandremove as each level uses different ops
+                // and we dont know how to transform each op token into an operation
+                // so we use getOP
                 var opToken = tokens.Peek(0).map(Token::getType);
                 Optional<OperationNode.Operation> op = opToken.flatMap(getOP);
                 if (op.isEmpty()) {
@@ -274,6 +291,7 @@ public class Parser {
         // keep going while there are more expressions
         return ParseExpression().CheckedMap(left -> {
             do {
+                // concatenination does not have an op token
                 var right = ParseExpression();
                 if (right.isEmpty()) {
                     return left;
@@ -283,6 +301,7 @@ public class Parser {
         });
     }
 
+    // kinda like left assocaitve but no loop
     private Optional<Node> ParseNoAssociative(CheckedSupplier<Optional<Node>, AwkException> getExpression,
             Function<Token.TokenType, Optional<OperationNode.Operation>> getOP) throws AwkException {
         return getExpression.get().CheckedMap(left -> {
@@ -300,6 +319,7 @@ public class Parser {
     // Boolean Compare <= < != ...
     private Optional<Node> ParseBooleanCompare() throws AwkException {
         return ParseLeftAssociative(this::ParseConcatination,
+                // might require java21 preview
                 op -> Optional.ofNullable(switch (op) {
                     case LESSTHAN -> OperationNode.Operation.LT;
                     case GREATERTHAN -> OperationNode.Operation.GT;
@@ -321,9 +341,19 @@ public class Parser {
 
     // Array membership - already in ParseLValue need `in`
     private Optional<Node> ParseArrayIn() throws AwkException {
-        return ParseLeftAssociative(this::ParseMatch,
-                token -> Optional.ofNullable(token == Token.TokenType.IN ? OperationNode.Operation.IN
-                        : null));
+        // even though should be left associative the subset of awk we are parsing does
+        // not provide a way to have associativity with in b/c of lvalue after in
+        return ParseMatch().CheckedMap(left -> {
+
+            var op = MatchAndRemove(Token.TokenType.IN);
+            if (op.isEmpty()) {
+                return left;
+            }
+            var right = ParseLValue()
+                    .orElseThrow(() -> createException("Expected lvalue after `in`"));
+            return new OperationNode(OperationNode.Operation.IN, left, right);
+
+        });
     }
 
     // AND &&
@@ -340,13 +370,14 @@ public class Parser {
                         : null));
     }
 
-    // Ternary ?: I dont get what right asscotivity does here
-    // do we need seperate TernaryOperationNode
+    // Ternary ?:
     private Optional<Node> ParseTernary() throws AwkException {
         return ParseOr().<Node, AwkException>CheckedMap(cond -> {
             if (MatchAndRemove(Token.TokenType.QUESTION).isPresent()) {
+                // we have to use parseoperation here b/c no way to go top level for parseor
                 var then = ParseOperation().orElseThrow(() -> createException("ternary then part missing"));
                 MatchAndRemove(Token.TokenType.COLON).orElseThrow(() -> createException("ternary colon part missing"));
+                // parseternary again for right asssocative
                 var alt = ParseTernary().orElseThrow(() -> createException("ternary alternate part missing"));
                 cond = new TernaryOperationNode(cond, then, alt);
             }
@@ -357,26 +388,28 @@ public class Parser {
 
     // Assignment == += ...
     private Optional<Node> ParseAssignment() throws AwkException {
-        // how can i make this right associative b/c the first part must be lvalue so it
-        // cannot be ternary
-        // boils down to same problem with --,++ which can only have lvalue ($n, var[]
-        // var) so ----a is not valid
         return ParseTernary().CheckedMap(var -> {
+            // function that tranforms the var op assignment expr into var op expr
             CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> OPEquals = (opeq,
                     op) -> MatchAndRemove(opeq).<Node, AwkException>CheckedMap(
                             s -> new OperationNode(op, var, ParseAssignment().orElseThrow(
                                     () -> createException("assignment " + op + " missing assignment value"))));
+            // if its just = then we get expression
             return MatchAndRemove(Token.TokenType.ASSIGN)
                     .<Node, AwkException>CheckedMap(s -> ParseAssignment()
                             .orElseThrow(() -> createException("assignment missing assignment value")))
+                            // otherwise it must follow op eqauls so we use OPEquals function to get a+= 5 -> a + 5
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.MODULOEQUAL, OperationNode.Operation.MODULO))
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.MULTIPLYEQUAL, OperationNode.Operation.MULTIPLY))
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.DIVIDEEQUAL, OperationNode.Operation.DIVIDE))
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.MINUSEQUAL, OperationNode.Operation.SUBTRACT))
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
+                    // finally we take the expr part (5,or a+5 (in case of a+=5))
+                    // and create assignment node
                     .<Node>map(value -> new AssignmentNode(var, value))
-                    // if no assignment just return the variableNode itself (which is not really a variableNode)
+                    // if no assignment just return the variableNode itself (which is not really a
+                    // variableNode)
                     .orElse(var);
         });
     }
