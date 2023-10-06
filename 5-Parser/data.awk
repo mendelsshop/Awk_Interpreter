@@ -11,8 +11,6 @@ a = 5 - 50.9  67 * 8 76 .6 .7? 6^-a:7
 
 (a > 5 ? a : b) /= 7
 
-# problem with assignment in consequent of ternary putting parentheses around works (fixed swithced to using parseoperation)
-
 5 ? 1^2+3-5/4*6%7&&7||8>=5!~!6:6
 
 (--a[a=v=c=b-=7] `5%4` "4" .6 .6 * 7)++
