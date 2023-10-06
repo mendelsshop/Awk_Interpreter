@@ -17,7 +17,7 @@ public class Parser {
         var program = new ProgramNode();
         while (tokens.MoreTokens()) {
             // if its not an action of function error
-            if (ParseFunction(program) || ParseAction(program)) {
+            if (!(ParseFunction(program) || ParseAction(program))) {
                 throw createException("cannot parse program top level item was not a function or action");
             }
         }
@@ -99,7 +99,7 @@ public class Parser {
             program.addToEnd(block);
             return true;
         }
-
+        AcceptSeperators();
         var Condition = ParseOperation();
         var block = ParseBlock(false);
         block.setCondition(Condition);
@@ -142,6 +142,18 @@ public class Parser {
                                                 ParseOperation().orElseThrow(() -> createException("operation "
                                                         + operation + " is not followed by an expression")))
                                         : null);
+
+        // like above function but for ++, -- which only work with lvalues
+        CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> parseUnaryL = (type,
+                operation) -> Optional
+                        // we use ofNullable to make it easier to it easy to make Optinal.Empty with
+                        // ternary operator
+                        .ofNullable(
+                                MatchAndRemove(type).isPresent()
+                                        ? new OperationNode(operation,
+                                                ParseLValue().orElseThrow(() -> createException("operation "
+                                                        + operation + " is not followed by an expression")))
+                                        : null);
         // simplifies getting the constant value out of a token
         Function<Optional<Token>, String> getValue = (token) -> token.get().getValue().get();
 
@@ -174,8 +186,8 @@ public class Parser {
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUS, OperationNode.Operation.UNARYNEG))
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUS, OperationNode.Operation.UNARYPOS))
                 // both of these should be lvalue
-                .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUSMINUS, OperationNode.Operation.PREDEC))
-                .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUSPLUS, OperationNode.Operation.PREINC))
+                .CheckedOr(() -> parseUnaryL.apply(Token.TokenType.MINUSMINUS, OperationNode.Operation.PREDEC))
+                .CheckedOr(() -> parseUnaryL.apply(Token.TokenType.PLUSPLUS, OperationNode.Operation.PREINC))
                 .CheckedOr(() -> ParseLValue());
     }
 
@@ -398,7 +410,9 @@ public class Parser {
             return MatchAndRemove(Token.TokenType.ASSIGN)
                     .<Node, AwkException>CheckedMap(s -> ParseAssignment()
                             .orElseThrow(() -> createException("assignment missing assignment value")))
-                            // otherwise it must follow op eqauls so we use OPEquals function to get a+= 5 -> a + 5
+                    // otherwise it must follow op eqauls so we use OPEquals function to get a+= 5
+                    // -> a + 5
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.EXPONENTEQUAL, OperationNode.Operation.EXPONENT))
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.MODULOEQUAL, OperationNode.Operation.MODULO))
                     .CheckedOr(() -> OPEquals.apply(Token.TokenType.MULTIPLYEQUAL, OperationNode.Operation.MULTIPLY))
