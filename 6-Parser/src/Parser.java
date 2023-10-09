@@ -189,7 +189,16 @@ public class Parser {
 
     private IfNode ParseIf() throws AwkException {
         var cond = ParseCondition("if");
-
+        var cons = ParseBlock(true);
+        Optional<Node> alt = Optional.empty();
+        if (MatchAndRemove(Token.TokenType.ELSE).isPresent()) {
+            if (MatchAndRemove(Token.TokenType.IF).isPresent()) {
+                alt = Optional.of(ParseIf());
+            } else {
+                alt = Optional.of(ParseBlock(true));
+            }
+        }
+        return new IfNode(cond,cons,alt);
     }
 
     private DeleteNode ParseDelete() throws AwkException {
