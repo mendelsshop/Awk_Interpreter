@@ -126,8 +126,63 @@ public class Parser {
     }
 
     private BlockNode ParseBlock(boolean supportsSingleLine) throws AwkException {
-        return new BlockNode(new LinkedList<>());
 
+        return new BlockNode(
+                MatchAndRemove(Token.TokenType.OPENBRACE).<CheckedSupplier<LinkedList<StatementNode>, AwkException>>map(a -> () -> {
+                    LinkedList<StatementNode> nodes = new LinkedList<>();
+                    AcceptSeperators();
+                    while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
+
+                        AcceptSeperators();
+                        if (tokens.MoreTokens()) {
+                            // TODO: better error message
+                            nodes.add((StatementNode) ParseOperation().orElseThrow(() -> createException("")));
+                        }
+                    }
+                    return nodes;
+                }).orElse(() -> {
+                    if (supportsSingleLine) {
+                        return new LinkedList<>() {
+                            {
+                                add((StatementNode) ParseOperation()
+                                        .orElseThrow(() -> createException("single line block without expression")));
+                            }
+                        };
+                    } else {
+                        throw createException("block without open curly brace at start");
+                    }
+                }).get());
+        // .orElseThrow(() -> createException("block without open curly brace at
+        // start")).getValue();
+
+
+    }
+
+    private StatementNode ParseStatement() throws AwkException {
+
+    }
+
+    private IfNode ParseIf() throws AwkException {
+    }
+
+    private ContinueNode ParseContinue() throws AwkException {
+    }
+    private BreakNode ParseBreak() throws AwkException {
+    }
+        private ReturnNode ParseReturn() throws AwkException {
+    }
+
+
+    private WhileNode ParseWhile() throws AwkException {
+    }
+
+    private DoWhileNode ParseDoWhile() throws AwkException {
+    }
+
+    private StatementNode ParseFor() throws AwkException {
+    }
+
+    private FunctionCallNode ParseFunctionCall() throws AwkException {
     }
 
     private Optional<Node> ParseBottomLevel() throws AwkException {
