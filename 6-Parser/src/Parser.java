@@ -1,9 +1,8 @@
 import java.util.LinkedList;
-// import java.util.Optional;
-
 import java.util.function.Function;
 
 import Functional.CheckedBiFunction;
+import Functional.CheckedSupplier;
 
 public class Parser {
     private TokenHandler tokens;
@@ -17,26 +16,22 @@ public class Parser {
     public ProgramNode Parse() throws AwkException {
         var program = new ProgramNode();
         while (tokens.MoreTokens()) {
-            if (!ParseFunction(program)) {
-                ParseAction(program);
+            // if its not an action of function error
+            if (!(ParseFunction(program) || ParseAction(program))) {
+                throw createException("cannot parse program top level item was not a function or action");
             }
         }
         return program;
     }
 
-    private boolean AcceptSeperators() {
+    // TODO: unpublic thid
+    public boolean AcceptSeperators() {
         boolean foundSeperators = false;
         // since MatchAndRemove does out of bounds checks
         while (MatchAndRemove(Token.TokenType.SEPERATOR).isPresent()) {
             foundSeperators = true;
         }
         return foundSeperators;
-    }
-
-    // https://stackoverflow.com/questions/22687943/is-it-possible-to-declare-that-a-suppliert-needs-to-throw-an-AwkException
-
-    public interface CheckedSupplier<T> {
-        public T get() throws AwkException;
     }
 
     private boolean ParseFunction(ProgramNode program) throws AwkException {
@@ -52,55 +47,68 @@ public class Parser {
             // parsing function signature
             // CheckedSupplier is just like the Functional Supplier interface, but the
             // lambda it takes can through catchable exceptions
-            if (MatchAndRemove(Token.TokenType.WORD).CheckedMap(
-                    c -> {
+            AcceptSeperators();
+            // really Awk only allows newlines after each comma ie function a(v,\n\nc) is
+            // allowed but function q(\na) doesnt work along with function y(v\n, a) and
+            // function e(a\n)
+            if (MatchAndRemove(Token.TokenType.WORD).<CheckedSupplier<Boolean, AwkException>>map(
+                    c -> () -> {
                         parameters.add(c.getValue().get());
+                        AcceptSeperators();
                         return
                         // if we reach a `)` we are done with the function signature
                         MatchAndRemove(
                                 Token.TokenType.CLOSEPAREN)
-                                .map(
-                                        a -> true)
+                                .<CheckedSupplier<Boolean, AwkException>>map(
+                                        a -> () -> true)
                                 // if we hit a `,`, we make sure that the next token is also a function
-                                // parameter
-                                .CheckedOr(() -> MatchAndRemove(Token.TokenType.COMMA).CheckedMap(d -> tokens.Peek(0)
-                                        .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
-                                        // otherwise we through an AwkException
-                                        .orElseThrow(() -> createException(
-                                                "comma in function parameter list must be followed by another parameter"))))
+                                // parameter can have function_name(a ,,,) ...
+                                .or(() -> MatchAndRemove(Token.TokenType.COMMA).map(d -> () -> {
+                                    AcceptSeperators();
+                                    return tokens.Peek(0)
+                                            .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
+                                            // otherwise we through an AwkException
+                                            .orElseThrow(() -> createException(
+                                                    "comma in function parameter list must be followed by another parameter"));
+                                }))
                                 // if the next token after the name of a function parameter is not a `,` or `)`
                                 // we know we have an invalid function signature so we give back an error
                                 .orElseThrow(() -> createException(
-                                        "function parameter must be followed by a comma or closeing parenthesis"));
-                    }).or(() -> MatchAndRemove(Token.TokenType.CLOSEPAREN).map(c -> true))
-                    .orElseThrow(() -> createException("unknown token type in parameter list" + tokens.Peek(0)))) {
+                                        "function parameter must be followed by a comma or closeing parenthesis"))
+                                .get();
+                    }).or(() -> MatchAndRemove(Token.TokenType.CLOSEPAREN).map(c -> () -> true))
+                    .orElseThrow(() -> createException("unknown token type in parameter list" + tokens.Peek(0)))
+                    .get()) {
                 break;
             }
         }
+        // parse block eats up newlines before the {
 
-        var block = ParseBlock().getStatements();
+        var block = ParseBlock(false).getStatements();
         program.addFunction(new FunctionNode(functionName, parameters, block));
         return true;
     }
 
     private boolean ParseAction(ProgramNode program) throws AwkException {
-        // order doesnt matter according to awk ie you can have the BEGIN after the END
         if (MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
-            var block = ParseBlock();
+            var block = ParseBlock(false);
             program.addToBegin(block);
             return true;
         } else if (MatchAndRemove(Token.TokenType.END).isPresent()) {
-            var block = ParseBlock();
+            var block = ParseBlock(false);
             program.addToEnd(block);
             return true;
         }
+        AcceptSeperators();
         var Condition = ParseOperation();
-        var block = ParseBlock();
+        var block = ParseBlock(false);
         block.setCondition(Condition);
         program.addToRest(block);
         return true;
     }
 
+    // createException is here because it makes it easier to create exceptions, and
+    // not haveing to deal with keeping track of line numbers.
     public AwkException createException(String message) {
         return new AwkException(tokens.Peek(0).map(Token::getLineNumber).orElse(line),
                 tokens.Peek(0).map(Token::getStartPosition).orElse(column), message,
@@ -118,278 +126,305 @@ public class Parser {
     }
 
     private BlockNode ParseBlock(boolean supportsSingleLine) throws AwkException {
+        return new BlockNode(new LinkedList<>());
 
-        return new BlockNode(
-                MatchAndRemove(Token.TokenType.OPENBRACE).<CheckedSupplier<LinkedList<StatementNode>>>map(a -> () -> {
-                    LinkedList<StatementNode> nodes = new LinkedList<>();
-                    AcceptSeperators();
-                    while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
-
-                        AcceptSeperators();
-                        if (tokens.MoreTokens()) {
-                            // TODO: better error message
-                            nodes.add((StatementNode) ParseOperation().orElseThrow(() -> createException("")));
-                        }
-                    }
-                    return nodes;
-                }).orElse(() -> {
-                    if (supportsSingleLine) {
-                        return new LinkedList<>() {
-                            {
-                                add((StatementNode) ParseOperation()
-                                        .orElseThrow(() -> createException("single line block without expression")));
-                            }
-                        };
-                    } else {
-                        throw createException("block without open curly brace at start");
-                    }
-                }).get());
-        // .orElseThrow(() -> createException("block without open curly brace at
-        // start")).getValue();
-
-
-    }
-
-    private StatementNode ParseStatement() throws AwkException {
-
-    }
-
-    private IfNode ParseIf() throws AwkException {
-    }
-
-    private ContinueNode ParseContinue() throws AwkException {
-    }
-    private BreakNode ParseBreak() throws AwkException {
-    }
-        private ReturnNode ParseReturn() throws AwkException {
-    }
-
-
-    private WhileNode ParseWhile() throws AwkException {
-    }
-
-    private DoWhileNode ParseDoWhile() throws AwkException {
-    }
-
-    private StatementNode ParseFor() throws AwkException {
-    }
-
-    private FunctionCallNode ParseFunctionCall() throws AwkException {
-    }
-
-    @FunctionalInterface
-    private interface ParserBiFunction<T, U, R> {
-        R apply(T t, U u) throws AwkException;
     }
 
     private Optional<Node> ParseBottomLevel() throws AwkException {
-        ParserBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>> parseUnary = (type,
+        // a functiin that maps a tokentype into a OperationNode
+        CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> parseUnary = (type,
                 operation) -> Optional
                         // we use ofNullable to make it easier to it easy to make Optinal.Empty with
                         // ternary operator
                         .ofNullable(
-                                MatchAndRemove(type).isPresent() ? new OperationNode(operation, ParseOperation().get())
+                                MatchAndRemove(type).isPresent()
+                                        ? new OperationNode(operation,
+                                                ParseOperation().orElseThrow(() -> createException("operation "
+                                                        + operation + " is not followed by an expression")))
                                         : null);
+
+        // like above function but for ++, -- which only work with lvalues
+        CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> parseUnaryL = (type,
+                operation) -> Optional
+                        // we use ofNullable to make it easier to it easy to make Optinal.Empty with
+                        // ternary operator
+                        .ofNullable(
+                                MatchAndRemove(type).isPresent()
+                                        ? new OperationNode(operation,
+                                                ParseLValue().orElseThrow(() -> createException("operation "
+                                                        + operation + " is not followed by an expression")))
+                                        : null);
+        // simplifies getting the constant value out of a token
         Function<Optional<Token>, String> getValue = (token) -> token.get().getValue().get();
+
+        // constant nodes
         Optional<Token> string = MatchAndRemove(Token.TokenType.STRINGLITERAL);
         if (string.isPresent()) {
-            return Optional.of(new ConstantNode(getValue.apply(string), ConstantNode.ValueType.String));
+            return Optional.of(new ConstantNode(getValue.apply(string)));
         }
         Optional<Token> number = MatchAndRemove(Token.TokenType.NUMBER);
         if (number.isPresent()) {
-            return Optional.of(new ConstantNode(getValue.apply(number), ConstantNode.ValueType.Number));
+            return Optional.of(new ConstantNode(getValue.apply(number)));
         }
         Optional<Token> pattern = MatchAndRemove(Token.TokenType.PATTERN);
         if (pattern.isPresent()) {
             return Optional.of(new PatternNode(getValue.apply(pattern)));
-        } else if (MatchAndRemove(Token.TokenType.OPENPAREN).isPresent()) {
+        }
+        // (expr)
+        else if (MatchAndRemove(Token.TokenType.OPENPAREN).isPresent()) {
             var operation = ParseOperation();
             if (!MatchAndRemove(Token.TokenType.CLOSEPAREN).isPresent()) {
-                throw createException("Expected close parenthesis after `(" + operation + "`");
+                throw createException("Expected close parenthesis after `(" + operation.get() + "`");
             }
-            // should probably check for optional operation being empty
             if (operation.isEmpty()) {
                 throw createException("value inbetween `(`, `)` is either empty or invalid");
             }
             return operation;
         }
+        // prefix unary operation
         return parseUnary.apply(Token.TokenType.NOT, OperationNode.Operation.NOT)
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUS, OperationNode.Operation.UNARYNEG))
                 .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUS, OperationNode.Operation.UNARYPOS))
-                // Should ony work if expr is variable lvalue
-                .CheckedOr(() -> parseUnary.apply(Token.TokenType.MINUSMINUS, OperationNode.Operation.PREINC))
-                .CheckedOr(() -> parseUnary.apply(Token.TokenType.PLUSPLUS, OperationNode.Operation.POSTINC))
+                // both of these should be lvalue
+                .CheckedOr(() -> parseUnaryL.apply(Token.TokenType.MINUSMINUS, OperationNode.Operation.PREDEC))
+                .CheckedOr(() -> parseUnaryL.apply(Token.TokenType.PLUSPLUS, OperationNode.Operation.PREINC))
                 .CheckedOr(() -> ParseLValue());
     }
 
     private Optional<Node> ParseLValue() throws AwkException {
-        // if (MatchAndRemove(Token.TokenType.DOLLAR).isPresent()) {
-        // var value = ParseBottomLevel();
-        // // probably need to unwrap value error if not present
-        // return Optional.of(new OperationNode(OperationNode.Operation.DOLLAR,
-        // value.get()));
-        // }
-        // var varName = MatchAndRemove(Token.TokenType.WORD);
-        // if (varName.isPresent()) {
-        // String name = varName.get().getValue().get();
-        // if (MatchAndRemove(Token.TokenType.OPENBRACKET).isPresent()) {
-        // var index = ParseOperation().get();
-        // // we should probably error if parseoperation returns empty optinal
-        // MatchAndRemove(Token.TokenType.CLOSEBRACKET).get();
-        // return Optional.of(new VariableReferenceNode(name, Optional.of(index)));
-        // }
-
-        // return Optional.of(new VariableReferenceNode(name));
-        // }
-
-        return MatchAndRemove(Token.TokenType.DOLLAR).<Optional<Node>, AwkException>CheckedMap(c -> {
+        return
+        // first see if its a dollar operation
+        MatchAndRemove(Token.TokenType.DOLLAR).<Node, AwkException>CheckedMap(c -> {
             var value = ParseBottomLevel();
-            // probably need to unwrap value error if not present
-            return Optional
-                    .of(new OperationNode(OperationNode.Operation.DOLLAR, value.orElseThrow(() -> createException(
-                            "`$` is either not followed by an expression or the expression is invalid"))));
-        }).CheckedOrElseGet(() -> MatchAndRemove(Token.TokenType.WORD).<Node, AwkException>CheckedMap(v -> {
+            return new OperationNode(OperationNode.Operation.DOLLAR, value.orElseThrow(
+                    () -> createException("`$` is either not followed by an expression or the expression is invalid")));
+        }).
+        // otherwise it might be a varaible refernce
+        <AwkException>CheckedOr(() -> MatchAndRemove(Token.TokenType.WORD).<Node, AwkException>CheckedMap(v -> {
             String name = v.getValue().get();
+            // check if its an array index
             return MatchAndRemove(Token.TokenType.OPENBRACKET).CheckedMap(g -> {
                 var index = ParseOperation().orElseThrow(() -> createException(
                         "found open bracket for indexing " + name + ", but no actual index value"));
-                MatchAndRemove(Token.TokenType.CLOSEBRACKET).get();
-                return new VariableReferenceNode(name, Optional.of(index));
+                MatchAndRemove(Token.TokenType.CLOSEBRACKET)
+                        .orElseThrow(() -> createException("expected close bracket ([) for indexing " + name));
+                return new VariableReferenceNode(name, index);
+
             }).orElse(new VariableReferenceNode(name));
         }));
     }
 
-    private Optional<Node> ParseOperation() throws AwkException {
-        return ParseBottomLevel();
+    public Optional<Node> ParseOperation() throws AwkException {
+        return ParseAssignment();
     }
 
+    // all the following methods have a similar structure
+    // call the function for the level before them if it returns something than we
+    // check for op token like +, - ... and if that is present we check for another
+    // expression if there isnt another expression we panic otherwise if theres is
+    // no op token we just return first expression
+    // wether we use loops/recursive functions depends on the associativity of the
+    // op(s)
+
     // Post Increment / Decrement should this be ParseBottomLevel
+    // this should be ParseBottomLevel b/c each variable can only be pre or post not
+    // both so it can use lvalue instead of parseoperation
+    // as i dont see any bugs like with assignment same for pre
+    private Optional<Node> ParsePostIncDec() throws AwkException {
+        return ParseBottomLevel()
+                .<Node>map((expr) -> MatchAndRemove(Token.TokenType.PLUSPLUS).map(c -> OperationNode.Operation.POSTINC)
+                        .or(() -> MatchAndRemove(Token.TokenType.MINUSMINUS).map(c -> OperationNode.Operation.POSTDEC))
+                        .<Node>map(op -> new OperationNode(op, expr)).orElse(expr));
+    }
+
     // Exponents ^
-    private Node ParseExponent() throws AwkException {
-        var node = ParseBottomLevel().orElseThrow();
-        while (MatchAndRemove(Token.TokenType.EXPONENT).isPresent()) {
-            var right = ParseExponent();
-            node = new OperationNode(OperationNode.Operation.EXPONENT, node, right);
-        }
-        return node;
+    private Optional<Node> ParseExponent() throws AwkException {
+        return ParsePostIncDec().CheckedMap(node -> {
+            if (MatchAndRemove(Token.TokenType.EXPONENT).isPresent()) {
+                var right = ParseExponent()
+                        .orElseThrow(() -> createException("Expected expression after ^ (exponent)"));
+                node = new OperationNode(OperationNode.Operation.EXPONENT, node, right);
+            }
+            return node;
+        });
+
     }
 
     // Term / * (%)?
-    private Node ParseFactor() throws AwkException {
-        var left = ParseExponent();
-        do {
-            Optional<OperationNode.Operation> op = MatchAndRemove(Token.TokenType.MULTIPLY)
-                    .map(a -> OperationNode.Operation.MULTIPLY)
-                    .or(() -> MatchAndRemove(Token.TokenType.DIVIDE).map(a -> OperationNode.Operation.DIVIDE))
-                    .or(() -> MatchAndRemove(Token.TokenType.MODULO).map(a -> OperationNode.Operation.MODULO));
-            if (op.isEmpty()) {
-                break;
-            }
-            // should be parseterm
-            var right = ParseExponent();
-            left = new OperationNode(op.get(), left, right);
-        } while (true);
-        return left;
+    private Optional<Node> ParseFactor() throws AwkException {
+        return ParseLeftAssociative(this::ParseExponent,
+                // might require java21 preview
+                token -> Optional.ofNullable(switch (token) {
+                    case MULTIPLY -> OperationNode.Operation.MULTIPLY;
+                    case DIVIDE -> OperationNode.Operation.DIVIDE;
+                    case MODULO -> OperationNode.Operation.MODULO;
+                    default -> null;
+                }));
+
+    }
+
+    // since left associative parsing is very common, we create a function that
+    // takes in a function to parse the next level (getExpression)
+    // and another function check if the op token makes sense at the current level
+    // and turns the op token into an OperationNode.Operation (getOp)
+    private Optional<Node> ParseLeftAssociative(CheckedSupplier<Optional<Node>, AwkException> getExpression,
+            Function<Token.TokenType, Optional<OperationNode.Operation>> getOP) throws AwkException {
+        return getExpression.get().CheckedMap(left -> {
+            do {
+                // we peek instead of matchandremove as each level uses different ops
+                // and we dont know how to transform each op token into an operation
+                // so we use getOP
+                var opToken = tokens.Peek(0).map(Token::getType);
+                Optional<OperationNode.Operation> op = opToken.flatMap(getOP);
+                if (op.isEmpty()) {
+                    return left;
+                }
+                // absorb the peek
+                MatchAndRemove(opToken.get());
+                var right = getExpression.get()
+                        .orElseThrow(() -> createException("Expected expression after " + op.get()));
+                left = new OperationNode(op.get(), left, right);
+
+            } while (true);
+        });
+
     }
 
     // Expression + -
-    private Node ParseExpression() throws AwkException {
-        var left = ParseFactor();
-        do {
-            Optional<OperationNode.Operation> op = MatchAndRemove(Token.TokenType.PLUS)
-                    .map(a -> OperationNode.Operation.ADD)
-                    .or(() -> MatchAndRemove(Token.TokenType.MINUS).map(a -> OperationNode.Operation.SUBTRACT));
-            if (op.isEmpty()) {
-                break;
-            }
-            // should be parseterm
-            var right = ParseFactor();
-            left = new OperationNode(op.get(), left, right);
-        } while (true);
-        return left;
+    private Optional<Node> ParseExpression() throws AwkException {
+        return ParseLeftAssociative(this::ParseFactor,
+                token -> Optional.ofNullable(token == Token.TokenType.PLUS ? OperationNode.Operation.ADD
+                        : token == Token.TokenType.MINUS ? OperationNode.Operation.SUBTRACT : null));
     }
 
     // Term maybe means ParseBottomLevel
-    // Concatenation >>
+    // Concatenation expr expr
+    private Optional<Node> ParseConcatination() throws AwkException {
+        // keep going while there are more expressions
+        return ParseExpression().CheckedMap(left -> {
+            do {
+                // concatenination does not have an op token
+                var right = ParseExpression();
+                if (right.isEmpty()) {
+                    return left;
+                }
+                left = new OperationNode(OperationNode.Operation.CONCATENATION, left, right.get());
+            } while (true);
+        });
+    }
+
+    // kinda like left assocaitve but no loop
+    private Optional<Node> ParseNoAssociative(CheckedSupplier<Optional<Node>, AwkException> getExpression,
+            Function<Token.TokenType, Optional<OperationNode.Operation>> getOP) throws AwkException {
+        return getExpression.get().CheckedMap(left -> {
+            var opToken = tokens.Peek(0).map(Token::getType);
+            return opToken.flatMap(getOP).<Node, AwkException>CheckedMap(op -> {
+                // absorb the peek
+                MatchAndRemove(opToken.get());
+                var right = getExpression.get()
+                        .orElseThrow(() -> createException("Expected expression after " + op));
+                return new OperationNode(op, left, right);
+            }).orElse(left);
+        });
+    }
+
     // Boolean Compare <= < != ...
-    private Node ParseBooleanCompare() throws AwkException {
-        var left = ParseExpression();
-        var op = MatchAndRemove(Token.TokenType.LESSTHAN).map(a -> OperationNode.Operation.LT)
-                .or(() -> MatchAndRemove(Token.TokenType.GREATERTHAN).map(a -> OperationNode.Operation.GT))
-                .or(() -> MatchAndRemove(Token.TokenType.LESSTHANEQUAL).map(a -> OperationNode.Operation.LE))
-                .or(() -> MatchAndRemove(Token.TokenType.GREATERTHANEQUAL).map(a -> OperationNode.Operation.GE))
-                .or(() -> MatchAndRemove(Token.TokenType.EQUAL).map(a -> OperationNode.Operation.EQ))
-                .or(() -> MatchAndRemove(Token.TokenType.NOTEQUAL).map(a -> OperationNode.Operation.NE));
-        if (op.isEmpty()) {
-            return left;
-        }
-        var right = ParseExpression();
-        return new OperationNode(op.get(), left, right);
+    private Optional<Node> ParseBooleanCompare() throws AwkException {
+        return ParseLeftAssociative(this::ParseConcatination,
+                // might require java21 preview
+                op -> Optional.ofNullable(switch (op) {
+                    case LESSTHAN -> OperationNode.Operation.LT;
+                    case GREATERTHAN -> OperationNode.Operation.GT;
+                    case LESSTHANEQUAL -> OperationNode.Operation.LE;
+                    case GREATERTHANEQUAL -> OperationNode.Operation.GE;
+                    case EQUAL -> OperationNode.Operation.EQ;
+                    case NOTEQUAL -> OperationNode.Operation.NE;
+                    default -> null;
+                }));
+
     }
 
     // Match ~ !~
-    private Node ParseMatch() throws AwkException {
-        var left = ParseBooleanCompare();
-        var op = MatchAndRemove(Token.TokenType.MATCH).map(a -> OperationNode.Operation.MATCH)
-                .or(() -> MatchAndRemove(Token.TokenType.NOTMATCH).map(a -> OperationNode.Operation.NOTMATCH));
-        if (op.isEmpty()) {
-            return left;
-        }
-        var right = ParseBooleanCompare();
-        return new OperationNode(op.get(), left, right);
+    private Optional<Node> ParseMatch() throws AwkException {
+        return ParseNoAssociative(this::ParseBooleanCompare,
+                token -> Optional.ofNullable(token == Token.TokenType.NOTMATCH ? OperationNode.Operation.NOTMATCH
+                        : token == Token.TokenType.MATCH ? OperationNode.Operation.MATCH : null));
     }
 
-    // Array membership - already in ParseLValue
+    // Array membership - already in ParseLValue need `in`
+    private Optional<Node> ParseArrayIn() throws AwkException {
+        // even though should be left associative the subset of awk we are parsing does
+        // not provide a way to have associativity with in b/c of lvalue after in
+        return ParseMatch().CheckedMap(left -> {
+
+            var op = MatchAndRemove(Token.TokenType.IN);
+            if (op.isEmpty()) {
+                return left;
+            }
+            var right = ParseLValue()
+                    .orElseThrow(() -> createException("Expected lvalue after `in`"));
+            return new OperationNode(OperationNode.Operation.IN, left, right);
+
+        });
+    }
+
     // AND &&
-    private Node ParseAnd() throws AwkException {
-        var node = ParseMatch();
-        while (MatchAndRemove(Token.TokenType.AND).isPresent()) {
-            var right = ParseAnd();
-            node = new OperationNode(OperationNode.Operation.AND, node, right);
-        }
-        return node;
+    private Optional<Node> ParseAnd() throws AwkException {
+        return ParseLeftAssociative(this::ParseArrayIn,
+                token -> Optional.ofNullable(token == Token.TokenType.AND ? OperationNode.Operation.AND
+                        : null));
     }
 
     // Or ||
-    private Node ParseOr() throws AwkException {
-        var node = ParseAnd();
-        while (MatchAndRemove(Token.TokenType.OR).isPresent()) {
-            var right = ParseOr();
-            node = new OperationNode(OperationNode.Operation.OR, node, right);
-        }
-        return node;
+    private Optional<Node> ParseOr() throws AwkException {
+        return ParseLeftAssociative(this::ParseAnd,
+                token -> Optional.ofNullable(token == Token.TokenType.OR ? OperationNode.Operation.OR
+                        : null));
     }
 
-    // Ternary ?: I dont get what right asscotivity does here shouldnt this call to
-    // ParseOperation
-    private Node ParseTernary() throws AwkException {
-        var cond = ParseOperation().orElseThrow();
-        return MatchAndRemove(Token.TokenType.QUESTION).<Node, AwkException>CheckedMap(s -> {
-            var then = ParseOperation().orElseThrow();
-            MatchAndRemove(Token.TokenType.COLON).orElseThrow();
-            var alt = ParseOperation().orElseThrow();
-            return new TernaryOperationNode(cond, then, alt);
+    // Ternary ?:
+    private Optional<Node> ParseTernary() throws AwkException {
+        return ParseOr().<Node, AwkException>CheckedMap(cond -> {
+            if (MatchAndRemove(Token.TokenType.QUESTION).isPresent()) {
+                // we have to use parseoperation here b/c no way to go top level for parseor
+                var then = ParseOperation().orElseThrow(() -> createException("ternary then part missing"));
+                MatchAndRemove(Token.TokenType.COLON).orElseThrow(() -> createException("ternary colon part missing"));
+                // parseternary again for right asssocative
+                var alt = ParseTernary().orElseThrow(() -> createException("ternary alternate part missing"));
+                cond = new TernaryOperationNode(cond, then, alt);
+            }
+            return cond;
 
-        }).orElse(cond);
+        });
     }
 
     // Assignment == += ...
-    private Node ParseAssignment() throws AwkException {
-        var var = ParseLValue().orElseThrow();
-        CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> OPEquals = (opeq,
-                op) -> MatchAndRemove(opeq).<Node, AwkException>CheckedMap(
-                        s -> new OperationNode(op, var, ParseOperation().orElseThrow()));
-        return MatchAndRemove(Token.TokenType.ASSIGN)
-                .<Node, AwkException>CheckedMap(s -> ParseOperation().orElseThrow())
-                .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
-                .CheckedOr(() -> OPEquals.apply(Token.TokenType.MODULOEQUAL, OperationNode.Operation.MODULO))
-                .CheckedOr(() -> OPEquals.apply(Token.TokenType.MULTIPLYEQUAL, OperationNode.Operation.MULTIPLY))
-                .CheckedOr(() -> OPEquals.apply(Token.TokenType.DIVIDEEQUAL, OperationNode.Operation.DIVIDE))
-                .CheckedOr(() -> OPEquals.apply(Token.TokenType.MINUSEQUAL, OperationNode.Operation.SUBTRACT))
-                .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
-                .<Node>map(value -> new AssignmentNode(var, value))
-                // if no assignment just return the variableNode itself?
-                .orElse(var);
+    private Optional<Node> ParseAssignment() throws AwkException {
+        return ParseTernary().CheckedMap(var -> {
+            // function that tranforms the var op assignment expr into var op expr
+            CheckedBiFunction<Token.TokenType, OperationNode.Operation, Optional<Node>, AwkException> OPEquals = (opeq,
+                    op) -> MatchAndRemove(opeq).<Node, AwkException>CheckedMap(
+                            s -> new OperationNode(op, var, ParseAssignment().orElseThrow(
+                                    () -> createException("assignment " + op + " missing assignment value"))));
+            // if its just = then we get expression
+            return MatchAndRemove(Token.TokenType.ASSIGN)
+                    .<Node, AwkException>CheckedMap(s -> ParseAssignment()
+                            .orElseThrow(() -> createException("assignment missing assignment value")))
+                    // otherwise it must follow op eqauls so we use OPEquals function to get a+= 5
+                    // -> a + 5
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.EXPONENTEQUAL, OperationNode.Operation.EXPONENT))
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.MODULOEQUAL, OperationNode.Operation.MODULO))
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.MULTIPLYEQUAL, OperationNode.Operation.MULTIPLY))
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.DIVIDEEQUAL, OperationNode.Operation.DIVIDE))
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.MINUSEQUAL, OperationNode.Operation.SUBTRACT))
+                    .CheckedOr(() -> OPEquals.apply(Token.TokenType.PLUSEQUAL, OperationNode.Operation.ADD))
+                    // finally we take the expr part (5,or a+5 (in case of a+=5))
+                    // and create assignment node
+                    .<Node>map(value -> new AssignmentNode(var, value))
+                    // if no assignment just return the variableNode itself (which is not really a
+                    // variableNode)
+                    .orElse(var);
+        });
     }
-
 }

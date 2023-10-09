@@ -1,8 +1,7 @@
-import java.util.Optional;
-
 public class Token {
     private int startPosition;
     private int lineNumber;
+
     public int getStartPosition() {
         return startPosition;
     }

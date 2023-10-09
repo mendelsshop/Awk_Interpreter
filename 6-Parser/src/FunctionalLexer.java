@@ -1,7 +1,6 @@
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -89,7 +88,7 @@ public class FunctionalLexer extends Lexer {
             put('+', makeTwoSymbolProccesor(Optional.of(Token.TokenType.PLUS), c -> Optional
                     .ofNullable(c == '=' ? Token.TokenType.PLUSEQUAL : c == '+' ? Token.TokenType.PLUSPLUS : null)));
             put('^', makeTwoSymbolProccesor(Optional.of(Token.TokenType.EXPONENT),
-                    c -> Optional.of(c == '=' ? Token.TokenType.EXPONENTEQUAL : null)));
+                    c -> Optional.ofNullable(c == '=' ? Token.TokenType.EXPONENTEQUAL : null)));
             put('-', makeTwoSymbolProccesor(Optional.of(Token.TokenType.MINUS), c -> Optional
                     .ofNullable(c == '=' ? Token.TokenType.MINUSEQUAL : c == '-' ? Token.TokenType.MINUSMINUS : null)));
             put('*', makeTwoSymbolProccesor(Optional.of(Token.TokenType.MULTIPLY),
@@ -118,7 +117,8 @@ public class FunctionalLexer extends Lexer {
             } else if (single.isPresent()) {
                 return Optional.ofNullable(new Token(start, currentLine, single.get()));
             } else {
-                throw new AwkException(currentLine, position, "Character `" + first + "` not recognized", AwkException.ExceptionType.LexicalError);
+                throw new AwkException(currentLine, position, "Character `" + first + "` not recognized",
+                        AwkException.ExceptionType.LexicalError);
             }
         };
 
@@ -170,7 +170,8 @@ public class FunctionalLexer extends Lexer {
                     tokens.add(maybeToken.get());
                 }
             } else {
-                throw new AwkException(currentLine, position, "Character `" + current + "` not recognized", AwkException.ExceptionType.LexicalError);
+                throw new AwkException(currentLine, position, "Character `" + current + "` not recognized",
+                        AwkException.ExceptionType.LexicalError);
             }
         }
 
