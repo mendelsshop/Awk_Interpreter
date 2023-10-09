@@ -223,6 +223,32 @@ public class Parser {
     }
 
     private StatementNode ParseFor() throws AwkException {
+        MatchAndRemove(Token.TokenType.OPENPAREN)
+                .orElseThrow(() -> createException("condition in for is missing open parentheses"));
+        // technically valid awk
+        // z[0][0] = 6
+        // for (6 in z; 8 ;9) {print 6}
+        // if the thing before in is not word must be normal for loop -> maybe should be
+        // an error?
+        // otherwise its an array for loop
+        if (tokens.Peek(0).map(Token::getType) == Optional.of(Token.TokenType.WORD)
+                && tokens.Peek(1).map(Token::getType) == Optional.of(Token.TokenType.IN)) {
+            var index_var = MatchAndRemove(Token.TokenType.WORD).get().getValue().get();
+            MatchAndRemove(Token.TokenType.IN).get();
+            var array = ParseLValue().orElseThrow();
+            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow();
+            var loop = ParseBlock(true);
+            return new ForEachNode(index_var, array, loop);
+        } else {
+            var init = ParseOperation().orElseThrow();
+            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow();
+            var cond = ParseOperation().orElseThrow();
+            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow();
+            var inc = ParseOperation().orElseThrow();
+            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow();
+            var loop = ParseBlock(true);
+            return new ForNode(init, cond, inc, loop);
+        }
     }
 
     private FunctionCallNode ParseFunctionCall() throws AwkException {
