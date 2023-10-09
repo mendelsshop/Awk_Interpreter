@@ -128,55 +128,98 @@ public class Parser {
     private BlockNode ParseBlock(boolean supportsSingleLine) throws AwkException {
 
         return new BlockNode(
-                MatchAndRemove(Token.TokenType.OPENBRACE).<CheckedSupplier<LinkedList<StatementNode>, AwkException>>map(a -> () -> {
-                    LinkedList<StatementNode> nodes = new LinkedList<>();
-                    AcceptSeperators();
-                    while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
+                MatchAndRemove(Token.TokenType.OPENBRACE)
+                        .<CheckedSupplier<LinkedList<StatementNode>, AwkException>>map(a -> () -> {
+                            LinkedList<StatementNode> nodes = new LinkedList<>();
+                            AcceptSeperators();
+                            while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
 
-                        AcceptSeperators();
-                        if (tokens.MoreTokens()) {
-                            // TODO: better error message
-                            nodes.add((StatementNode) ParseOperation().orElseThrow(() -> createException("")));
-                        }
-                    }
-                    return nodes;
-                }).orElse(() -> {
-                    if (supportsSingleLine) {
-                        return new LinkedList<>() {
-                            {
-                                add((StatementNode) ParseOperation()
-                                        .orElseThrow(() -> createException("single line block without expression")));
+                                AcceptSeperators();
+                                if (tokens.MoreTokens()) {
+                                    // TODO: better error message
+                                    nodes.add((StatementNode) ParseOperation().orElseThrow(() -> createException("")));
+                                }
                             }
-                        };
-                    } else {
-                        throw createException("block without open curly brace at start");
-                    }
-                }).get());
+                            return nodes;
+                        }).orElse(() -> {
+                            if (supportsSingleLine) {
+                                return new LinkedList<>() {
+                                    {
+                                        add((StatementNode) ParseOperation()
+                                                .orElseThrow(
+                                                        () -> createException("single line block without expression")));
+                                        if (!AcceptSeperators()) {
+                                            throw createException("single line block without seperator");
+                                        }
+                                    }
+                                };
+                            } else {
+                                throw createException("block without open curly brace at start");
+                            }
+                        }).get());
         // .orElseThrow(() -> createException("block without open curly brace at
         // start")).getValue();
-
 
     }
 
     private StatementNode ParseStatement() throws AwkException {
+        CheckedBiFunction<Token.TokenType, CheckedSupplier<StatementNode, AwkException>, Optional<StatementNode>, AwkException> tokenToStatement = (
+                tt, statement) -> MatchAndRemove(tt).CheckedMap(s -> statement.get());
+        return tokenToStatement.apply(Token.TokenType.IF, this::ParseIf)
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.CONTINUE, this::ParseContinue))
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.BREAK, this::ParseBreak))
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.RETURN, this::ParseReturn))
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.WHILE, this::ParseWhile))
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DO, this::ParseDoWhile))
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DELETE, this::ParseDelete))
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.FOR, this::ParseFor));
+
+    }
+
+    private Node ParseCondition(String type) throws AwkException {
+        MatchAndRemove(Token.TokenType.OPENPAREN)
+                .orElseThrow(() -> createException("condition in " + type + " is missing open parentheses"));
+        var result = ParseOperation()
+                .orElseThrow(() -> createException("expression in condition of " + type + " is empty or not valid"));
+        MatchAndRemove(Token.TokenType.CLOSEPAREN)
+                .orElseThrow(() -> createException("condition in " + type + " is missing close parentheses"));
+        return result;
 
     }
 
     private IfNode ParseIf() throws AwkException {
+        var cond = ParseCondition("if");
+
+    }
+
+    private DeleteNode ParseDelete() throws AwkException {
+
     }
 
     private ContinueNode ParseContinue() throws AwkException {
-    }
-    private BreakNode ParseBreak() throws AwkException {
-    }
-        private ReturnNode ParseReturn() throws AwkException {
+        return new ContinueNode();
     }
 
+    private BreakNode ParseBreak() throws AwkException {
+        return new BreakNode();
+    }
+
+    private ReturnNode ParseReturn() throws AwkException {
+        return new ReturnNode(ParseOperation());
+    }
 
     private WhileNode ParseWhile() throws AwkException {
+        var cond = ParseCondition("while");
+        var loop = ParseBlock(true);
+        return new WhileNode(cond, loop);
     }
 
     private DoWhileNode ParseDoWhile() throws AwkException {
+        var loop = ParseBlock(true);
+        MatchAndRemove(Token.TokenType.WHILE)
+                .orElseThrow(() -> createException("do while loop missing `while` keyword before condition"));
+        var condition = ParseCondition("do while");
+        return new DoWhileNode(condition, loop);
     }
 
     private StatementNode ParseFor() throws AwkException {

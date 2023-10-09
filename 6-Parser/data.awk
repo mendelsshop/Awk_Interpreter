@@ -1,12 +1,9 @@
-END {
+BEGIN {
+   print "Welcome to JDoodle!"
+   
+   do  {++x} while (x)
+}
 
- }
-BEGIN {
-		a = 5
+function dos() {
+	return a;
 }
-{
-	a  + 5
-	print a
-}
-BEGIN {
-	}
