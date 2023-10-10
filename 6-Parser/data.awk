@@ -1,7 +1,11 @@
+function dos(a,
+b) {
+	return a;
+}
 BEGIN {
    print "Welcome to JDoodle!"
    z[0][0] = 6
-   delete z[0][0]
+   z[0][1] = dos
 
 	dos(2, 
 	4)
@@ -9,7 +13,3 @@ BEGIN {
 #    do  {++x} while (x)
 }
 
-function dos(a,
-b) {
-	return a;
-}

@@ -106,7 +106,7 @@ public class Parser {
     }
 
     private BlockNode ParseBlock(boolean supportsSingleLine) throws AwkException {
-// return new BlockNode(new LinkedList<>());
+        // return new BlockNode(new LinkedList<>());
         return new BlockNode(
                 MatchAndRemove(Token.TokenType.OPENBRACE)
                         .<CheckedSupplier<LinkedList<StatementNode>, AwkException>>map(a -> () -> {
@@ -117,7 +117,7 @@ public class Parser {
                                 AcceptSeperators();
                                 if (tokens.MoreTokens()) {
                                     // TODO: better error message
-                                    nodes.add((StatementNode) ParseOperation().orElseThrow(() -> createException("")));
+                                    nodes.add(ParseStatement());
                                 }
                             }
                             return nodes;
@@ -142,17 +142,17 @@ public class Parser {
 
     private StatementNode ParseStatement() throws AwkException {
         // TODO
-        // CheckedBiFunction<Token.TokenType, CheckedSupplier<StatementNode, AwkException>, Optional<StatementNode>, AwkException> tokenToStatement = (
-        //         tt, statement) -> MatchAndRemove(tt).CheckedMap(s -> statement.get());
-        // return tokenToStatement.apply(Token.TokenType.IF, this::ParseIf)
-        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.CONTINUE, this::ParseContinue))
-        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.BREAK, this::ParseBreak))
-        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.RETURN, this::ParseReturn))
-        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.WHILE, this::ParseWhile))
-        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DO, this::ParseDoWhile))
-        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DELETE, this::ParseDelete))
-        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.FOR, this::ParseFor));
-        return null;
+        CheckedBiFunction<Token.TokenType, CheckedSupplier<StatementNode, AwkException>, Optional<StatementNode>, AwkException> tokenToStatement = (
+                tt, statement) -> MatchAndRemove(tt).CheckedMap(s -> statement.get());
+        return tokenToStatement.apply(Token.TokenType.IF, this::ParseIf)
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.CONTINUE, this::ParseContinue))
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.BREAK, this::ParseBreak))
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.RETURN, this::ParseReturn))
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.WHILE, this::ParseWhile))
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DO, this::ParseDoWhile))
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DELETE, this::ParseDelete))
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.FOR, this::ParseFor)).get();
+        // return null;
     }
 
     private Node ParseCondition(String type) throws AwkException {
@@ -249,8 +249,16 @@ public class Parser {
         }
     }
 
-    private FunctionCallNode ParseFunctionCall() throws AwkException {
-        return null;
+    // maybe this should be in parselvaue an not its own seprerate function and we
+    // wouldn't have to do all this peek stuff
+    private Optional<FunctionCallNode> ParseFunctionCall() throws AwkException {
+        return Optional.ofNullable((tokens.Peek(0).map(Token::getType) == Optional.of(Token.TokenType.WORD)
+                && tokens.Peek(1).map(Token::getType) == Optional.of(Token.TokenType.OPENPAREN))
+                        ? new FunctionCallNode(MatchAndRemove(Token.TokenType.WORD).get().getValue().get(),
+                                parseDelimitedList(Token.TokenType.OPENPAREN, Token.TokenType.CLOSEPAREN,
+                                        () -> ParseOperation(), "function arguement list"))
+                        : null);
+
     }
 
     private Optional<Node> ParseBottomLevel() throws AwkException {
@@ -311,6 +319,7 @@ public class Parser {
                 // both of these should be lvalue
                 .CheckedOr(() -> parseUnaryL.apply(Token.TokenType.MINUSMINUS, OperationNode.Operation.PREDEC))
                 .CheckedOr(() -> parseUnaryL.apply(Token.TokenType.PLUSPLUS, OperationNode.Operation.PREINC))
+                .CheckedOr(() -> ParseFunctionCall())
                 .CheckedOr(() -> ParseLValue());
     }
 
