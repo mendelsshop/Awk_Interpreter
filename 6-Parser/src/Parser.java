@@ -40,53 +40,33 @@ public class Parser {
         }
         var functionName = MatchAndRemove(Token.TokenType.WORD)
                 .orElseThrow(() -> createException("function without name")).getValue().get();
-        MatchAndRemove(Token.TokenType.OPENPAREN)
-                .orElseThrow(() -> createException("function does not have parentheses before parameter"));
-        var parameters = new LinkedList<String>();
-        while (tokens.MoreTokens()) {
-            // parsing function signature
-            // CheckedSupplier is just like the Functional Supplier interface, but the
-            // lambda it takes can through catchable exceptions
-            AcceptSeperators();
-            // really Awk only allows newlines after each comma ie function a(v,\n\nc) is
-            // allowed but function q(\na) doesnt work along with function y(v\n, a) and
-            // function e(a\n)
-            if (MatchAndRemove(Token.TokenType.WORD).<CheckedSupplier<Boolean, AwkException>>map(
-                    c -> () -> {
-                        parameters.add(c.getValue().get());
-                        AcceptSeperators();
-                        return
-                        // if we reach a `)` we are done with the function signature
-                        MatchAndRemove(
-                                Token.TokenType.CLOSEPAREN)
-                                .<CheckedSupplier<Boolean, AwkException>>map(
-                                        a -> () -> true)
-                                // if we hit a `,`, we make sure that the next token is also a function
-                                // parameter can have function_name(a ,,,) ...
-                                .or(() -> MatchAndRemove(Token.TokenType.COMMA).map(d -> () -> {
-                                    AcceptSeperators();
-                                    return tokens.Peek(0)
-                                            .filter(b -> b.getType() == Token.TokenType.WORD).map(h -> false)
-                                            // otherwise we through an AwkException
-                                            .orElseThrow(() -> createException(
-                                                    "comma in function parameter list must be followed by another parameter"));
-                                }))
-                                // if the next token after the name of a function parameter is not a `,` or `)`
-                                // we know we have an invalid function signature so we give back an error
-                                .orElseThrow(() -> createException(
-                                        "function parameter must be followed by a comma or closeing parenthesis"))
-                                .get();
-                    }).or(() -> MatchAndRemove(Token.TokenType.CLOSEPAREN).map(c -> () -> true))
-                    .orElseThrow(() -> createException("unknown token type in parameter list" + tokens.Peek(0)))
-                    .get()) {
-                break;
-            }
-        }
+        LinkedList<String> parameters = parseDelimitedList(Token.TokenType.OPENPAREN, Token.TokenType.CLOSEPAREN,
+                () -> MatchAndRemove(Token.TokenType.WORD).map(w -> w.getValue().get()), "function parameter list");
         // parse block eats up newlines before the {
 
         var block = ParseBlock(false).getStatements();
         program.addFunction(new FunctionNode(functionName, parameters, block));
         return true;
+    }
+
+    private <T> LinkedList<T> parseDelimitedList(Token.TokenType start, Token.TokenType end,
+            CheckedSupplier<Optional<T>, AwkException> listvalue, String type) throws AwkException {
+        MatchAndRemove(start)
+                .orElseThrow(() -> createException(type + " missing start" + start));
+        var ret = new LinkedList<T>();
+        AcceptSeperators();
+        listvalue.get().CheckedIfPresent(first -> {
+            ret.add(first);
+            AcceptSeperators();
+            while (MatchAndRemove(Token.TokenType.COMMA).isPresent()) {
+                AcceptSeperators();
+                ret.add(listvalue.get().orElseThrow(() -> createException(null)));
+                AcceptSeperators();
+            }
+        });
+        MatchAndRemove(end)
+                .orElseThrow(() -> createException(type + " missing end" + end));
+        return ret;
     }
 
     private boolean ParseAction(ProgramNode program) throws AwkException {
@@ -126,7 +106,7 @@ public class Parser {
     }
 
     private BlockNode ParseBlock(boolean supportsSingleLine) throws AwkException {
-
+// return new BlockNode(new LinkedList<>());
         return new BlockNode(
                 MatchAndRemove(Token.TokenType.OPENBRACE)
                         .<CheckedSupplier<LinkedList<StatementNode>, AwkException>>map(a -> () -> {
@@ -157,23 +137,22 @@ public class Parser {
                                 throw createException("block without open curly brace at start");
                             }
                         }).get());
-        // .orElseThrow(() -> createException("block without open curly brace at
-        // start")).getValue();
 
     }
 
     private StatementNode ParseStatement() throws AwkException {
-        CheckedBiFunction<Token.TokenType, CheckedSupplier<StatementNode, AwkException>, Optional<StatementNode>, AwkException> tokenToStatement = (
-                tt, statement) -> MatchAndRemove(tt).CheckedMap(s -> statement.get());
-        return tokenToStatement.apply(Token.TokenType.IF, this::ParseIf)
-                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.CONTINUE, this::ParseContinue))
-                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.BREAK, this::ParseBreak))
-                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.RETURN, this::ParseReturn))
-                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.WHILE, this::ParseWhile))
-                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DO, this::ParseDoWhile))
-                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DELETE, this::ParseDelete))
-                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.FOR, this::ParseFor));
-
+        // TODO
+        // CheckedBiFunction<Token.TokenType, CheckedSupplier<StatementNode, AwkException>, Optional<StatementNode>, AwkException> tokenToStatement = (
+        //         tt, statement) -> MatchAndRemove(tt).CheckedMap(s -> statement.get());
+        // return tokenToStatement.apply(Token.TokenType.IF, this::ParseIf)
+        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.CONTINUE, this::ParseContinue))
+        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.BREAK, this::ParseBreak))
+        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.RETURN, this::ParseReturn))
+        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.WHILE, this::ParseWhile))
+        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DO, this::ParseDoWhile))
+        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DELETE, this::ParseDelete))
+        //         .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.FOR, this::ParseFor));
+        return null;
     }
 
     private Node ParseCondition(String type) throws AwkException {
@@ -198,10 +177,20 @@ public class Parser {
                 alt = Optional.of(ParseBlock(true));
             }
         }
-        return new IfNode(cond,cons,alt);
+        return new IfNode(cond, cons, alt);
     }
 
     private DeleteNode ParseDelete() throws AwkException {
+        var name = MatchAndRemove(Token.TokenType.WORD).orElseThrow(() -> createException(null)).getValue().get();
+        if (tokens.Peek(0).map(Token::getType) == Optional.of(Token.TokenType.OPENBRACKET)) {
+            var list = parseDelimitedList(Token.TokenType.OPENBRACKET, Token.TokenType.CLOSEBRACKET,
+                    () -> MatchAndRemove(Token.TokenType.NUMBER).map(w -> w.getValue().get()), "delete list index");
+            if (list.isEmpty()) {
+                throw createException(null);
+            }
+            return new DeleteNode(name, list);
+        }
+        return new DeleteNode(name);
 
     }
 
@@ -244,23 +233,24 @@ public class Parser {
                 && tokens.Peek(1).map(Token::getType) == Optional.of(Token.TokenType.IN)) {
             var index_var = MatchAndRemove(Token.TokenType.WORD).get().getValue().get();
             MatchAndRemove(Token.TokenType.IN).get();
-            var array = ParseLValue().orElseThrow();
-            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow();
+            var array = ParseLValue().orElseThrow(() -> createException(null));
+            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow(() -> createException(null));
             var loop = ParseBlock(true);
             return new ForEachNode(index_var, array, loop);
         } else {
-            var init = ParseOperation().orElseThrow();
-            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow();
-            var cond = ParseOperation().orElseThrow();
-            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow();
-            var inc = ParseOperation().orElseThrow();
-            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow();
+            var init = ParseOperation().orElseThrow(() -> createException(null));
+            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException(null));
+            var cond = ParseOperation().orElseThrow(() -> createException(null));
+            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException(null));
+            var inc = ParseOperation().orElseThrow(() -> createException(null));
+            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow(() -> createException(null));
             var loop = ParseBlock(true);
             return new ForNode(init, cond, inc, loop);
         }
     }
 
     private FunctionCallNode ParseFunctionCall() throws AwkException {
+        return null;
     }
 
     private Optional<Node> ParseBottomLevel() throws AwkException {
