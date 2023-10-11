@@ -1,4 +1,4 @@
-# Parser 2
+# Parser 6
 ## Project organization
 
 ```
@@ -8,35 +8,47 @@ root
 │   ├── hi.awk
 │   ├── foo.awk
 │   └── other.awk
-└── src
-    ├── AssignmentNode.java
-    ├── AwkException.java
-    ├── Awk.java
-    ├── BlockNode.java
-    ├── ConstantNode.java
-    ├── Functional
-    │   ├── CheckedBiConsumer.java
-    │   ├── CheckedBiFunction.java
-    │   ├── CheckedConsumer.java
-    │   ├── CheckedFunction.java
-    │   ├── CheckedPredicate.java
-    │   ├── CheckedRunnable.java
-    │   └── CheckedSupplier.java
-    ├── FunctionalLexer.java
-    ├── FunctionNode.java
-    ├── Lexer.java
-    ├── Node.java
-    ├── OperationNode.java
-    ├── Optional.java
-    ├── Parser.java
-    ├── PatternNode.java
-    ├── ProgramNode.java
-    ├── StatementNode.java
-    ├── StringHandler.java
-    ├── TokenHandler.java
-    ├── Token.java
-    ├── UnitTests.java
-    └── VariableReferenceNode.java
+├── README.md
+├── src
+│   ├── AssignmentNode.java
+│   ├── AwkException.java
+│   ├── Awk.java
+│   ├── BlockNode.java
+│   ├── BreakNode.java
+│   ├── ConstantNode.java
+│   ├── ContinueNode.java
+│   ├── DeleteNode.java
+│   ├── DoWhileNode.java
+│   ├── ForEachNode.java
+│   ├── ForNode.java
+│   ├── Functional
+│   │   ├── CheckedBiConsumer.java
+│   │   ├── CheckedBiFunction.java
+│   │   ├── CheckedConsumer.java
+│   │   ├── CheckedFunction.java
+│   │   ├── CheckedPredicate.java
+│   │   ├── CheckedRunnable.java
+│   │   └── CheckedSupplier.java
+│   ├── FunctionalLexer.java
+│   ├── FunctionCallNode.java
+│   ├── FunctionNode.java
+│   ├── IfNode.java
+│   ├── Lexer.java
+│   ├── Node.java
+│   ├── OperationNode.java
+│   ├── Optional.java
+│   ├── Parser.java
+│   ├── PatternNode.java
+│   ├── ProgramNode.java
+│   ├── ReturnNode.java
+│   ├── StatementNode.java
+│   ├── StringHandler.java
+│   ├── TernaryOperationNode.java
+│   ├── TokenHandler.java
+│   ├── Token.java
+│   ├── UnitTests.java
+│   ├── VariableReferenceNode.java
+│   └── WhileNode.java
 ```
 
 The awk files are generated from using `get_awk_files.py` (and will probably be different then the ones shown here) are required for the first unit test to work (see `root/src/UnitTests.java` for more info)
