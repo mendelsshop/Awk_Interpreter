@@ -155,6 +155,9 @@ public class Parser {
         // return null;
     }
 
+    // make sure that 1. the result of parseoperation is present, 2. the result of parseoperation falls into the category of statementnode
+    private StatementNode parseStatement() {}
+
     private Node ParseCondition(String type) throws AwkException {
         MatchAndRemove(Token.TokenType.OPENPAREN)
                 .orElseThrow(() -> createException("condition in " + type + " is missing open parentheses"));
