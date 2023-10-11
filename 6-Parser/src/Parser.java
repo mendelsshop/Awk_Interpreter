@@ -151,12 +151,16 @@ public class Parser {
                 .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.WHILE, this::ParseWhile))
                 .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DO, this::ParseDoWhile))
                 .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DELETE, this::ParseDelete))
-                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.FOR, this::ParseFor)).get();
-        // return null;
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.FOR, this::ParseFor)).CheckedOrElseGet(this::OperationAsStatement);
     }
 
     // make sure that 1. the result of parseoperation is present, 2. the result of parseoperation falls into the category of statementnode
-    private StatementNode parseStatement() {}
+    // do we need to make op node extend statementnode (what i did)
+    private StatementNode OperationAsStatement() throws AwkException {
+        StatementNode result = (StatementNode) ParseOperation().orElseThrow(() -> createException(null));
+        // technically any result of parseoperation is valid statement
+        return result;
+    }
 
     private Node ParseCondition(String type) throws AwkException {
         MatchAndRemove(Token.TokenType.OPENPAREN)
