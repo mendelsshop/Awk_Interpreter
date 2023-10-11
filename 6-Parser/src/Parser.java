@@ -113,12 +113,11 @@ public class Parser {
                             LinkedList<StatementNode> nodes = new LinkedList<>();
                             AcceptSeperators();
                             while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
-
-                                AcceptSeperators();
                                 if (tokens.MoreTokens()) {
                                     // TODO: better error message
                                     nodes.add(ParseStatement());
                                 }
+                                AcceptSeperators();
                             }
                             return nodes;
                         }).orElse(() -> {
@@ -151,15 +150,39 @@ public class Parser {
                 .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.WHILE, this::ParseWhile))
                 .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DO, this::ParseDoWhile))
                 .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DELETE, this::ParseDelete))
-                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.FOR, this::ParseFor)).CheckedOrElseGet(this::OperationAsStatement);
+                .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.FOR, this::ParseFor))
+                .CheckedOrElseGet(this::OperationAsStatement);
     }
 
-    // make sure that 1. the result of parseoperation is present, 2. the result of parseoperation falls into the category of statementnode
+    // make sure that 1. the result of parseoperation is present, 2. the result of
+    // parseoperation falls into the category of statementnode
     // do we need to make op node extend statementnode (what i did)
     private StatementNode OperationAsStatement() throws AwkException {
-        StatementNode result = (StatementNode) ParseOperation().orElseThrow(() -> createException(null));
+        var result = ParseOperation().orElseThrow(() -> createException(null));
+        switch (result) {
+            case OperationNode op -> {
+                switch (op.getOperation()) {
+                    // ignore these
+                    case POSTDEC -> {
+                    }
+                    case PREDEC -> {
+                    }
+                    case POSTINC -> {
+                    }
+                    case PREINC -> {
+                    }
+                    // otherwise throw exception
+                    default -> throw createException(null);
+                }
+            }
+            case TernaryOperationNode op -> throw createException(null);
+            case VariableReferenceNode op -> throw createException(null);
+            // other operations are valid ie function calls and assignment
+            default -> {
+            }
+        }
         // technically any result of parseoperation is valid statement
-        return result;
+        return (StatementNode) result;
     }
 
     private Node ParseCondition(String type) throws AwkException {
@@ -245,11 +268,11 @@ public class Parser {
             var loop = ParseBlock(true);
             return new ForEachNode(index_var, array, loop);
         } else {
-            var init = ParseOperation().orElseThrow(() -> createException(null));
+            var init = ParseOperation();
             MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException(null));
-            var cond = ParseOperation().orElseThrow(() -> createException(null));
+            var cond = ParseOperation();
             MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException(null));
-            var inc = ParseOperation().orElseThrow(() -> createException(null));
+            var inc = ParseOperation();
             MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow(() -> createException(null));
             var loop = ParseBlock(true);
             return new ForNode(init, cond, inc, loop);
@@ -259,8 +282,8 @@ public class Parser {
     // maybe this should be in parselvaue an not its own seprerate function and we
     // wouldn't have to do all this peek stuff
     private Optional<FunctionCallNode> ParseFunctionCall() throws AwkException {
-        return Optional.ofNullable((tokens.Peek(0).map(Token::getType) == Optional.of(Token.TokenType.WORD)
-                && tokens.Peek(1).map(Token::getType) == Optional.of(Token.TokenType.OPENPAREN))
+        return Optional.ofNullable(tokens.Peek(0).map(Token::getType).equals(Optional.of(Token.TokenType.WORD))
+                && tokens.Peek(1).map(Token::getType).equals(Optional.of(Token.TokenType.OPENPAREN))
                         ? new FunctionCallNode(MatchAndRemove(Token.TokenType.WORD).get().getValue().get(),
                                 parseDelimitedList(Token.TokenType.OPENPAREN, Token.TokenType.CLOSEPAREN,
                                         () -> ParseOperation(), "function arguement list"))

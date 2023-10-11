@@ -1,21 +1,22 @@
 public class ForNode extends StatementNode {
-    private Node init;
-    private Node condition;
-    private Node increment;
+    // TODO: allow emtpy expression
+    private Optional<Node> init;
+    private Optional<Node> condition;
+    private Optional<Node> increment;
     private BlockNode block;
-    public ForNode(Node init, Node condition, Node increment, BlockNode block) {
+    public ForNode(Optional<Node> init, Optional<Node> condition, Optional<Node> increment, BlockNode block) {
         this.init = init;
         this.condition = condition;
         this.increment = increment;
         this.block = block;
     }
-    public Node getInit() {
+    public Optional<Node> getInit() {
         return init;
     }
-    public Node getCondition() {
+    public Optional<Node> getCondition() {
         return condition;
     }
-    public Node getIncrement() {
+    public Optional<Node> getIncrement() {
         return increment;
     }
     public BlockNode getBlock() {

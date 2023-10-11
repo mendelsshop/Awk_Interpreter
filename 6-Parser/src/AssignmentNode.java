@@ -1,4 +1,4 @@
-public class AssignmentNode extends Node {
+public class AssignmentNode extends StatementNode {
     private Node target; 
     private Node expression;
     public AssignmentNode(Node target, Node expression) {
