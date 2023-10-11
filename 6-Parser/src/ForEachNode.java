@@ -21,4 +21,11 @@ public class ForEachNode extends StatementNode {
     public String getIndex() {
         return index;
     }
+
+    @Override
+    public String toString() {
+        return "for (" + index + " in " + iterable + ")" + block;
+    }
+
+    
 }

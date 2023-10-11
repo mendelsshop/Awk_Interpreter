@@ -16,4 +16,8 @@ public class IfNode extends StatementNode {
     public Optional<Node> getOtherwise() {
         return otherwise;
     }
+    @Override
+    public String toString() {
+        return "if (" + condition + ")" + thenBlock + otherwise.map(i->"else" + i).orElse("");
+    }
 }

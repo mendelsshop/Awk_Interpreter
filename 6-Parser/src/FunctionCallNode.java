@@ -1,4 +1,5 @@
 import java.util.LinkedList;
+import java.util.stream.Collectors;
 
 public class FunctionCallNode extends StatementNode {
     private String functionName;
@@ -12,5 +13,10 @@ public class FunctionCallNode extends StatementNode {
     }
     public LinkedList<Node> getParameters() {
         return parameters;
+    }
+
+    @Override 
+    public String toString() {
+        return functionName + "(" + parameters.stream().map(c -> c.toString()).collect(Collectors.joining(", ")) + ")";
     }
 }
