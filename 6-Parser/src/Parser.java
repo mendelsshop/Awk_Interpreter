@@ -60,7 +60,7 @@ public class Parser {
             AcceptSeperators();
             while (MatchAndRemove(Token.TokenType.COMMA).isPresent()) {
                 AcceptSeperators();
-                ret.add(listvalue.get().orElseThrow(() -> createException(null)));
+                ret.add(listvalue.get().orElseThrow(() -> createException(type + " missing expression after comma")));
                 AcceptSeperators();
             }
         });
@@ -107,6 +107,7 @@ public class Parser {
 
     private BlockNode ParseBlock(boolean supportsSingleLine) throws AwkException {
         // return new BlockNode(new LinkedList<>());
+        AcceptSeperators();
         return new BlockNode(
                 MatchAndRemove(Token.TokenType.OPENBRACE)
                         .<CheckedSupplier<LinkedList<StatementNode>, AwkException>>map(a -> () -> {
@@ -158,7 +159,7 @@ public class Parser {
     // parseoperation falls into the category of statementnode
     // do we need to make op node extend statementnode (what i did)
     private StatementNode OperationAsStatement() throws AwkException {
-        var result = ParseOperation().orElseThrow(() -> createException(null));
+        var result = ParseOperation().orElseThrow(() -> createException("expected expression in block but found invalid or empty expression"));
         switch (result) {
             case OperationNode op -> {
                 switch (op.getOperation()) {
@@ -172,11 +173,11 @@ public class Parser {
                     case PREINC -> {
                     }
                     // otherwise throw exception
-                    default -> throw createException(null);
+                    default -> throw createException("operation of type " + op.getOperation() + " is not supported in the outermost part of a block");
                 }
             }
-            case TernaryOperationNode op -> throw createException(null);
-            case VariableReferenceNode op -> throw createException(null);
+            case TernaryOperationNode op -> throw createException("ternary expression is not supported in the outermost part of a block");
+            case VariableReferenceNode op -> throw createException("accesing but not assigning to a variable is invalid in the outermost part of a block");
             // other operations are valid ie function calls and assignment
             default -> {
             }
@@ -211,12 +212,12 @@ public class Parser {
     }
 
     private DeleteNode ParseDelete() throws AwkException {
-        var name = MatchAndRemove(Token.TokenType.WORD).orElseThrow(() -> createException(null)).getValue().get();
+        var name = MatchAndRemove(Token.TokenType.WORD).orElseThrow(() -> createException("first expression after keyword delete must be an identifier like `foo` or `bar`\nthis identifier specifies which array to delete")).getValue().get();
         if (tokens.Peek(0).map(Token::getType) == Optional.of(Token.TokenType.OPENBRACKET)) {
             var list = parseDelimitedList(Token.TokenType.OPENBRACKET, Token.TokenType.CLOSEBRACKET,
                     () -> MatchAndRemove(Token.TokenType.NUMBER).map(w -> w.getValue().get()), "delete list index");
             if (list.isEmpty()) {
-                throw createException(null);
+                throw createException("expected indexes after `[` in deletion of array" + name +" found the list of indexes to be emtpy\nwhy did you put the brackets after " +name + " you need to be a lazy programmer and save the keystokes from the brackets." );
             }
             return new DeleteNode(name, list);
         }
@@ -245,35 +246,35 @@ public class Parser {
     private DoWhileNode ParseDoWhile() throws AwkException {
         var loop = ParseBlock(true);
         MatchAndRemove(Token.TokenType.WHILE)
-                .orElseThrow(() -> createException("do while loop missing `while` keyword before condition"));
+                .orElseThrow(() -> createException("Do while loop missing `while` keyword before condition"));
         var condition = ParseCondition("do while");
         return new DoWhileNode(condition, loop);
     }
 
     private StatementNode ParseFor() throws AwkException {
         MatchAndRemove(Token.TokenType.OPENPAREN)
-                .orElseThrow(() -> createException("condition in for is missing open parentheses"));
+                .orElseThrow(() -> createException("Condition in `for` is missing open parentheses"));
         // technically valid awk
         // z[0][0] = 6
         // for (6 in z; 8 ;9) {print 6}
         // if the thing before in is not word must be normal for loop -> maybe should be
         // an error?
         // otherwise its an array for loop
-        if (tokens.Peek(0).map(Token::getType) == Optional.of(Token.TokenType.WORD)
-                && tokens.Peek(1).map(Token::getType) == Optional.of(Token.TokenType.IN)) {
+        if (tokens.Peek(0).map(Token::getType).equals(Optional.of(Token.TokenType.WORD))
+                && tokens.Peek(1).map(Token::getType).equals(Optional.of(Token.TokenType.IN))) {
             var index_var = MatchAndRemove(Token.TokenType.WORD).get().getValue().get();
             MatchAndRemove(Token.TokenType.IN).get();
-            var array = ParseLValue().orElseThrow(() -> createException(null));
-            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow(() -> createException(null));
+            var array = ParseLValue().orElseThrow(() -> createException("You decided to use the \"new style for loop\" but you missed the main thing (the array to iterate over)"));
+            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow(() -> createException("Condition in `for` is missing close parentheses\nI know this is a little picky and loops should not need parentheses around their `signature` but this AWK."));
             var loop = ParseBlock(true);
             return new ForEachNode(index_var, array, loop);
         } else {
             var init = ParseOperation();
-            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException(null));
+            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException("Semicolon between init expression and condition expression is missing, learn how to use c-style for loops\nat https://www.tutorialspoint.com/cprogramming/c_for_loop.htm."));
             var cond = ParseOperation();
-            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException(null));
+            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException("Semicolon between condition expression and increment expression is missing, learn how to use c-style for loops\nat https://www.tutorialspoint.com/cprogramming/c_for_loop.htm."));
             var inc = ParseOperation();
-            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow(() -> createException(null));
+            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow(() -> createException("Signature of `for` is missing close parentheses\nI know this is a little picky and loops should not need parentheses around their `signature` but this AWK."));
             var loop = ParseBlock(true);
             return new ForNode(init, cond, inc, loop);
         }

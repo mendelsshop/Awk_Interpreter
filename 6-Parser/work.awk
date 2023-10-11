@@ -1,6 +1,6 @@
-function a() {
-    a = true
-    a+= a ? 6 : 8
+function a(i) {
+    z = true
+    z+= z ? 6 : 8
     return;
 }
 
@@ -8,10 +8,14 @@ NF == 6 {
     for (i = 0; i < 10; i++) {
         a(i)
     }
+    for (i in s) {
+        a
+    }
 }
 
 {
-    if (NF == 6) {
+    if (0) 
 
-    }
+
+    prints( 7) ; 
 }
