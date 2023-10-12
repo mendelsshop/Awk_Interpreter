@@ -1,10 +1,12 @@
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Interpreter {
     private class LineManager {
@@ -18,7 +20,12 @@ public class Interpreter {
             if (!lines.isEmpty()) {
                 var line = lines.remove(0).split(variables.get("FS").getContents());
                 // assign each variable to $n
-                // assign lines and nf,fne,nr
+                // assign lines and nf,fnr,nr
+                // is $0 for whole line if so start from 1
+                // also need to clear variables from previous line
+                for (int i = 0; i < line.length; i++) {
+                    variables.put("$" + line, new InterpreterDataType(line[i]));
+                }
                 return true;
             }
             return false;
@@ -33,11 +40,16 @@ public class Interpreter {
             put("OFS", new InterpreterDataType(" "));
             put("OFT", new InterpreterDataType("%.6g"));
             put("ORS", new InterpreterDataType("\n"));
+            put("NF", new InterpreterDataType());
+            put("NFR", new InterpreterDataType());
+            put("NR", new InterpreterDataType());
         }
     };
-    private HashMap<String, FunctionNode> functions = new HashMap<String, FunctionNode>() {{
-      // TODO: builtin functions
-    }};
+    private HashMap<String, FunctionNode> functions = new HashMap<String, FunctionNode>() {
+        {
+            // TODO: builtin functions
+        }
+    };
 
     public Interpreter(ProgramNode program, Optional<String> path) throws IOException {
         input = new LineManager(
@@ -45,7 +57,6 @@ public class Interpreter {
         this.program = program;
         functions.putAll(
                 program.getFunctions().stream().collect(Collectors.toMap(FunctionNode::getName, function -> function)));
-  
 
     }
 }
