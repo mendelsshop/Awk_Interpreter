@@ -8,11 +8,11 @@ public class BuiltInFunctionDefinitionNode extends FunctionNode {
 
     private Boolean varidiac;
 
-    public BuiltInFunctionDefinitionNode(String name, LinkedList<String> parameters,
-            LinkedList<StatementNode> statements, Function<HashMap<String, InterpreterDataType>, String> execute,
+    public BuiltInFunctionDefinitionNode(Function<HashMap<String, InterpreterDataType>, String> execute,
             Boolean varidiac) {
-        super(name, parameters, statements);
+        // TODO: how do we check arrity
+        super("", new LinkedList<>(), new LinkedList<>());
         Execute = execute;
         this.varidiac = varidiac;
-    }    
+    }
 }

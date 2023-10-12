@@ -1,12 +1,11 @@
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
+
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class Interpreter {
     private class LineManager {
@@ -48,6 +47,19 @@ public class Interpreter {
     private HashMap<String, FunctionNode> functions = new HashMap<String, FunctionNode>() {
         {
             // TODO: builtin functions
+            put("print", new BuiltInFunctionDefinitionNode((vars) -> "", true));
+            put("printf", new BuiltInFunctionDefinitionNode((vars) -> "", true));
+            put("getline", new BuiltInFunctionDefinitionNode((vars) -> input.SplitAndAssign() ? "" : "", false));
+            put("next", new BuiltInFunctionDefinitionNode((vars) -> input.SplitAndAssign() ? "" : "", false));
+            put("gsub", null);
+            put("match", null);
+            put("sub", null);
+            put("index", null);
+            put("length", null);
+            put("split", null);
+            put("substr", null);
+            put("tolower", null);
+            put("toupper", null);
         }
     };
 
