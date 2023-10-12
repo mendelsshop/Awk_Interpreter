@@ -15,14 +15,29 @@ public class Interpreter {
         }
 
         public boolean SplitAndAssign() {
+            if (!lines.isEmpty()) {
+                var line = lines.remove(0).split(variables.get("FS").getContents());
+                // assign each variable to $n
+                // assign lines and nf,fne,nr
+                return true;
+            }
             return false;
         }
     }
 
     private ProgramNode program;
     private LineManager input;
-    private HashMap<String, InterpreterDataType> variables = new HashMap<String, InterpreterDataType>();
-    private HashMap<String, FunctionNode> functions = new HashMap<String, FunctionNode>();
+    private HashMap<String, InterpreterDataType> variables = new HashMap<String, InterpreterDataType>() {
+        {
+            put("FS", new InterpreterDataType(" "));
+            put("OFS", new InterpreterDataType(" "));
+            put("OFT", new InterpreterDataType("%.6g"));
+            put("ORS", new InterpreterDataType("\n"));
+        }
+    };
+    private HashMap<String, FunctionNode> functions = new HashMap<String, FunctionNode>() {{
+      // TODO: builtin functions
+    }};
 
     public Interpreter(ProgramNode program, Optional<String> path) throws IOException {
         input = new LineManager(
@@ -30,6 +45,7 @@ public class Interpreter {
         this.program = program;
         functions.putAll(
                 program.getFunctions().stream().collect(Collectors.toMap(FunctionNode::getName, function -> function)));
-        // TODO: builtin functions
+  
+
     }
 }
