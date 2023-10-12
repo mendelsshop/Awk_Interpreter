@@ -2,6 +2,7 @@ import java.util.LinkedList;
 import java.util.function.Function;
 
 import Functional.CheckedBiFunction;
+import Functional.CheckedFunction;
 import Functional.CheckedSupplier;
 
 public class Parser {
@@ -159,7 +160,8 @@ public class Parser {
     // parseoperation falls into the category of statementnode
     // do we need to make op node extend statementnode (what i did)
     private StatementNode OperationAsStatement() throws AwkException {
-        var result = ParseOperation().orElseThrow(() -> createException("expected expression in block but found invalid or empty expression"));
+        var result = ParseOperation().orElseThrow(
+                () -> createException("expected expression in block but found invalid or empty expression"));
         switch (result) {
             case OperationNode op -> {
                 switch (op.getOperation()) {
@@ -173,11 +175,14 @@ public class Parser {
                     case PREINC -> {
                     }
                     // otherwise throw exception
-                    default -> throw createException("operation of type " + op.getOperation() + " is not supported in the outermost part of a block");
+                    default -> throw createException("operation of type " + op.getOperation()
+                            + " is not supported in the outermost part of a block");
                 }
             }
-            case TernaryOperationNode op -> throw createException("ternary expression is not supported in the outermost part of a block");
-            case VariableReferenceNode op -> throw createException("accesing but not assigning to a variable is invalid in the outermost part of a block");
+            case TernaryOperationNode op ->
+                throw createException("ternary expression is not supported in the outermost part of a block");
+            case VariableReferenceNode op -> throw createException(
+                    "accesing but not assigning to a variable is invalid in the outermost part of a block");
             // other operations are valid ie function calls and assignment
             default -> {
             }
@@ -212,12 +217,16 @@ public class Parser {
     }
 
     private DeleteNode ParseDelete() throws AwkException {
-        var name = MatchAndRemove(Token.TokenType.WORD).orElseThrow(() -> createException("first expression after keyword delete must be an identifier like `foo` or `bar`\nthis identifier specifies which array to delete")).getValue().get();
+        var name = MatchAndRemove(Token.TokenType.WORD).orElseThrow(() -> createException(
+                "first expression after keyword delete must be an identifier like `foo` or `bar`\nthis identifier specifies which array to delete"))
+                .getValue().get();
         if (tokens.Peek(0).map(Token::getType) == Optional.of(Token.TokenType.OPENBRACKET)) {
             var list = parseDelimitedList(Token.TokenType.OPENBRACKET, Token.TokenType.CLOSEBRACKET,
                     () -> MatchAndRemove(Token.TokenType.NUMBER).map(w -> w.getValue().get()), "delete list index");
             if (list.isEmpty()) {
-                throw createException("expected indexes after `[` in deletion of array" + name +" found the list of indexes to be emtpy\nwhy did you put the brackets after " +name + " you need to be a lazy programmer and save the keystokes from the brackets." );
+                throw createException("expected indexes after `[` in deletion of array" + name
+                        + " found the list of indexes to be emtpy\nwhy did you put the brackets after " + name
+                        + " you need to be a lazy programmer and save the keystokes from the brackets.");
             }
             return new DeleteNode(name, list);
         }
@@ -264,17 +273,22 @@ public class Parser {
                 && tokens.Peek(1).map(Token::getType).equals(Optional.of(Token.TokenType.IN))) {
             var index_var = MatchAndRemove(Token.TokenType.WORD).get().getValue().get();
             MatchAndRemove(Token.TokenType.IN).get();
-            var array = ParseLValue().orElseThrow(() -> createException("You decided to use the \"new style for loop\" but you missed the main thing (the array to iterate over)"));
-            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow(() -> createException("Condition in `for` is missing close parentheses\nI know this is a little picky and loops should not need parentheses around their `signature` but this AWK."));
+            var array = ParseLValue().orElseThrow(() -> createException(
+                    "You decided to use the \"new style for loop\" but you missed the main thing (the array to iterate over)"));
+            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow(() -> createException(
+                    "Condition in `for` is missing close parentheses\nI know this is a little picky and loops should not need parentheses around their `signature` but this AWK."));
             var loop = ParseBlock(true);
             return new ForEachNode(index_var, array, loop);
         } else {
             var init = ParseOperation();
-            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException("Semicolon between init expression and condition expression is missing, learn how to use c-style for loops\nat https://www.tutorialspoint.com/cprogramming/c_for_loop.htm."));
+            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException(
+                    "Semicolon between init expression and condition expression is missing, learn how to use c-style for loops\nat https://www.tutorialspoint.com/cprogramming/c_for_loop.htm."));
             var cond = ParseOperation();
-            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException("Semicolon between condition expression and increment expression is missing, learn how to use c-style for loops\nat https://www.tutorialspoint.com/cprogramming/c_for_loop.htm."));
+            MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException(
+                    "Semicolon between condition expression and increment expression is missing, learn how to use c-style for loops\nat https://www.tutorialspoint.com/cprogramming/c_for_loop.htm."));
             var inc = ParseOperation();
-            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow(() -> createException("Signature of `for` is missing close parentheses\nI know this is a little picky and loops should not need parentheses around their `signature` but this AWK."));
+            MatchAndRemove(Token.TokenType.CLOSEPAREN).orElseThrow(() -> createException(
+                    "Signature of `for` is missing close parentheses\nI know this is a little picky and loops should not need parentheses around their `signature` but this AWK."));
             var loop = ParseBlock(true);
             return new ForNode(init, cond, inc, loop);
         }
@@ -283,12 +297,35 @@ public class Parser {
     // maybe this should be in parselvaue an not its own seprerate function and we
     // wouldn't have to do all this peek stuff
     private Optional<FunctionCallNode> ParseFunctionCall() throws AwkException {
+        CheckedFunction<Token.TokenType, Optional<FunctionCallNode>, AwkException> builtin = (
+                token) -> MatchAndRemove(token).<FunctionCallNode, AwkException>CheckedMap(s -> {
+                    var ret = new LinkedList<Node>();
+                    AcceptSeperators();
+                    ParseOperation().CheckedIfPresent(first -> {
+                        ret.add(first);
+                        AcceptSeperators();
+                        while (MatchAndRemove(Token.TokenType.COMMA).isPresent()) {
+                            AcceptSeperators();
+                            ret.add(ParseOperation()
+                                    .orElseThrow(() -> createException(
+                                            "call to builtin " + token + " missing expression after comma")));
+                            AcceptSeperators();
+                        }
+                    });
+                    return new FunctionCallNode(token.toString(), ret);
+                });
         return Optional.ofNullable(tokens.Peek(0).map(Token::getType).equals(Optional.of(Token.TokenType.WORD))
                 && tokens.Peek(1).map(Token::getType).equals(Optional.of(Token.TokenType.OPENPAREN))
                         ? new FunctionCallNode(MatchAndRemove(Token.TokenType.WORD).get().getValue().get(),
                                 parseDelimitedList(Token.TokenType.OPENPAREN, Token.TokenType.CLOSEPAREN,
                                         () -> ParseOperation(), "function arguement list"))
-                        : null);
+                        : null)
+                .CheckedOr(() -> builtin.apply(Token.TokenType.GETLINE))
+                .CheckedOr(() -> builtin.apply(Token.TokenType.PRINT))
+                .CheckedOr(() -> builtin.apply(Token.TokenType.PRINTF))
+                .CheckedOr(() -> builtin.apply(Token.TokenType.EXIT))
+                .CheckedOr(() -> builtin.apply(Token.TokenType.NEXTFILE))
+                .CheckedOr(() -> builtin.apply(Token.TokenType.NEXT));
 
     }
 

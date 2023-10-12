@@ -6,10 +6,10 @@ function a(i) {
 
 NF == 6 {
     for (i = 0; i < 10; i++) {
-        a(i)
+        # a(i)
     }
     for (i in s) {
-        a
+        # a
     }
 }
 
@@ -18,4 +18,5 @@ NF == 6 {
 
 
     prints( 7) ; 
+    print
 }
