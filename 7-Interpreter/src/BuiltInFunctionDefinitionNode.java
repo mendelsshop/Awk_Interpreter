@@ -4,7 +4,7 @@ import java.util.function.Function;
 
 public class BuiltInFunctionDefinitionNode extends FunctionNode {
 
-    Function<HashMap<String, InterpreterDataType>, String> Execute;
+    private Function<HashMap<String, InterpreterDataType>, String> Execute;
 
     private Boolean varidiac;
 
