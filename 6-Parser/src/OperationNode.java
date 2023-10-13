@@ -1,5 +1,6 @@
 public class OperationNode extends StatementNode {
     @Override
+    // make ++ -- into assignment node and make operationnode derive node not statementnode
     public String toString() {
         return "("+  (Right.isPresent() ? Left + " " + operation + " " + Right.get() : operation + " " + Left) + ")";
     }
