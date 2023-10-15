@@ -27,7 +27,7 @@ public class Parser {
     }
 
     // TODO: unpublic thid
-    public boolean AcceptSeperators() {
+    private boolean AcceptSeperators() {
         boolean foundSeperators = false;
         // since MatchAndRemove does out of bounds checks
         while (MatchAndRemove(Token.TokenType.SEPERATOR).isPresent()) {
@@ -91,7 +91,7 @@ public class Parser {
 
     // createException is here because it makes it easier to create exceptions, and
     // not haveing to deal with keeping track of line numbers.
-    public AwkException createException(String message) {
+    private AwkException createException(String message) {
         return new AwkException(tokens.Peek(0).map(Token::getLineNumber).orElse(line),
                 tokens.Peek(0).map(Token::getStartPosition).orElse(column), message,
                 AwkException.ExceptionType.ParseError);
@@ -99,7 +99,7 @@ public class Parser {
 
     // we use this method so that each time we actually remove we can update the
     // poisition in case we reach EOF for proper error messages
-    public Optional<Token> MatchAndRemove(Token.TokenType type) {
+    private Optional<Token> MatchAndRemove(Token.TokenType type) {
         return tokens.MatchAndRemove(type).map(c -> {
             line = c.getLineNumber();
             column = c.getStartPosition();
@@ -115,7 +115,6 @@ public class Parser {
                         .<CheckedSupplier<LinkedList<StatementNode>, AwkException>>map(a -> () -> {
                             LinkedList<StatementNode> nodes = new LinkedList<>();
                             AcceptSeperators();
-
                             while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
                                 if (tokens.MoreTokens()) {
                                     nodes.add(ParseStatement());
@@ -230,7 +229,7 @@ public class Parser {
         var name = MatchAndRemove(Token.TokenType.WORD).orElseThrow(() -> createException(
                 "first expression after keyword delete must be an identifier like `foo` or `bar`\nthis identifier specifies which array to delete"))
                 .getValue().get();
-        if (tokens.Peek(0).map(Token::getType) == Optional.of(Token.TokenType.OPENBRACKET)) {
+        if (tokens.Peek(0).map(Token::getType).equals(Optional.of(Token.TokenType.OPENBRACKET))) {
             var list = parseDelimitedList(Token.TokenType.OPENBRACKET, Token.TokenType.CLOSEBRACKET,
                     () -> MatchAndRemove(Token.TokenType.NUMBER).map(w -> w.getValue().get()), "delete list index");
             if (list.isEmpty()) {
@@ -238,8 +237,10 @@ public class Parser {
                         + " found the list of indexes to be emtpy\nwhy did you put the brackets after " + name
                         + " you need to be a lazy programmer and save the keystokes from the brackets.");
             }
+            CheckSeporators("delete");
             return new DeleteNode(name, list);
         }
+        CheckSeporators("delete");
         return new DeleteNode(name);
 
     }
@@ -406,7 +407,7 @@ public class Parser {
         }));
     }
 
-    public Optional<Node> ParseOperation() throws AwkException {
+    private Optional<Node> ParseOperation() throws AwkException {
         return ParseAssignment();
     }
 
@@ -581,8 +582,8 @@ public class Parser {
                 // we have to use parseoperation here b/c no way to go top level for parseor
                 var then = ParseOperation().orElseThrow(() -> createException("ternary then part missing"));
                 MatchAndRemove(Token.TokenType.COLON).orElseThrow(() -> createException("ternary colon part missing"));
-                // parseternary again for right asssocative
-                var alt = ParseTernary().orElseThrow(() -> createException("ternary alternate part missing"));
+                // should be parseternary again for right asssocative but that means the alternative of a ternary epxression cannot be an assignment so what happens is the whole ternarty expression turn into the lefthand of an assignment
+                var alt = ParseOperation().orElseThrow(() -> createException("ternary alternate part missing"));
                 cond = new TernaryOperationNode(cond, then, alt);
             }
             return cond;

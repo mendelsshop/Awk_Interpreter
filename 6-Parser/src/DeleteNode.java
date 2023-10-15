@@ -29,4 +29,35 @@ public class DeleteNode extends StatementNode {
                 .map(i -> "[" + i.stream().map(c -> c.toString()).collect(Collectors.joining(",")) + "]").orElse("");
     }
 
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((name == null) ? 0 : name.hashCode());
+        result = prime * result + ((indexs == null) ? 0 : indexs.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        DeleteNode other = (DeleteNode) obj;
+        if (name == null) {
+            if (other.name != null)
+                return false;
+        } else if (!name.equals(other.name))
+            return false;
+        if (indexs == null) {
+            if (other.indexs != null)
+                return false;
+        } else if (!indexs.equals(other.indexs))
+            return false;
+        return true;
+    }
+
 }

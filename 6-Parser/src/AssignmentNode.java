@@ -1,6 +1,12 @@
 public class AssignmentNode extends StatementNode {
     private Node target; 
     private Node expression;
+    public Node getTarget() {
+        return target;
+    }
+    public Node getExpression() {
+        return expression;
+    }
     public AssignmentNode(Node target, Node expression) {
         this.target = target;
         this.expression = expression;
