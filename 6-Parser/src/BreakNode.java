@@ -6,6 +6,6 @@ public class BreakNode extends StatementNode {
     }
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof BlockNode;
+        return obj instanceof BreakNode;
     }
 }

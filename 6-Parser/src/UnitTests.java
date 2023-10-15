@@ -1107,11 +1107,14 @@ public class UnitTests {
 
     @Test
     public void ParseBasicFunction() throws Exception {
-        var lexer = testLexContent("function function_name(argument1, argument2, a) BEGIN END BEGIN ",
+        var lexer = testLexContent("function function_name(argument1, argument2, a) {} BEGIN {} END {} BEGIN {}",
                 new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
                         Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.WORD, Token.TokenType.COMMA,
-                        Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.BEGIN, Token.TokenType.END,
-                        Token.TokenType.BEGIN });
+                        Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.END, Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE });
         var parser = new Parser(lexer);
         var parsed = parser.Parse();
         assertEquals(parsed.getEndBlocks().size(), 1);
@@ -1125,13 +1128,18 @@ public class UnitTests {
 
     @Test
     public void ParseBasicFunctionSignature() throws Exception {
-        var lexer = testLexContent("function function_name(argument1, argument2, a) \n BEGIN \n END \n BEGIN",
+        var lexer = testLexContent(
+                "function function_name(argument1, argument2, a) {} \n BEGIN {} \n END {} \n BEGIN {}",
                 new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
                         Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.WORD, Token.TokenType.COMMA,
-                        Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
-                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END,
-                        Token.TokenType.SEPERATOR,
-                        Token.TokenType.BEGIN });
+                        Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.BEGIN,
+                        Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.END,
+                        Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.BEGIN,
+                        Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE });
         var parser = new Parser(lexer);
         var parsed = parser.Parse();
 
@@ -1147,10 +1155,12 @@ public class UnitTests {
 
     @Test
     public void ParseFunctionWithNoParameters() throws Exception {
-        var lexer = testLexContent("function func_no_params() \n BEGIN \n END",
+        var lexer = testLexContent("function func_no_params() {}\n BEGIN  {}\n END {}",
                 new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
-                        Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
-                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END });
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.END,
+                        Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE });
         var parser = new Parser(lexer);
         var parsed = parser.Parse();
 
@@ -1166,11 +1176,15 @@ public class UnitTests {
 
     @Test
     public void ParseFunctionWithMultipleParameters() throws Exception {
-        var lexer = testLexContent("function func_multi_params(param1, param2, param3) \n BEGIN \n END",
+        var lexer = testLexContent("function func_multi_params(param1, param2, param3) {} \n BEGIN {}\n END {}",
                 new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
                         Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.WORD, Token.TokenType.COMMA,
-                        Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
-                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END });
+                        Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.BEGIN,
+                        Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.END,
+                        Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE });
         var parser = new Parser(lexer);
         var parsed = parser.Parse();
 
@@ -1186,15 +1200,21 @@ public class UnitTests {
 
     @Test
     public void ParseMultipleFunctions() throws Exception {
-        var lexer = testLexContent("function func1() \n BEGIN \n END \n function func2(param1) \n BEGIN \n END END",
+        var lexer = testLexContent(
+                "function func1() {}\n BEGIN {}\n END{} \n function func2(param1)\t\t{} \n BEGIN {}\n END\n{} END{}",
                 new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
-                        Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR, Token.TokenType.BEGIN,
-                        Token.TokenType.SEPERATOR,
-                        Token.TokenType.END, Token.TokenType.SEPERATOR, Token.TokenType.FUNCTION, Token.TokenType.WORD,
-                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
-                        Token.TokenType.SEPERATOR,
-                        Token.TokenType.BEGIN, Token.TokenType.SEPERATOR, Token.TokenType.END,
-                        Token.TokenType.END });
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.END,
+                        Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.BEGIN,
+                        Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.END,
+                        Token.TokenType.SEPERATOR, Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.END, Token.TokenType.OPENBRACE,
+                        Token.TokenType.CLOSEBRACE });
         var parser = new Parser(lexer);
         var parsed = parser.Parse();
 
@@ -1285,7 +1305,6 @@ public class UnitTests {
 
     // parser 2 tests
     // these tests should use instanceof pattern matching (java 21 preview)
-    // TODO: remake these tests for parser 4
     @Test
     public void predecparse() throws Exception {
         var parser = new Parser(
@@ -2184,12 +2203,6 @@ public class UnitTests {
 
     }
 
-    // // if - else if ... else
-    // something like
-    // BEGIN {
-    // if (z > --b) z -= 1 else if (z ~ /a/) { a[0] = v(2, 5 + r) # assign a[0]\n;;;
-    // } else { delete a[0]; q = v[0] ? 1 : 0 }
-    // }
     @Test
     public void parseIfElseIf() throws Exception {
         var program = parse(
@@ -2253,15 +2266,8 @@ public class UnitTests {
     }
 
     // for (..;..;..) and for (.. in ..)
-
     @Test
     public void parseFors() throws Exception {
-        // for copilot to think of: crazy for loop maybe missing condtion or increment
-        // with operations that goto the limits to test order of operations and whacky
-        // cases
-        // should be more complex than this maybe usse ternary and lots opf operation
-        // mixed to gethet maybe skip the initaliztion step of the for loop ... etc
-        // like for (i = 0; i < 10; i++) { ... } but more complex in the for part
         var program = parse(
                 "BEGIN { for (; (!--i) <= b ? 0 : 5; i++) { pick(i); continue; }} END { a[0] = 5; a[1] = z ? --a : a[0]++\n"
                         + //
@@ -2472,5 +2478,169 @@ public class UnitTests {
         } else {
             fail();
         }
+    }
+
+    // break and continue return and delete
+    @Test
+    public void ControlFlowAndDelete() throws Exception {
+        var program = parse(
+                "BEGIN {for (i = 0; i < 10; i++) if (rand(i)) break; else prints(i);} function t(i) {return --i} NF == 6 {a[0] = 5\na[$0]=$1;delete a[$0]} END {j = 6; while (j > 0) {if (j ==2) continue; prints(j) }}",
+                new Token.TokenType[] {
+                        Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                        Token.TokenType.FOR, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.LESSTHAN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.PLUSPLUS,
+                        Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.IF, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.BREAK, Token.TokenType.SEPERATOR,
+                        Token.TokenType.ELSE, Token.TokenType.WORD, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE,
+                        Token.TokenType.RETURN, Token.TokenType.MINUSMINUS, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.WORD, Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.OPENBRACE,
+                        Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.DOLLAR,
+                        Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN,
+                        Token.TokenType.DOLLAR, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.DELETE, Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
+                        Token.TokenType.DOLLAR, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET,
+                        Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.END, Token.TokenType.OPENBRACE,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WHILE, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.GREATERTHAN, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE,
+                        Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.EQUAL,
+                        Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.CONTINUE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.CLOSEBRACE
+                }, 1, 1, 1, 1);
+        var beginblock = program.getBeginBlocks().get(0);
+        var function = program.getFunctions().get(0);
+        var endblock = program.getEndBlocks().get(0);
+        var block = program.getRestBlocks().get(0);
+        // assert function parameters
+        assertEquals(function.getParameters().size(), 1);
+        assertEquals(function.getParameters().get(0), "i");
+        // assert begin block
+        assertEquals(beginblock.getStatements().size(), 1);
+        var forloop = beginblock.getStatements().get(0);
+        if (forloop instanceof ForNode fornode) {
+            assertEquals(fornode.getCondition().get(),
+                    new OperationNode(OperationNode.Operation.LT, new VariableReferenceNode("i"),
+                            new ConstantNode("10")));
+            assertEquals(fornode.getIncrement().get(), new OperationNode(OperationNode.Operation.POSTINC,
+                    new VariableReferenceNode("i")));
+            assertEquals(fornode.getBlock().getStatements().size(), 1);
+            if (fornode.getBlock().getStatements().get(0) instanceof IfNode ifnode
+                    && ifnode.getOtherwise().get() instanceof BlockNode elseblock) {
+                assertEquals(ifnode.getCondition(), new FunctionCallNode("rand", new LinkedList<>() {
+                    {
+                        add(new VariableReferenceNode("i"));
+                    }
+                }));
+                assertEquals(ifnode.getThenBlock().getStatements().size(), 1);
+                assertEquals(ifnode.getThenBlock().getStatements().get(0), new BreakNode());
+                assertEquals(elseblock.getStatements().size(), 1);
+                assertEquals(elseblock.getStatements().get(0), new FunctionCallNode("prints", new LinkedList<>() {
+                    {
+                        add(new VariableReferenceNode("i"));
+                    }
+                }));
+            } else {
+                fail();
+            }
+        } else {
+            fail();
+        }
+        // assert function block
+        assertEquals(function.getStatements().size(), 1);
+        var returnnode = function.getStatements().get(0);
+        if (returnnode instanceof ReturnNode returnnode2) {
+            assertEquals(returnnode2.getReturnValue().get(),
+                    new OperationNode(OperationNode.Operation.PREDEC, new VariableReferenceNode("i")));
+        } else {
+            fail();
+        }
+
+        // assert rest block
+        assertEquals(block.getStatements().size(), 3);
+        var condition = block.getCondition().get();
+        assertEquals(condition, new OperationNode(OperationNode.Operation.EQ,
+                new VariableReferenceNode("NF"), new ConstantNode("6")));
+        var assignment = block.getStatements().get(0);
+        var assignment2 = block.getStatements().get(1);
+        var delete = block.getStatements().get(2);
+        if (assignment instanceof AssignmentNode assign && assignment2 instanceof AssignmentNode assign2
+                && delete instanceof DeleteNode delete2) {
+            assertEquals(assign.getTarget(), new VariableReferenceNode("a", new ConstantNode("0")));
+            assertEquals(assign.getExpression(), new ConstantNode("5"));
+            assertEquals(assign2.getTarget(), new VariableReferenceNode("a", new OperationNode(
+                    OperationNode.Operation.DOLLAR, new ConstantNode("0"))));
+            assertEquals(assign2.getExpression(), new OperationNode(OperationNode.Operation.DOLLAR,
+                    new ConstantNode("1")));
+            assertEquals(delete2.getArray(), new VariableReferenceNode("a", new OperationNode(
+                    OperationNode.Operation.DOLLAR, new ConstantNode("0"))));
+        } else {
+            fail();
+        }
+
+        // assert end block
+        assertEquals(endblock.getStatements().size(), 2);
+        var assignment3 = endblock.getStatements().get(0);
+        if (assignment3 instanceof AssignmentNode assign3) {
+            assertEquals(assign3.getTarget(), new VariableReferenceNode("j"));
+            assertEquals(assign3.getExpression(), new ConstantNode("6"));
+        } else {
+            fail();
+        }
+        var whileloop = endblock.getStatements().get(1);
+        if (whileloop instanceof WhileNode whilenode) {
+            assertEquals(whilenode.getCondition(),
+                    new OperationNode(OperationNode.Operation.GT, new VariableReferenceNode("j"),
+                            new ConstantNode("0")));
+            assertEquals(whilenode.getBlock().getStatements().size(), 2);
+            var ifnode = whilenode.getBlock().getStatements().get(0);
+            if (ifnode instanceof IfNode ifnode2) {
+                assertEquals(ifnode2.getCondition(),
+                        new OperationNode(OperationNode.Operation.EQ, new VariableReferenceNode("j"),
+                                new ConstantNode("2")));
+                assertEquals(ifnode2.getThenBlock().getStatements().size(), 1);
+                assertEquals(ifnode2.getThenBlock().getStatements().get(0), new ContinueNode());
+            } else {
+                fail();
+            }
+            assertEquals(whilenode.getBlock().getStatements().get(1),
+                    new FunctionCallNode("prints", new LinkedList<>() {
+                        {
+                            add(new VariableReferenceNode("j"));
+                        }
+                    }));
+        } else {
+            fail();
+        }
+
+    }
+
+    // TODO: failure tests ie assertfails and tests were we dont assert the output
+    // but just check if it parses
+    private void parseError(String input, Token.TokenType[] tokens) throws Exception {
+        var parser = new Parser(testLexContent(input, tokens));
+        assertThrows(AwkException.class, () -> parser.Parse());
     }
 }

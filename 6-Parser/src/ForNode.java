@@ -1,5 +1,4 @@
 public class ForNode extends StatementNode {
-    // TODO: allow emtpy expression
     private Optional<Node> init;
     private Optional<Node> condition;
     private Optional<Node> increment;
