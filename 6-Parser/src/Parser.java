@@ -167,10 +167,26 @@ public class Parser {
     private StatementNode OperationAsStatement() throws AwkException {
         var result = ParseOperation().orElseThrow(
                 () -> createException("expected expression in block but found invalid or empty expression"));
+        Function<OperationNode, AssignmentNode> makeAssign = (op) -> new AssignmentNode(op.getLeft(), op);
         switch (result) {
             case OperationNode op -> {
-                throw createException("operation of type " + op.getOperation()
-                        + " is not supported in the outermost part of a block");
+                // we turn ++, -- into = ++, = -- here instead of in parsebottom
+                // level/ParsePostIncDec
+                // b/c if we tuen pos/pre-dec/inc to assignemnt node in there respecitve
+                // functions it would remove the effect of post inc/dec
+                // but in the case the "effect" of post increment is effectivley not being used
+                // as tis post/pre-inc/dec is the outermost part of block
+
+                switch (op.getOperation()) {
+                    // if its one of these cases turn into assingment node which inherits from
+                    // statementnode
+                    case POSTDEC, PREDEC, POSTINC, PREINC -> {
+                        result = makeAssign.apply(op);
+                    }
+                    // otherwise throw exception
+                    default -> throw createException("operation of type " + op.getOperation()
+                            + " is not supported in the outermost part of a block");
+                }
             }
             case TernaryOperationNode op ->
                 throw createException("ternary expression is not supported in the outermost part of a block");
@@ -325,7 +341,7 @@ public class Parser {
                         .ofNullable(
                                 MatchAndRemove(type).isPresent()
                                         ? ParseLValue().map(
-                                                name -> new AssignmentNode(name, new OperationNode(operation, name)))
+                                                name -> new OperationNode(operation, name))
                                                 .orElseThrow(() -> createException("operation "
                                                         + operation + " is not followed by an expression"))
                                         : null);
@@ -410,7 +426,7 @@ public class Parser {
         return ParseBottomLevel()
                 .<Node>map((expr) -> MatchAndRemove(Token.TokenType.PLUSPLUS).map(c -> OperationNode.Operation.POSTINC)
                         .or(() -> MatchAndRemove(Token.TokenType.MINUSMINUS).map(c -> OperationNode.Operation.POSTDEC))
-                        .<Node>map(op -> new AssignmentNode(expr, new OperationNode(op, expr))).orElse(expr));
+                        .<Node>map(op -> new OperationNode(op, expr)).orElse(expr));
     }
 
     // Exponents ^
