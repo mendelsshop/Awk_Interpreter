@@ -26,8 +26,8 @@ public class Parser {
         return program;
     }
 
-    // TODO: unpublic thid
-    private boolean AcceptSeperators() {
+    // kept package for unittests
+    boolean AcceptSeperators() {
         boolean foundSeperators = false;
         // since MatchAndRemove does out of bounds checks
         while (MatchAndRemove(Token.TokenType.SEPERATOR).isPresent()) {
@@ -407,7 +407,8 @@ public class Parser {
         }));
     }
 
-    private Optional<Node> ParseOperation() throws AwkException {
+    // kept package for unittests
+    Optional<Node> ParseOperation() throws AwkException {
         return ParseAssignment();
     }
 
