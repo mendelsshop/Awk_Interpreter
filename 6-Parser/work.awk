@@ -1,7 +1,8 @@
 function a(i) {
-    z = true
-    z+= z ? 6 : 8
-     while (true) while (true) {return 7 break} while (true) {}
+    # z = true
+    # z+= z ? 6 : 8
+
+    #  while (true) while (true) {return 7; break} while (true) {}
 }
 
 # NF == 6 {
@@ -27,3 +28,11 @@ function a(i) {
 
 #     prints( 7) ; 
 # }
+{
+    i= 9
+b[0] = 0
+b[i+1] = 1
+prints (b[0], b[i+1], "\n" );
+delete b[0]
+prints (b[0], b[i+1])
+}

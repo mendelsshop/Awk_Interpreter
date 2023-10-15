@@ -2242,11 +2242,7 @@ public class UnitTests {
 
             assertEquals(elses.getStatements().size(), 2);
             assertEquals(elses.getStatements().get(0),
-                    new DeleteNode("a", new LinkedList<>() {
-                        {
-                            add("0");
-                        }
-                    }));
+                    new DeleteNode(new VariableReferenceNode("a", new ConstantNode("0"))));
             assertEquals(elses.getStatements().get(1), new AssignmentNode(new VariableReferenceNode("q"),
                     new TernaryOperationNode(new VariableReferenceNode("v", new ConstantNode("0")),
                             new ConstantNode("1"), new ConstantNode("0"))));

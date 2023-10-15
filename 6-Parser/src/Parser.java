@@ -226,22 +226,9 @@ public class Parser {
     }
 
     private DeleteNode ParseDelete() throws AwkException {
-        var name = MatchAndRemove(Token.TokenType.WORD).orElseThrow(() -> createException(
-                "first expression after keyword delete must be an identifier like `foo` or `bar`\nthis identifier specifies which array to delete"))
-                .getValue().get();
-        if (tokens.Peek(0).map(Token::getType).equals(Optional.of(Token.TokenType.OPENBRACKET))) {
-            var list = parseDelimitedList(Token.TokenType.OPENBRACKET, Token.TokenType.CLOSEBRACKET,
-                    () -> MatchAndRemove(Token.TokenType.NUMBER).map(w -> w.getValue().get()), "delete list index");
-            if (list.isEmpty()) {
-                throw createException("expected indexes after `[` in deletion of array" + name
-                        + " found the list of indexes to be emtpy\nwhy did you put the brackets after " + name
-                        + " you need to be a lazy programmer and save the keystokes from the brackets.");
-            }
-            CheckSeporators("delete");
-            return new DeleteNode(name, list);
-        }
+        var array = ParseLValue().orElseThrow(() -> createException("delete missing array to delete"));
         CheckSeporators("delete");
-        return new DeleteNode(name);
+        return new DeleteNode(array);
 
     }
 
