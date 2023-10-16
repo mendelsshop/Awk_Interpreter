@@ -21,12 +21,13 @@ public class Parser {
             if (!(ParseFunction(program) || ParseAction(program))) {
                 throw createException("cannot parse program top level item was not a function or action");
             }
+            AcceptSeperators();
         }
         return program;
     }
 
-    // TODO: unpublic thid
-    public boolean AcceptSeperators() {
+    // kept package for unittests
+    boolean AcceptSeperators() {
         boolean foundSeperators = false;
         // since MatchAndRemove does out of bounds checks
         while (MatchAndRemove(Token.TokenType.SEPERATOR).isPresent()) {
@@ -50,6 +51,8 @@ public class Parser {
         return true;
     }
 
+    // used to parse comma seperated lists with start and end tokens
+    // list value is a function that makes sure that there is next value in the list
     private <T> LinkedList<T> parseDelimitedList(Token.TokenType start, Token.TokenType end,
             CheckedSupplier<Optional<T>, AwkException> listvalue, String type) throws AwkException {
         MatchAndRemove(start)
@@ -90,7 +93,7 @@ public class Parser {
 
     // createException is here because it makes it easier to create exceptions, and
     // not haveing to deal with keeping track of line numbers.
-    public AwkException createException(String message) {
+    private AwkException createException(String message) {
         return new AwkException(tokens.Peek(0).map(Token::getLineNumber).orElse(line),
                 tokens.Peek(0).map(Token::getStartPosition).orElse(column), message,
                 AwkException.ExceptionType.ParseError);
@@ -98,7 +101,7 @@ public class Parser {
 
     // we use this method so that each time we actually remove we can update the
     // poisition in case we reach EOF for proper error messages
-    public Optional<Token> MatchAndRemove(Token.TokenType type) {
+    private Optional<Token> MatchAndRemove(Token.TokenType type) {
         return tokens.MatchAndRemove(type).map(c -> {
             line = c.getLineNumber();
             column = c.getStartPosition();
@@ -107,7 +110,6 @@ public class Parser {
     }
 
     private BlockNode ParseBlock(boolean supportsSingleLine) throws AwkException {
-        // return new BlockNode(new LinkedList<>());
         AcceptSeperators();
         return new BlockNode(
                 MatchAndRemove(Token.TokenType.OPENBRACE)
@@ -116,9 +118,10 @@ public class Parser {
                             AcceptSeperators();
                             while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
                                 if (tokens.MoreTokens()) {
-                                    // TODO: better error message
                                     nodes.add(ParseStatement());
                                 }
+                                // if there is still tokenss left from blocknode we neet to make sure that there
+                                // is seperator between each statement
                                 AcceptSeperators();
                             }
                             return nodes;
@@ -126,12 +129,7 @@ public class Parser {
                             if (supportsSingleLine) {
                                 return new LinkedList<>() {
                                     {
-                                        add((StatementNode) ParseOperation()
-                                                .orElseThrow(
-                                                        () -> createException("single line block without expression")));
-                                        if (!AcceptSeperators()) {
-                                            throw createException("single line block without seperator");
-                                        }
+                                        add(ParseStatement());
                                     }
                                 };
                             } else {
@@ -141,10 +139,21 @@ public class Parser {
 
     }
 
+    // some expression must be followed by a seperator unless its the last item in a
+    // multi line block
+    // this function checks for that seperator and throws an exception if its not
+    // there
+    private void CheckSeporators(String type) throws AwkException {
+        var seperators = AcceptSeperators();
+        if (!tokens.Peek(0).map(Token::getType).equals(Optional.of(Token.TokenType.CLOSEBRACE)) && !seperators) {
+            throw createException("must be a separator between " + type + " and next expression");
+        }
+    }
+
     private StatementNode ParseStatement() throws AwkException {
-        // TODO
         CheckedBiFunction<Token.TokenType, CheckedSupplier<StatementNode, AwkException>, Optional<StatementNode>, AwkException> tokenToStatement = (
                 tt, statement) -> MatchAndRemove(tt).CheckedMap(s -> statement.get());
+        // instead of using a bunch of if statements we use a optional chain
         return tokenToStatement.apply(Token.TokenType.IF, this::ParseIf)
                 .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.CONTINUE, this::ParseContinue))
                 .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.BREAK, this::ParseBreak))
@@ -162,17 +171,24 @@ public class Parser {
     private StatementNode OperationAsStatement() throws AwkException {
         var result = ParseOperation().orElseThrow(
                 () -> createException("expected expression in block but found invalid or empty expression"));
+        Function<OperationNode, AssignmentNode> makeAssign = (op) -> new AssignmentNode(op.getLeft(), op);
+        CheckSeporators(result.toString());
         switch (result) {
             case OperationNode op -> {
+                // we turn ++, -- into = ++, = -- here instead of in parsebottom
+                // level/ParsePostIncDec
+                // b/c if we tuen pos/pre-dec/inc to assignemnt node in there respecitve
+                // functions it would remove the effect of post inc/dec
+                // but in the case the "effect" of post increment is effectivley not being used
+                // as tis post/pre-inc/dec is the outermost part of block
+
                 switch (op.getOperation()) {
-                    // ignore these
-                    case POSTDEC -> {
-                    }
-                    case PREDEC -> {
-                    }
-                    case POSTINC -> {
-                    }
-                    case PREINC -> {
+                    // if its one of these cases turn into assingment node which inherits from
+                    // statementnode
+
+                    case POSTDEC, PREDEC, POSTINC, PREINC -> {
+
+                        return makeAssign.apply(op);
                     }
                     // otherwise throw exception
                     default -> throw createException("operation of type " + op.getOperation()
@@ -183,6 +199,10 @@ public class Parser {
                 throw createException("ternary expression is not supported in the outermost part of a block");
             case VariableReferenceNode op -> throw createException(
                     "accesing but not assigning to a variable is invalid in the outermost part of a block");
+            case ConstantNode op ->
+                throw createException("constant expression is invalid in the outermost part of a block");
+            case PatternNode op ->
+                throw createException("pattern expression is invalid in the outermost part of a block");
             // other operations are valid ie function calls and assignment
             default -> {
             }
@@ -191,6 +211,7 @@ public class Parser {
         return (StatementNode) result;
     }
 
+    // used to parse parenthesis around conditions for if-else if while do while
     private Node ParseCondition(String type) throws AwkException {
         MatchAndRemove(Token.TokenType.OPENPAREN)
                 .orElseThrow(() -> createException("condition in " + type + " is missing open parentheses"));
@@ -206,6 +227,7 @@ public class Parser {
         var cond = ParseCondition("if");
         var cons = ParseBlock(true);
         Optional<Node> alt = Optional.empty();
+        AcceptSeperators();
         if (MatchAndRemove(Token.TokenType.ELSE).isPresent()) {
             if (MatchAndRemove(Token.TokenType.IF).isPresent()) {
                 alt = Optional.of(ParseIf());
@@ -217,33 +239,26 @@ public class Parser {
     }
 
     private DeleteNode ParseDelete() throws AwkException {
-        var name = MatchAndRemove(Token.TokenType.WORD).orElseThrow(() -> createException(
-                "first expression after keyword delete must be an identifier like `foo` or `bar`\nthis identifier specifies which array to delete"))
-                .getValue().get();
-        if (tokens.Peek(0).map(Token::getType) == Optional.of(Token.TokenType.OPENBRACKET)) {
-            var list = parseDelimitedList(Token.TokenType.OPENBRACKET, Token.TokenType.CLOSEBRACKET,
-                    () -> MatchAndRemove(Token.TokenType.NUMBER).map(w -> w.getValue().get()), "delete list index");
-            if (list.isEmpty()) {
-                throw createException("expected indexes after `[` in deletion of array" + name
-                        + " found the list of indexes to be emtpy\nwhy did you put the brackets after " + name
-                        + " you need to be a lazy programmer and save the keystokes from the brackets.");
-            }
-            return new DeleteNode(name, list);
-        }
-        return new DeleteNode(name);
+        var array = ParseLValue().orElseThrow(() -> createException("delete missing array to delete"));
+        CheckSeporators("delete");
+        return new DeleteNode(array);
 
     }
 
     private ContinueNode ParseContinue() throws AwkException {
+        CheckSeporators("continue");
         return new ContinueNode();
     }
 
     private BreakNode ParseBreak() throws AwkException {
+        CheckSeporators("break");
         return new BreakNode();
     }
 
     private ReturnNode ParseReturn() throws AwkException {
-        return new ReturnNode(ParseOperation());
+        Optional<Node> ret = ParseOperation();
+        CheckSeporators("return");
+        return new ReturnNode(ret);
     }
 
     private WhileNode ParseWhile() throws AwkException {
@@ -280,6 +295,7 @@ public class Parser {
             var loop = ParseBlock(true);
             return new ForEachNode(index_var, array, loop);
         } else {
+            // we dont get the parseoperation here b/c there could just be for (;;) ...
             var init = ParseOperation();
             MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException(
                     "Semicolon between init expression and condition expression is missing, learn how to use c-style for loops\nat https://www.tutorialspoint.com/cprogramming/c_for_loop.htm."));
@@ -349,9 +365,10 @@ public class Parser {
                         // ternary operator
                         .ofNullable(
                                 MatchAndRemove(type).isPresent()
-                                        ? new OperationNode(operation,
-                                                ParseLValue().orElseThrow(() -> createException("operation "
-                                                        + operation + " is not followed by an expression")))
+                                        ? ParseLValue().map(
+                                                name -> new OperationNode(operation, name))
+                                                .orElseThrow(() -> createException("operation "
+                                                        + operation + " is not followed by an expression"))
                                         : null);
         // simplifies getting the constant value out of a token
         Function<Optional<Token>, String> getValue = (token) -> token.get().getValue().get();
@@ -414,7 +431,8 @@ public class Parser {
         }));
     }
 
-    public Optional<Node> ParseOperation() throws AwkException {
+    // kept package for unittests
+    Optional<Node> ParseOperation() throws AwkException {
         return ParseAssignment();
     }
 
@@ -589,8 +607,10 @@ public class Parser {
                 // we have to use parseoperation here b/c no way to go top level for parseor
                 var then = ParseOperation().orElseThrow(() -> createException("ternary then part missing"));
                 MatchAndRemove(Token.TokenType.COLON).orElseThrow(() -> createException("ternary colon part missing"));
-                // parseternary again for right asssocative
-                var alt = ParseTernary().orElseThrow(() -> createException("ternary alternate part missing"));
+                // should be parseternary again for right asssocative but that means the
+                // alternative of a ternary epxression cannot be an assignment so what happens
+                // is the whole ternarty expression turn into the lefthand of an assignment
+                var alt = ParseOperation().orElseThrow(() -> createException("ternary alternate part missing"));
                 cond = new TernaryOperationNode(cond, then, alt);
             }
             return cond;

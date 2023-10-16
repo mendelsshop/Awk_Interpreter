@@ -1,22 +1,18 @@
 public class ConstantNode extends Node {
     private String value;
 
-
     public String getValue() {
         return value;
     }
-
 
     public ConstantNode(String value) {
         this.value = value;
     }
 
-
     @Override
     public String toString() {
         return value;
     }
-
 
     @Override
     public int hashCode() {
@@ -25,7 +21,6 @@ public class ConstantNode extends Node {
         result = prime * result + ((value == null) ? 0 : value.hashCode());
         return result;
     }
-
 
     @Override
     public boolean equals(Object obj) {

@@ -4,5 +4,9 @@ public class ContinueNode extends StatementNode {
     public String toString() {
         return "continue";
     }
-    
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof ContinueNode;
+    }
 }
