@@ -108,7 +108,6 @@ public class Parser {
     }
 
     private BlockNode ParseBlock(boolean supportsSingleLine) throws AwkException {
-        // return new BlockNode(new LinkedList<>());
         AcceptSeperators();
         return new BlockNode(
                 MatchAndRemove(Token.TokenType.OPENBRACE)
@@ -221,6 +220,7 @@ public class Parser {
         var cond = ParseCondition("if");
         var cons = ParseBlock(true);
         Optional<Node> alt = Optional.empty();
+        AcceptSeperators();
         if (MatchAndRemove(Token.TokenType.ELSE).isPresent()) {
             if (MatchAndRemove(Token.TokenType.IF).isPresent()) {
                 alt = Optional.of(ParseIf());

@@ -1,1 +1,0 @@
-END {do --x while (x < 10) a++}
