@@ -167,6 +167,7 @@ public class Parser {
         var result = ParseOperation().orElseThrow(
                 () -> createException("expected expression in block but found invalid or empty expression"));
         Function<OperationNode, AssignmentNode> makeAssign = (op) -> new AssignmentNode(op.getLeft(), op);
+        CheckSeporators(result.toString());
         switch (result) {
             case OperationNode op -> {
                 // we turn ++, -- into = ++, = -- here instead of in parsebottom
@@ -179,8 +180,10 @@ public class Parser {
                 switch (op.getOperation()) {
                     // if its one of these cases turn into assingment node which inherits from
                     // statementnode
+
                     case POSTDEC, PREDEC, POSTINC, PREINC -> {
-                        result = makeAssign.apply(op);
+
+                        return makeAssign.apply(op);
                     }
                     // otherwise throw exception
                     default -> throw createException("operation of type " + op.getOperation()
@@ -191,11 +194,14 @@ public class Parser {
                 throw createException("ternary expression is not supported in the outermost part of a block");
             case VariableReferenceNode op -> throw createException(
                     "accesing but not assigning to a variable is invalid in the outermost part of a block");
+            case ConstantNode op ->
+                throw createException("constant expression is invalid in the outermost part of a block");
+            case PatternNode op ->
+                throw createException("pattern expression is invalid in the outermost part of a block");
             // other operations are valid ie function calls and assignment
             default -> {
             }
         }
-        CheckSeporators(result.toString());
         // technically any result of parseoperation is valid statement
         return (StatementNode) result;
     }
@@ -570,7 +576,9 @@ public class Parser {
                 // we have to use parseoperation here b/c no way to go top level for parseor
                 var then = ParseOperation().orElseThrow(() -> createException("ternary then part missing"));
                 MatchAndRemove(Token.TokenType.COLON).orElseThrow(() -> createException("ternary colon part missing"));
-                // should be parseternary again for right asssocative but that means the alternative of a ternary epxression cannot be an assignment so what happens is the whole ternarty expression turn into the lefthand of an assignment
+                // should be parseternary again for right asssocative but that means the
+                // alternative of a ternary epxression cannot be an assignment so what happens
+                // is the whole ternarty expression turn into the lefthand of an assignment
                 var alt = ParseOperation().orElseThrow(() -> createException("ternary alternate part missing"));
                 cond = new TernaryOperationNode(cond, then, alt);
             }

@@ -2643,4 +2643,146 @@ public class UnitTests {
         var parser = new Parser(testLexContent(input, tokens));
         assertThrows(AwkException.class, () -> parser.Parse());
     }
+
+    @Test
+    public void invalidouterexpressions() throws Exception {
+        // checks that anything besides for assignemnt (includes ++,--) and
+        // functioncalls fail if they are outermost thing in block
+        parseError("BEGIN {1}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACE });
+        // with other operators
+        parseError("BEGIN {1+1}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                Token.TokenType.NUMBER, Token.TokenType.PLUS, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACE });
+        parseError("BEGIN {1-1}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                Token.TokenType.NUMBER, Token.TokenType.MINUS, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACE });
+        parseError("BEGIN {1*1}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                Token.TokenType.NUMBER, Token.TokenType.MULTIPLY, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACE });
+        // also use diferent types of expressions not just one
+        parseError("{a==-b}", new Token.TokenType[] { Token.TokenType.OPENBRACE, Token.TokenType.WORD,
+                Token.TokenType.EQUAL, Token.TokenType.MINUS, Token.TokenType.WORD, Token.TokenType.CLOSEBRACE });
+        parseError("function a() {y^-5}", new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD,
+                Token.TokenType.OPENPAREN, Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.WORD,
+                Token.TokenType.EXPONENT, Token.TokenType.MINUS, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACE });
+        parseError("BEGIN {a~!a+`a`}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                Token.TokenType.WORD, Token.TokenType.MATCH, Token.TokenType.NOT, Token.TokenType.WORD,
+                Token.TokenType.PLUS, Token.TokenType.PATTERN, Token.TokenType.CLOSEBRACE });
+    }
+
+    @Test
+    public void missingseporators() throws Exception {
+        // stuff like return a break
+        // or y++ contine
+        // or return break a()
+        // ...
+        parseError("BEGIN {return break}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                Token.TokenType.RETURN, Token.TokenType.BREAK, Token.TokenType.CLOSEBRACE });
+
+        parseError("BEGIN {return break a()}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                Token.TokenType.RETURN, Token.TokenType.BREAK, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                Token.TokenType.CLOSEPAREN, Token.TokenType.CLOSEBRACE });
+
+        parseError("BEGIN {continue break}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                Token.TokenType.CONTINUE, Token.TokenType.BREAK, Token.TokenType.CLOSEBRACE });
+
+        parseError("BEGIN {continue while (a) {}}", new Token.TokenType[] {
+                Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                Token.TokenType.CONTINUE, Token.TokenType.WHILE, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE,
+                Token.TokenType.CLOSEBRACE });
+
+        // also single line blocks
+        parseError("a== 6{ while (true) puts(a) y++}", new Token.TokenType[] {
+                Token.TokenType.WORD, Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.OPENBRACE,
+                Token.TokenType.WHILE, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                Token.TokenType.WORD, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                Token.TokenType.WORD, Token.TokenType.PLUSPLUS, Token.TokenType.CLOSEBRACE });
+
+        parseError("NF  != 7 {if (false) return x else {}}", new Token.TokenType[] {
+                Token.TokenType.WORD, Token.TokenType.NOTEQUAL, Token.TokenType.NUMBER, Token.TokenType.OPENBRACE,
+                Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                Token.TokenType.RETURN, Token.TokenType.WORD, Token.TokenType.ELSE, Token.TokenType.OPENBRACE,
+                Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE });
+
+        parseError("END {do --x while (x < 10) a++} ", new Token.TokenType[] {
+                Token.TokenType.END, Token.TokenType.OPENBRACE,
+                Token.TokenType.DO, Token.TokenType.MINUSMINUS, Token.TokenType.WORD, Token.TokenType.WHILE,
+                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.LESSTHAN, Token.TokenType.NUMBER,
+                Token.TokenType.CLOSEPAREN, Token.TokenType.WORD, Token.TokenType.PLUSPLUS,
+                Token.TokenType.CLOSEBRACE });
+    }
+
+    @Test
+    public void singlelineinoutrerblock() throws Exception {
+        // makes sure the error are thrown if there are single line block for begin end,
+        // other and function blocks
+        parseError("BEGIN 1", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.NUMBER });
+        parseError("END --a;", new Token.TokenType[] { Token.TokenType.END, Token.TokenType.MINUSMINUS,
+                Token.TokenType.WORD, Token.TokenType.SEPERATOR });
+        parseError("function a(i, b) return i", new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD,
+                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.WORD,
+                Token.TokenType.CLOSEPAREN, Token.TokenType.RETURN, Token.TokenType.WORD });
+        parseError("NR == 6 continue", new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.EQUAL,
+                Token.TokenType.NUMBER, Token.TokenType.CONTINUE });
+        parseError("while (true) {if (false) return x else {}}", new Token.TokenType[] {
+                Token.TokenType.WHILE, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                Token.TokenType.CLOSEPAREN, Token.TokenType.RETURN, Token.TokenType.WORD, Token.TokenType.ELSE,
+                Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE });
+
+        // all in one
+        parseError("BEGIN 3+4; END 5+=1-5 function a(b, c) return b ? c : 0; bnf == 6 return 5;;;break",
+                new Token.TokenType[] {
+                        Token.TokenType.BEGIN, Token.TokenType.NUMBER, Token.TokenType.PLUS, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.END, Token.TokenType.NUMBER,
+                        Token.TokenType.PLUSEQUAL, Token.TokenType.NUMBER, Token.TokenType.MINUS,
+                        Token.TokenType.NUMBER,
+                        Token.TokenType.FUNCTION, Token.TokenType.WORD,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.RETURN, Token.TokenType.WORD,
+                        Token.TokenType.QUESTION,
+                        Token.TokenType.WORD, Token.TokenType.COLON, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.EQUAL, Token.TokenType.NUMBER,
+                        Token.TokenType.RETURN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.BREAK
+                });
+    }
+
+    @Test
+    public void invalidconstuctsignature() throws Exception {
+        // tests to make sure parse throws error if the signature of a construct is
+        // invalid
+        // ie if the condition of a while loop empty or if the condition of one of them
+        // has no parenthesis
+        // that do while condition is at end, that for loop doesnt have two seperators
+        // that delete doesnt have a target
+        parseError("BEGIN {while () {}}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                Token.TokenType.WHILE, Token.TokenType.OPENPAREN, Token.TokenType.CLOSEPAREN,
+                Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE });
+        parseError("{for i in a {}}", new Token.TokenType[] { Token.TokenType.OPENBRACE, Token.TokenType.FOR,
+                Token.TokenType.WORD, Token.TokenType.IN, Token.TokenType.WORD, Token.TokenType.OPENBRACE,
+                Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE });
+        parseError("BEGIN {do {} while}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                Token.TokenType.DO, Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.WHILE,
+                Token.TokenType.CLOSEBRACE });
+        parseError("END {delete}", new Token.TokenType[] { Token.TokenType.END, Token.TokenType.OPENBRACE,
+                Token.TokenType.DELETE, Token.TokenType.CLOSEBRACE });
+        parseError("function a() {for (i;j)  {}}", new Token.TokenType[] { Token.TokenType.FUNCTION,
+                Token.TokenType.WORD,
+                Token.TokenType.OPENPAREN, Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.FOR,
+                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE,
+                Token.TokenType.CLOSEBRACE });
+
+        parseError("NS == t {if {} else {}}", new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.EQUAL,
+                Token.TokenType.WORD, Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENBRACE,
+                Token.TokenType.CLOSEBRACE, Token.TokenType.ELSE, Token.TokenType.OPENBRACE,
+                Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE });
+
+        parseError("BEGIN {if (true) {} else if t {}}", new Token.TokenType[] {
+                Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.ELSE, Token.TokenType.IF,
+                Token.TokenType.WORD, Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE
+        });
+    }
 }
