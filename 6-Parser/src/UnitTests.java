@@ -2789,490 +2789,491 @@ public class UnitTests {
     @Test
     public void shouldparse() throws Exception {
         var parser = new Parser(testLexContent("function dos(a,\n" + //
-                        "b) {\n" + //
-                        "\treturn a;\n" + //
-                        "}\n" + //
-                        "BEGIN {\n" + //
-                        "   # print \"Welcome to JDoodle!\"\n" + //
-                        "   z[0] = 6\n" + //
-                        "   z[1] = 6\n" + //
-                        "   # z[0][1] = dos\n" + //
-                        "   a = 5\n" + //
-                        "   b= -7\n" + //
-                        "   b-=5 + (z[1] += 55)\n" + //
-                        "   asdf = 0?  a+=7 : b = 6\n" + //
-                        "   # means bacicly any operation can do mutation/assignent\n" + //
-                        "   v = a ? v ~ (p = `4`) : 0\n" + //
-                        "\n" + //
-                        "\tdos(2, 4)\n" + //
-                        "   # for (;;) {}\n" + //
-                        "   # while () {}\n" + //
-                        "#    for (6; 86 ;9) {print 6}\n" + //
-                        "#    do  {++x} while (x)\n" + //
-                        "}\n" + //
-                        "\n" + //
-                        "{y+=1;}\n" + //
-                        "\n" + //
-                        "y {\n" + //
-                        "    while(!x)   # Comment\n" + //
-                        "        if (++t) { y--;}\n" + //
-                        "        else { --x;}\n" + //
-                        "    --y;\n" + //
-                        "}\n" + //
-                        "\n" + //
-                        "NR!=1 {\n" + //
-                        "    b(z?d:e);\n" + //
-                        "\n" + //
-                        "    if (c=c=x&&y||!z) { \n" + //
-                        "        for(x-=a[a[1]||1]||(z&&0.0); c; --c) {\n" + //
-                        "            z = 1; # Comment\n" + //
-                        "        }\n" + //
-                        "        #`0`\n" + //
-                        "    }\n" + //
-                        "}\n" + //
-                        "\n" + //
-                        "BEGIN {\n" + //
-                        "    x = 1;\n" + //
-                        "    y = 2;\n" + //
-                        "    z = 0;\n" + //
-                        "}\n" + //
-                        "\n" + //
-                        "{\n" + //
-                        "    y += 1;\n" + //
-                        "    if (NR % 2 == 0) {\n" + //
-                        "        while (x) {\n" + //
-                        "            if (--y) {\n" + //
-                        "                for (i = 0; i < 5; i++) {\n" + //
-                        "                    z += i;\n" + //
-                        "                }\n" + //
-                        "            } else {\n" + //
-                        "                do {\n" + //
-                        "                    z = z ? z : 0; # Nested comment\n" + //
-                        "                } while (x && y);\n" + //
-                        "            }\n" + //
-                        "        }\n" + //
-                        "    }\n" + //
-                        "}\n" + //
-                        "\n" + //
-                        "END {\n" + //
-                        "    a = 1;\n" + //
-                        "    b = 2;\n" + //
-                        "    if (c = a && b || !z) {\n" + //
-                        "        for (x -= a[a[1] || 1] || (z && 0.0); c; --c) {\n" + //
-                        "            z = 1; # Set z to 1\n" + //
-                        "        }\n" + //
-                        "        #`0` - Comment\n" + //
-                        "    }\n" + //
-                        "}\n" + //
-                        "\n" + //
-                        "BEGIN {\n" + //
-                        "    x = 0;\n" + //
-                        "    y = 1;\n" + //
-                        "}\n" + //
-                        "\n" + //
-                        "{\n" + //
-                        "    y += 1;\n" + //
-                        "    if (NR % 3 == 0) {\n" + //
-                        "        do {\n" + //
-                        "            x = x ? x : 1; # Comment\n" + //
-                        "        } while (y && x);\n" + //
-                        "    } else {\n" + //
-                        "        for (i = 1; i <= 5; i++) {\n" + //
-                        "            z *= i;\n" + //
-                        "        }\n" + //
-                        "    }\n" + //
-                        "}\n" + //
-                        "\n" + //
-                        "END {\n" + //
-                        "    if (y > 10) {\n" + //
-                        "        b = 3;\n" + //
-                        "        c = 2;\n" + //
-                        "        if (c == 2 && b != 4) {\n" + //
-                        "            while (x) {\n" + //
-                        "                for (j = 1; j <= 3; j++) {\n" + //
-                        "                    z += j;\n" + //
-                        "                }\n" + //
-                        "            }\n" + //
-                        "        }\n" + //
-                        "        #`0` - Comment\n" + //
-                        "    } else {\n" + //
-                        "        d = 5;\n" + //
-                        "        e = 6;\n" + //
-                        "        if (d || e) {\n" + //
-                        "            for (x -= 4; x; x++) {\n" + //
-                        "                z = 1; # Set z to 1\n" + //
-                        "            }\n" + //
-                        "        }\n" + //
-                        "    }\n" + //
-                        "}\n" + //
-                        "{a=1;b=2;c=3;d=4;e=5;f=6;g=7;h=8;i=9;j=10;k=11;l=12;m=13;n=14;o=15;p=16;q=17;r=18;s=19;t=20;u=21;v=22;w=23;x=24;y=25;z=26}\n"
-                        + //
-                        "END{if(a==1){if(b==2){if(c==3){if(d==4){if(e==5){if(f==6){if(g==7){if(h==8){if(i==9){if(j==10){if(k==11){if(l==12){if(m==13){if(n==14){if(o==15){if(p==16){if(q==17){if(r==18){if(s==19){if(t==20){if(u==21){if(v==22){if(w==23){if(x==24){if(y==25){if(z==26){printg( \"abcdefghijklmnopqrstuvwxyz\")}}}}}}}}}}}}}}}}}}}}}}}}}}}\n"
-                        + //
-                        "\n" + //
-                        "function factorial(n) {\n" + //
-                        "    if (n == 0) {\n" + //
-                        "        return 1;\n" + //
-                        "    } else {\n" + //
-                        "        return n * factorial(n - 1);\n" + //
-                        "    }\n" + //
-                        "}\n" + //
-                        "\n" + //
-                        "BEGIN {\n" + //
-                        "    x = 5;\n" + //
-                        "    printg( \"Factorial of \" x \" is \" factorial(x));\n" + //
-                        "}\n" + //
-                        "\n" + //
-                        "BEGIN {\n" + //
-                        "    x = -5;\n" + //
-                        "    sign = x > 0 ? 1 : x < 0 ? -1 : 0;\n" + //
-                        "    printff(\"The sign of \" x \" is \" sign);\n" + //
-                        "}\n" + //
-                        "\n" + //
-                        "BEGIN {\n" + //
-                        "    a = b = c = d = 1\n" + //
-                        "    A = a\n" + //
-                        "    B = b\n" + //
-                        "    while (A) {\n" + //
-                        "        if (B) {\n" + //
-                        "            a--\n" + //
-                        "            B--\n" + //
-                        "        } else {\n" + //
-                        "            b++\n" + //
-                        "            B++\n" + //
-                        "        }\n" + //
-                        "        A--\n" + //
-                        "    }\n" + //
-                        "    c = B ? c-- : c\n" + //
-                        "    d = A ? d : d++\n" + //
-                        "\n" + //
-                        "}", new Token.TokenType[] {
-                                Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.COMMA, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.RETURN, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
-                                Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN,
-                                Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET,
-                                Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.MINUS,
-                                Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.MINUSEQUAL, Token.TokenType.NUMBER, Token.TokenType.PLUS,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
-                                Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET, Token.TokenType.PLUSEQUAL,
-                                Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.QUESTION,
-                                Token.TokenType.WORD, Token.TokenType.PLUSEQUAL, Token.TokenType.NUMBER, Token.TokenType.COLON,
-                                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD,
-                                Token.TokenType.QUESTION, Token.TokenType.WORD, Token.TokenType.MATCH,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
-                                Token.TokenType.PATTERN, Token.TokenType.CLOSEPAREN, Token.TokenType.COLON,
-                                Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.OPENPAREN, Token.TokenType.NUMBER, Token.TokenType.COMMA,
-                                Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.OPENBRACE, Token.TokenType.WORD,
-                                Token.TokenType.PLUSEQUAL, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WHILE, Token.TokenType.OPENPAREN, Token.TokenType.NOT, Token.TokenType.WORD,
-                                Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR, Token.TokenType.IF,
-                                Token.TokenType.OPENPAREN, Token.TokenType.PLUSPLUS, Token.TokenType.WORD,
-                                Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.WORD,
-                                Token.TokenType.MINUSMINUS, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.ELSE, Token.TokenType.OPENBRACE,
-                                Token.TokenType.MINUSMINUS, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.MINUSMINUS,
-                                Token.TokenType.WORD, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.NOTEQUAL, Token.TokenType.NUMBER,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.QUESTION, Token.TokenType.WORD,
-                                Token.TokenType.COLON, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
-                                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.AND,
-                                Token.TokenType.WORD, Token.TokenType.OR, Token.TokenType.NOT, Token.TokenType.WORD,
-                                Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.FOR, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.MINUSEQUAL, Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
-                                Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER,
-                                Token.TokenType.CLOSEBRACKET, Token.TokenType.OR, Token.TokenType.NUMBER,
-                                Token.TokenType.CLOSEBRACKET, Token.TokenType.OR, Token.TokenType.OPENPAREN,
-                                Token.TokenType.WORD, Token.TokenType.AND, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                                Token.TokenType.MINUSMINUS, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.PLUSEQUAL, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.IF,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.MODULO, Token.TokenType.NUMBER,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WHILE,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.IF,
-                                Token.TokenType.OPENPAREN, Token.TokenType.MINUSMINUS, Token.TokenType.WORD,
-                                Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.FOR, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
-                                Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.LESSTHAN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.PLUSPLUS, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.PLUSEQUAL, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.ELSE, Token.TokenType.OPENBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.DO, Token.TokenType.OPENBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD,
-                                Token.TokenType.QUESTION, Token.TokenType.WORD, Token.TokenType.COLON, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.WHILE, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.AND,
-                                Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.END, Token.TokenType.OPENBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.AND, Token.TokenType.WORD,
-                                Token.TokenType.OR, Token.TokenType.NOT, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.FOR,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.MINUSEQUAL,
-                                Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.WORD,
-                                Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET,
-                                Token.TokenType.OR, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET, Token.TokenType.OR,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.AND, Token.TokenType.NUMBER,
-                                Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.SEPERATOR, Token.TokenType.MINUSMINUS, Token.TokenType.WORD,
-                                Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.OPENBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.PLUSEQUAL,
-                                Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.MODULO,
-                                Token.TokenType.NUMBER, Token.TokenType.EQUAL, Token.TokenType.NUMBER,
-                                Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.DO, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.QUESTION, Token.TokenType.WORD,
-                                Token.TokenType.COLON, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.WHILE,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.AND, Token.TokenType.WORD,
-                                Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.ELSE, Token.TokenType.OPENBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.FOR, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.LESSTHANEQUAL, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.PLUSPLUS, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.MULTIPLYEQUAL, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.END,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.IF,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.GREATERTHAN,
-                                Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.AND, Token.TokenType.WORD,
-                                Token.TokenType.NOTEQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WHILE,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.FOR,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.LESSTHANEQUAL,
-                                Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.PLUSPLUS, Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.PLUSEQUAL,
-                                Token.TokenType.WORD, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.ELSE,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.IF,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.OR, Token.TokenType.WORD,
-                                Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.FOR, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.MINUSEQUAL, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.PLUSPLUS,
-                                Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.OPENBRACE, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.END,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
-                                Token.TokenType.STRINGLITERAL, Token.TokenType.CLOSEPAREN, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.FUNCTION, Token.TokenType.WORD,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.IF,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.EQUAL, Token.TokenType.NUMBER,
-                                Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.RETURN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.ELSE,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.RETURN,
-                                Token.TokenType.WORD, Token.TokenType.MULTIPLY, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
-                                Token.TokenType.WORD, Token.TokenType.MINUS, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.SEPERATOR, Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.OPENPAREN, Token.TokenType.STRINGLITERAL, Token.TokenType.WORD,
-                                Token.TokenType.STRINGLITERAL, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
-                                Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.BEGIN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.ASSIGN, Token.TokenType.MINUS, Token.TokenType.NUMBER,
-                                Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.GREATERTHAN,
-                                Token.TokenType.NUMBER, Token.TokenType.QUESTION, Token.TokenType.NUMBER, Token.TokenType.COLON,
-                                Token.TokenType.WORD, Token.TokenType.LESSTHAN, Token.TokenType.NUMBER,
-                                Token.TokenType.QUESTION, Token.TokenType.MINUS, Token.TokenType.NUMBER, Token.TokenType.COLON,
-                                Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.OPENPAREN, Token.TokenType.STRINGLITERAL,
-                                Token.TokenType.WORD, Token.TokenType.STRINGLITERAL, Token.TokenType.WORD,
-                                Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
-                                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
-                                Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN,
-                                Token.TokenType.WORD, Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN,
-                                Token.TokenType.WORD, Token.TokenType.SEPERATOR, Token.TokenType.WHILE,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.IF,
-                                Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.MINUSMINUS, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.MINUSMINUS, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.ELSE, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.PLUSPLUS, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
-                                Token.TokenType.PLUSPLUS, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.MINUSMINUS,
-                                Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
-                                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.QUESTION,
-                                Token.TokenType.WORD, Token.TokenType.MINUSMINUS, Token.TokenType.COLON, Token.TokenType.WORD,
-                                Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD,
-                                Token.TokenType.QUESTION, Token.TokenType.WORD, Token.TokenType.COLON, Token.TokenType.WORD,
-                                Token.TokenType.PLUSPLUS, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
-                                Token.TokenType.CLOSEBRACE
-                        }));
+                "b) {\n" + //
+                "\treturn a;\n" + //
+                "}\n" + //
+                "BEGIN {\n" + //
+                "   # print \"Welcome to JDoodle!\"\n" + //
+                "   z[0] = 6\n" + //
+                "   z[1] = 6\n" + //
+                "   # z[0][1] = dos\n" + //
+                "   a = 5\n" + //
+                "   b= -7\n" + //
+                "   b-=5 + (z[1] += 55)\n" + //
+                "   asdf = 0?  a+=7 : b = 6\n" + //
+                "   # means bacicly any operation can do mutation/assignent\n" + //
+                "   v = a ? v ~ (p = `4`) : 0\n" + //
+                "\n" + //
+                "\tdos(2, 4)\n" + //
+                "   # for (;;) {}\n" + //
+                "   # while () {}\n" + //
+                "#    for (6; 86 ;9) {print 6}\n" + //
+                "#    do  {++x} while (x)\n" + //
+                "}\n" + //
+                "\n" + //
+                "{y+=1;}\n" + //
+                "\n" + //
+                "y {\n" + //
+                "    while(!x)   # Comment\n" + //
+                "        if (++t) { y--;}\n" + //
+                "        else { --x;}\n" + //
+                "    --y;\n" + //
+                "}\n" + //
+                "\n" + //
+                "NR!=1 {\n" + //
+                "    b(z?d:e);\n" + //
+                "\n" + //
+                "    if (c=c=x&&y||!z) { \n" + //
+                "        for(x-=a[a[1]||1]||(z&&0.0); c; --c) {\n" + //
+                "            z = 1; # Comment\n" + //
+                "        }\n" + //
+                "        #`0`\n" + //
+                "    }\n" + //
+                "}\n" + //
+                "\n" + //
+                "BEGIN {\n" + //
+                "    x = 1;\n" + //
+                "    y = 2;\n" + //
+                "    z = 0;\n" + //
+                "}\n" + //
+                "\n" + //
+                "{\n" + //
+                "    y += 1;\n" + //
+                "    if (NR % 2 == 0) {\n" + //
+                "        while (x) {\n" + //
+                "            if (--y) {\n" + //
+                "                for (i = 0; i < 5; i++) {\n" + //
+                "                    z += i;\n" + //
+                "                }\n" + //
+                "            } else {\n" + //
+                "                do {\n" + //
+                "                    z = z ? z : 0; # Nested comment\n" + //
+                "                } while (x && y);\n" + //
+                "            }\n" + //
+                "        }\n" + //
+                "    }\n" + //
+                "}\n" + //
+                "\n" + //
+                "END {\n" + //
+                "    a = 1;\n" + //
+                "    b = 2;\n" + //
+                "    if (c = a && b || !z) {\n" + //
+                "        for (x -= a[a[1] || 1] || (z && 0.0); c; --c) {\n" + //
+                "            z = 1; # Set z to 1\n" + //
+                "        }\n" + //
+                "        #`0` - Comment\n" + //
+                "    }\n" + //
+                "}\n" + //
+                "\n" + //
+                "BEGIN {\n" + //
+                "    x = 0;\n" + //
+                "    y = 1;\n" + //
+                "}\n" + //
+                "\n" + //
+                "{\n" + //
+                "    y += 1;\n" + //
+                "    if (NR % 3 == 0) {\n" + //
+                "        do {\n" + //
+                "            x = x ? x : 1; # Comment\n" + //
+                "        } while (y && x);\n" + //
+                "    } else {\n" + //
+                "        for (i = 1; i <= 5; i++) {\n" + //
+                "            z *= i;\n" + //
+                "        }\n" + //
+                "    }\n" + //
+                "}\n" + //
+                "\n" + //
+                "END {\n" + //
+                "    if (y > 10) {\n" + //
+                "        b = 3;\n" + //
+                "        c = 2;\n" + //
+                "        if (c == 2 && b != 4) {\n" + //
+                "            while (x) {\n" + //
+                "                for (j = 1; j <= 3; j++) {\n" + //
+                "                    z += j;\n" + //
+                "                }\n" + //
+                "            }\n" + //
+                "        }\n" + //
+                "        #`0` - Comment\n" + //
+                "    } else {\n" + //
+                "        d = 5;\n" + //
+                "        e = 6;\n" + //
+                "        if (d || e) {\n" + //
+                "            for (x -= 4; x; x++) {\n" + //
+                "                z = 1; # Set z to 1\n" + //
+                "            }\n" + //
+                "        }\n" + //
+                "    }\n" + //
+                "}\n" + //
+                "{a=1;b=2;c=3;d=4;e=5;f=6;g=7;h=8;i=9;j=10;k=11;l=12;m=13;n=14;o=15;p=16;q=17;r=18;s=19;t=20;u=21;v=22;w=23;x=24;y=25;z=26}\n"
+                + //
+                "END{if(a==1){if(b==2){if(c==3){if(d==4){if(e==5){if(f==6){if(g==7){if(h==8){if(i==9){if(j==10){if(k==11){if(l==12){if(m==13){if(n==14){if(o==15){if(p==16){if(q==17){if(r==18){if(s==19){if(t==20){if(u==21){if(v==22){if(w==23){if(x==24){if(y==25){if(z==26){printg( \"abcdefghijklmnopqrstuvwxyz\")}}}}}}}}}}}}}}}}}}}}}}}}}}}\n"
+                + //
+                "\n" + //
+                "function factorial(n) {\n" + //
+                "    if (n == 0) {\n" + //
+                "        return 1;\n" + //
+                "    } else {\n" + //
+                "        return n * factorial(n - 1);\n" + //
+                "    }\n" + //
+                "}\n" + //
+                "\n" + //
+                "BEGIN {\n" + //
+                "    x = 5;\n" + //
+                "    printg( \"Factorial of \" x \" is \" factorial(x));\n" + //
+                "}\n" + //
+                "\n" + //
+                "BEGIN {\n" + //
+                "    x = -5;\n" + //
+                "    sign = x > 0 ? 1 : x < 0 ? -1 : 0;\n" + //
+                "    printff(\"The sign of \" x \" is \" sign);\n" + //
+                "}\n" + //
+                "\n" + //
+                "BEGIN {\n" + //
+                "    a = b = c = d = 1\n" + //
+                "    A = a\n" + //
+                "    B = b\n" + //
+                "    while (A) {\n" + //
+                "        if (B) {\n" + //
+                "            a--\n" + //
+                "            B--\n" + //
+                "        } else {\n" + //
+                "            b++\n" + //
+                "            B++\n" + //
+                "        }\n" + //
+                "        A--\n" + //
+                "    }\n" + //
+                "    c = B ? c-- : c\n" + //
+                "    d = A ? d : d++\n" + //
+                "\n" + //
+                "}",
+                new Token.TokenType[] {
+                        Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.COMMA, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.RETURN, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
+                        Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET,
+                        Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.MINUS,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.MINUSEQUAL, Token.TokenType.NUMBER, Token.TokenType.PLUS,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
+                        Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET, Token.TokenType.PLUSEQUAL,
+                        Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.QUESTION,
+                        Token.TokenType.WORD, Token.TokenType.PLUSEQUAL, Token.TokenType.NUMBER, Token.TokenType.COLON,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD,
+                        Token.TokenType.QUESTION, Token.TokenType.WORD, Token.TokenType.MATCH,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.PATTERN, Token.TokenType.CLOSEPAREN, Token.TokenType.COLON,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.OPENPAREN, Token.TokenType.NUMBER, Token.TokenType.COMMA,
+                        Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.OPENBRACE, Token.TokenType.WORD,
+                        Token.TokenType.PLUSEQUAL, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WHILE, Token.TokenType.OPENPAREN, Token.TokenType.NOT, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR, Token.TokenType.IF,
+                        Token.TokenType.OPENPAREN, Token.TokenType.PLUSPLUS, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.WORD,
+                        Token.TokenType.MINUSMINUS, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.ELSE, Token.TokenType.OPENBRACE,
+                        Token.TokenType.MINUSMINUS, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.MINUSMINUS,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.NOTEQUAL, Token.TokenType.NUMBER,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.QUESTION, Token.TokenType.WORD,
+                        Token.TokenType.COLON, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.AND,
+                        Token.TokenType.WORD, Token.TokenType.OR, Token.TokenType.NOT, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.FOR, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.MINUSEQUAL, Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
+                        Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEBRACKET, Token.TokenType.OR, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEBRACKET, Token.TokenType.OR, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.AND, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.MINUSMINUS, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.PLUSEQUAL, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.IF,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.MODULO, Token.TokenType.NUMBER,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WHILE,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.IF,
+                        Token.TokenType.OPENPAREN, Token.TokenType.MINUSMINUS, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.FOR, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.LESSTHAN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.PLUSPLUS, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.PLUSEQUAL, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.ELSE, Token.TokenType.OPENBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.DO, Token.TokenType.OPENBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD,
+                        Token.TokenType.QUESTION, Token.TokenType.WORD, Token.TokenType.COLON, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.WHILE, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.AND,
+                        Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.END, Token.TokenType.OPENBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.AND, Token.TokenType.WORD,
+                        Token.TokenType.OR, Token.TokenType.NOT, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.FOR,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.MINUSEQUAL,
+                        Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.WORD,
+                        Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET,
+                        Token.TokenType.OR, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET, Token.TokenType.OR,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.AND, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR, Token.TokenType.MINUSMINUS, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.OPENBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.PLUSEQUAL,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.MODULO,
+                        Token.TokenType.NUMBER, Token.TokenType.EQUAL, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.DO, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.QUESTION, Token.TokenType.WORD,
+                        Token.TokenType.COLON, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.WHILE,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.AND, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.ELSE, Token.TokenType.OPENBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.FOR, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.LESSTHANEQUAL, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.PLUSPLUS, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.MULTIPLYEQUAL, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.END,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.IF,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.GREATERTHAN,
+                        Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.AND, Token.TokenType.WORD,
+                        Token.TokenType.NOTEQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WHILE,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.FOR,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.LESSTHANEQUAL,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.PLUSPLUS, Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.PLUSEQUAL,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.ELSE,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.IF,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.OR, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.FOR, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.MINUSEQUAL, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.PLUSPLUS,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.OPENBRACE, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.END,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
+                        Token.TokenType.EQUAL, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.STRINGLITERAL, Token.TokenType.CLOSEPAREN, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.FUNCTION, Token.TokenType.WORD,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.IF,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.EQUAL, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.RETURN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.ELSE,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.RETURN,
+                        Token.TokenType.WORD, Token.TokenType.MULTIPLY, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.MINUS, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.SEPERATOR, Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.OPENPAREN, Token.TokenType.STRINGLITERAL, Token.TokenType.WORD,
+                        Token.TokenType.STRINGLITERAL, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.BEGIN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.MINUS, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.GREATERTHAN,
+                        Token.TokenType.NUMBER, Token.TokenType.QUESTION, Token.TokenType.NUMBER, Token.TokenType.COLON,
+                        Token.TokenType.WORD, Token.TokenType.LESSTHAN, Token.TokenType.NUMBER,
+                        Token.TokenType.QUESTION, Token.TokenType.MINUS, Token.TokenType.NUMBER, Token.TokenType.COLON,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.OPENPAREN, Token.TokenType.STRINGLITERAL,
+                        Token.TokenType.WORD, Token.TokenType.STRINGLITERAL, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.BEGIN, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.WORD, Token.TokenType.SEPERATOR, Token.TokenType.WHILE,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.IF,
+                        Token.TokenType.OPENPAREN, Token.TokenType.WORD, Token.TokenType.CLOSEPAREN,
+                        Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.MINUSMINUS, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.MINUSMINUS, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.ELSE, Token.TokenType.OPENBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.PLUSPLUS, Token.TokenType.SEPERATOR, Token.TokenType.WORD,
+                        Token.TokenType.PLUSPLUS, Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.MINUSMINUS,
+                        Token.TokenType.SEPERATOR, Token.TokenType.CLOSEBRACE, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.QUESTION,
+                        Token.TokenType.WORD, Token.TokenType.MINUSMINUS, Token.TokenType.COLON, Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD,
+                        Token.TokenType.QUESTION, Token.TokenType.WORD, Token.TokenType.COLON, Token.TokenType.WORD,
+                        Token.TokenType.PLUSPLUS, Token.TokenType.SEPERATOR, Token.TokenType.SEPERATOR,
+                        Token.TokenType.CLOSEBRACE
+                }));
         parser.Parse();
     }
 }

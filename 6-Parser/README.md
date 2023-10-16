@@ -1,4 +1,4 @@
-# Parser 6
+# 6-Parser 4
 ## Project organization
 
 ```
@@ -8,7 +8,6 @@ root
 │   ├── hi.awk
 │   ├── foo.awk
 │   └── other.awk
-├── README.md
 ├── src
 │   ├── AssignmentNode.java
 │   ├── AwkException.java
@@ -49,10 +48,11 @@ root
 │   ├── UnitTests.java
 │   ├── VariableReferenceNode.java
 │   └── WhileNode.java
+└── README.md
 ```
 
 The awk files are generated from using `get_awk_files.py` (and will probably be different then the ones shown here) are required for the first unit test to work (see `root/src/UnitTests.java` for more info)
 
 The reason there is no `import java.util.Optional` is because I am using a custom version of `Optional` in `root/src/Optional.java`.
 
-Some unit tests require java 21 preview for `instanceof` pattern matching.
+Some unit tests and parts of the parser require java 21 preview for `instanceof` and `switch` pattern matching.

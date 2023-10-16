@@ -1,8 +1,9 @@
 public class OperationNode extends StatementNode {
     @Override
-    // make ++ -- into assignment node and make operationnode derive node not statementnode
+    // make ++ -- into assignment node and make operationnode derive node not
+    // statementnode
     public String toString() {
-        return "("+  (Right.isPresent() ? Left + " " + operation + " " + Right.get() : operation + " " + Left) + ")";
+        return "(" + (Right.isPresent() ? Left + " " + operation + " " + Right.get() : operation + " " + Left) + ")";
     }
 
     // and a list of possible operations – use an enum for this. Mine are:
@@ -20,7 +21,7 @@ public class OperationNode extends StatementNode {
     }
 
     public OperationNode(OperationNode.Operation operation, Node left) {
-            this.operation = operation;
+        this.operation = operation;
         Left = left;
 
     }

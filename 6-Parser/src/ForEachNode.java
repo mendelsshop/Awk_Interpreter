@@ -64,5 +64,4 @@ public class ForEachNode extends StatementNode {
         return true;
     }
 
-    
 }

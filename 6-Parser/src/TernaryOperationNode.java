@@ -1,16 +1,19 @@
 public class TernaryOperationNode extends Node {
-    private Node cond; 
-    private Node then; 
+    private Node cond;
+    private Node then;
     private Node alt;
+
     public TernaryOperationNode(Node cond, Node then, Node alt) {
         this.cond = cond;
         this.then = then;
         this.alt = alt;
     }
+
     @Override
     public String toString() {
         return "(" + cond + " ? " + then + " : " + alt + ")";
     }
+
     @Override
     public int hashCode() {
         final int prime = 31;
@@ -20,6 +23,7 @@ public class TernaryOperationNode extends Node {
         result = prime * result + ((alt == null) ? 0 : alt.hashCode());
         return result;
     }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj)

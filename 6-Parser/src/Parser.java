@@ -51,6 +51,8 @@ public class Parser {
         return true;
     }
 
+    // used to parse comma seperated lists with start and end tokens
+    // list value is a function that makes sure that there is next value in the list
     private <T> LinkedList<T> parseDelimitedList(Token.TokenType start, Token.TokenType end,
             CheckedSupplier<Optional<T>, AwkException> listvalue, String type) throws AwkException {
         MatchAndRemove(start)
@@ -137,7 +139,10 @@ public class Parser {
 
     }
 
-    // TODO: comment this
+    // some expression must be followed by a seperator unless its the last item in a
+    // multi line block
+    // this function checks for that seperator and throws an exception if its not
+    // there
     private void CheckSeporators(String type) throws AwkException {
         var seperators = AcceptSeperators();
         if (!tokens.Peek(0).map(Token::getType).equals(Optional.of(Token.TokenType.CLOSEBRACE)) && !seperators) {
@@ -148,6 +153,7 @@ public class Parser {
     private StatementNode ParseStatement() throws AwkException {
         CheckedBiFunction<Token.TokenType, CheckedSupplier<StatementNode, AwkException>, Optional<StatementNode>, AwkException> tokenToStatement = (
                 tt, statement) -> MatchAndRemove(tt).CheckedMap(s -> statement.get());
+        // instead of using a bunch of if statements we use a optional chain
         return tokenToStatement.apply(Token.TokenType.IF, this::ParseIf)
                 .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.CONTINUE, this::ParseContinue))
                 .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.BREAK, this::ParseBreak))
@@ -205,6 +211,7 @@ public class Parser {
         return (StatementNode) result;
     }
 
+    // used to parse parenthesis around conditions for if-else if while do while
     private Node ParseCondition(String type) throws AwkException {
         MatchAndRemove(Token.TokenType.OPENPAREN)
                 .orElseThrow(() -> createException("condition in " + type + " is missing open parentheses"));
@@ -288,6 +295,7 @@ public class Parser {
             var loop = ParseBlock(true);
             return new ForEachNode(index_var, array, loop);
         } else {
+            // we dont get the parseoperation here b/c there could just be for (;;) ...
             var init = ParseOperation();
             MatchAndRemove(Token.TokenType.SEPERATOR).orElseThrow(() -> createException(
                     "Semicolon between init expression and condition expression is missing, learn how to use c-style for loops\nat https://www.tutorialspoint.com/cprogramming/c_for_loop.htm."));
