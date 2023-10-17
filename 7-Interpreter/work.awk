@@ -18,5 +18,6 @@ NF == 6 {
 
 
     prints( 7) ; 
-    print
+    b[0] = 0
+    print b[0], 1
 }

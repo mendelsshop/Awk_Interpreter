@@ -9,9 +9,10 @@ public class BuiltInFunctionDefinitionNode extends FunctionNode {
     private Boolean varidiac;
 
     public BuiltInFunctionDefinitionNode(Function<HashMap<String, InterpreterDataType>, String> execute,
+        LinkedList<String> parameters,
             Boolean varidiac) {
         // TODO: how do we check arrity
-        super("", new LinkedList<>(), new LinkedList<>());
+        super("", parameters, new LinkedList<>());
         Execute = execute;
         this.varidiac = varidiac;
     }

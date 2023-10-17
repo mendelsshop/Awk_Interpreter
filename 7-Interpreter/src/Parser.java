@@ -316,10 +316,12 @@ public class Parser {
         CheckedFunction<Token.TokenType, Optional<FunctionCallNode>, AwkException> builtin = (
                 token) -> MatchAndRemove(token).<FunctionCallNode, AwkException>CheckedMap(s -> {
                     var ret = new LinkedList<Node>();
+                    // TODO: maybe we shouldnt let newline before first arg to builtin
                     AcceptSeperators();
                     ParseOperation().CheckedIfPresent(first -> {
                         ret.add(first);
                         AcceptSeperators();
+                        // TODO: maybe we shouldnt let newline before `,` in builtin
                         while (MatchAndRemove(Token.TokenType.COMMA).isPresent()) {
                             AcceptSeperators();
                             ret.add(ParseOperation()

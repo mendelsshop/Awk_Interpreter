@@ -10,7 +10,8 @@ import java.util.stream.Collectors;
 public class Interpreter {
     private class LineManager {
         List<String> lines;
-        // we could keep track of the number of lines by using NR, but this much easier and more efficient b/c no string->number parsing
+        // we could keep track of the number of lines by using NR, but this much easier
+        // and more efficient b/c no string->number parsing
         int linesProcessed = 0;
 
         public LineManager(List<String> lines) {
@@ -39,7 +40,6 @@ public class Interpreter {
         }
     }
 
-
     // TODO: i assume that we need the program node for interpreter
     private ProgramNode program;
     private LineManager input;
@@ -54,28 +54,117 @@ public class Interpreter {
             put("NR", new InterpreterDataType());
         }
     };
+    // TODO; should have functions for checking that pieces of data are of specific data type
+    // and nned better way to interact with array dt
+    // TODO: tinterpreter needs custom exception b/c doesn't know line numbers
     private HashMap<String, FunctionNode> functions = new HashMap<String, FunctionNode>() {
         {
+        
             // TODO: builtin functions also need to figure out what each function does
+            // TODO: printing arrays is not valid
+            // TODO: what do functiions that return nothing return? null? empty string? ..
             put("print", new BuiltInFunctionDefinitionNode((vars) -> {
-                System.out.println("");
+                InterpreterArrayDataType strings = (InterpreterArrayDataType) vars.get("strings");
+                System.out.println(
+                        strings.getItemsStream().map(InterpreterDataType::toString).collect(Collectors.joining(" ")));
                 return "";
+            }, new LinkedList<>() {
+                {
+                    add("strings");
+                }
             }, true));
             put("printf", new BuiltInFunctionDefinitionNode((vars) -> {
-                System.out.println("");
+                InterpreterDataType format = vars.get("format");
+                InterpreterArrayDataType strings = (InterpreterArrayDataType) vars.get("strings");
+                // how to use print to format elements of stream of strings by format
+                System.out.printf("");
                 return "";
+            }, new LinkedList<>() {
+                {
+                    add("format");
+                    add("strings");
+                }
             }, true));
-            put("getline", new BuiltInFunctionDefinitionNode((vars) -> input.SplitAndAssign() ? "" : "", false));
-            put("next", new BuiltInFunctionDefinitionNode((vars) -> input.SplitAndAssign() ? "" : "", false));
+            put("getline", new BuiltInFunctionDefinitionNode((vars) -> input.SplitAndAssign() ? "" : "",
+                    new LinkedList<>(), false));
+            put("next", new BuiltInFunctionDefinitionNode((vars) -> input.SplitAndAssign() ? "" : "",
+                    new LinkedList<>(), false));
             put("gsub", null);
             put("match", null);
             put("sub", null);
-            put("index", null);
-            put("length", null);
-            put("split", null);
-            put("substr", null);
-            put("tolower", null);
-            put("toupper", null);
+            put("index", new BuiltInFunctionDefinitionNode((vars) -> {
+                String haystack = vars.get("haystack").getContents();
+                String needle = vars.get("needle").getContents();
+                return String.valueOf(haystack.indexOf(needle));
+            }, new LinkedList<>() {
+                {
+                    add("haystack");
+                    add("needle");
+                }
+            }, false));
+            put("length", new BuiltInFunctionDefinitionNode((vars) -> {
+                String string = vars.get("string").getContents();
+                return String.valueOf(string.length());
+            }, new LinkedList<>() {
+                {
+                    add("string");
+                }
+            }, false));
+            put("split", new BuiltInFunctionDefinitionNode((vars) -> {
+                String string = vars.get("string").getContents();
+                InterpreterArrayDataType array = (InterpreterArrayDataType) vars.get("array");
+                String sep = vars.get("sep").getContents();
+                var strings = string.split(sep);
+                int index = 0;
+                for (String s : strings) {
+                    array.insert(String.valueOf(index++), new InterpreterDataType((s)));
+                }
+                return "";
+            }, new LinkedList<>() {
+                {
+                    add("string");
+                    add("array");
+                    add("sep");
+                }
+            }, false));
+            put("substr", new BuiltInFunctionDefinitionNode((vars) -> {
+                String string = vars.get("string").getContents();
+                // TODO: handle parse number exceptions
+                int start = Integer.parseInt(vars.get("start").getContents());
+
+                try {
+                    int end = start + Integer.parseInt(
+                            ((InterpreterArrayDataType) vars.get("length")).getItemsList().get(0).getContents());
+                    // we do not need top check if endgreather than string length as that is index
+                    // out of bounds and gets caught by catch
+                    return string.substring(start, end);
+                } catch (IndexOutOfBoundsException e) {
+                    return string.substring(start);
+                }
+
+            }, new LinkedList<>() {
+                {
+                    add("string");
+                    add("start");
+                    add("length");
+                }
+            }, true));
+            put("tolower", new BuiltInFunctionDefinitionNode((vars) -> {
+                String string = vars.get("string").getContents();
+                return string.toLowerCase();
+            }, new LinkedList<>() {
+                {
+                    add("string");
+                }
+            }, false));
+            put("toupper", new BuiltInFunctionDefinitionNode((vars) -> {
+                String string = vars.get("string").getContents();
+                return string.toUpperCase();
+            }, new LinkedList<>() {
+                {
+                    add("string");
+                }
+            }, false));
         }
     };
 

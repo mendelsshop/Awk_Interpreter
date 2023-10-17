@@ -11,4 +11,9 @@ public class InterpreterDataType {
     public String getContents() {
         return contents;
     }
+
+    @Override
+    public String toString() {
+        return contents;
+    }
 }
