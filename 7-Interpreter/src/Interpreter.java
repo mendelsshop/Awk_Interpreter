@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class Interpreter {
@@ -54,12 +55,16 @@ public class Interpreter {
             put("NR", new InterpreterDataType());
         }
     };
-    // TODO; should have functions for checking that pieces of data are of specific data type
+    // TODO; should have functions for checking that pieces of data are of specific
+    // data type
     // and nned better way to interact with array dt
+    // also need to make sure to not clone stuff (most of the time) so [g]sub actualy replaces strings
     // TODO: tinterpreter needs custom exception b/c doesn't know line numbers
+    // docs https://pubs.opengroup.org/onlinepubs/7908799/xcu/awk.html
+    // slightly more formatted https://manpages.ubuntu.com/manpages/focal/en/man1/awk.1posix.html
     private HashMap<String, FunctionNode> functions = new HashMap<String, FunctionNode>() {
         {
-        
+
             // TODO: builtin functions also need to figure out what each function does
             // TODO: printing arrays is not valid
             // TODO: what do functiions that return nothing return? null? empty string? ..
@@ -74,10 +79,10 @@ public class Interpreter {
                 }
             }, true));
             put("printf", new BuiltInFunctionDefinitionNode((vars) -> {
-                InterpreterDataType format = vars.get("format");
+                String format = vars.get("format").getContents();
                 InterpreterArrayDataType strings = (InterpreterArrayDataType) vars.get("strings");
                 // how to use print to format elements of stream of strings by format
-                System.out.printf("");
+                System.out.printf(format, strings.getItemsStream().map(InterpreterDataType::toString).toArray());
                 return "";
             }, new LinkedList<>() {
                 {
@@ -85,23 +90,64 @@ public class Interpreter {
                     add("strings");
                 }
             }, true));
+            put("sprintf", new BuiltInFunctionDefinitionNode((vars) -> {
+                String format = vars.get("format").getContents();
+                InterpreterArrayDataType strings = (InterpreterArrayDataType) vars.get("strings");
+                return format.formatted(strings.getItemsStream().map(InterpreterDataType::toString).toArray());
+            }, new LinkedList<>() {
+                {
+                    add("format");
+                    add("strings");
+                }
+            }, true));
+            // are next and getline samething
             put("getline", new BuiltInFunctionDefinitionNode((vars) -> input.SplitAndAssign() ? "" : "",
                     new LinkedList<>(), false));
             put("next", new BuiltInFunctionDefinitionNode((vars) -> input.SplitAndAssign() ? "" : "",
                     new LinkedList<>(), false));
-            put("gsub", null);
-            put("match", null);
-            put("sub", null);
-            put("index", new BuiltInFunctionDefinitionNode((vars) -> {
+            put("gsub", new BuiltInFunctionDefinitionNode((vars) -> {
+                return "";
+            }, new LinkedList<>() {
+                {
+                    add("pattern");
+                    add("replacement");
+                    add("target");
+                }
+            }, true));
+            put("match", new BuiltInFunctionDefinitionNode((vars) -> {
+                // TODO: maybe set rstart/rlength
                 String haystack = vars.get("haystack").getContents();
                 String needle = vars.get("needle").getContents();
-                return String.valueOf(haystack.indexOf(needle));
+                var pattern = Pattern.compile(needle);
+                var matcher = pattern.matcher(haystack);
+                return String.valueOf(matcher.matches() ? matcher.start() : 0);
             }, new LinkedList<>() {
                 {
                     add("haystack");
                     add("needle");
                 }
             }, false));
+            put("sub", new BuiltInFunctionDefinitionNode((vars) -> {
+                return "";
+            }, new LinkedList<>() {
+                {
+                    add("pattern");
+                    add("replacement");
+                    add("target");
+                }
+            }, true));
+            put("index", new BuiltInFunctionDefinitionNode((vars) -> {
+                String haystack = vars.get("haystack").getContents();
+                String needle = vars.get("needle").getContents();
+                int index = haystack.indexOf(needle);
+                return String.valueOf(index == -1 ? 0 : index + 1);
+            }, new LinkedList<>() {
+                {
+                    add("haystack");
+                    add("needle");
+                }
+            }, false));
+            // defaults to $0 if nothing maybee
             put("length", new BuiltInFunctionDefinitionNode((vars) -> {
                 String string = vars.get("string").getContents();
                 return String.valueOf(string.length());
@@ -113,7 +159,12 @@ public class Interpreter {
             put("split", new BuiltInFunctionDefinitionNode((vars) -> {
                 String string = vars.get("string").getContents();
                 InterpreterArrayDataType array = (InterpreterArrayDataType) vars.get("array");
-                String sep = vars.get("sep").getContents();
+                String sep;
+                try {
+                    sep = ((InterpreterArrayDataType) vars.get("sep")).getItemsList().get(0).getContents();
+                } catch (IndexOutOfBoundsException e) {
+                    sep = variables.get("FS").getContents();
+                }
                 var strings = string.split(sep);
                 int index = 0;
                 for (String s : strings) {
@@ -126,7 +177,7 @@ public class Interpreter {
                     add("array");
                     add("sep");
                 }
-            }, false));
+            }, true));
             put("substr", new BuiltInFunctionDefinitionNode((vars) -> {
                 String string = vars.get("string").getContents();
                 // TODO: handle parse number exceptions
