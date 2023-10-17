@@ -1,6 +1,10 @@
 public class InterpreterDataType {
     private String contents = "";
 
+    public void setContents(String contents) {
+        this.contents = contents;
+    }
+
     public InterpreterDataType() {
     }
 

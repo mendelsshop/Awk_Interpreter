@@ -58,10 +58,12 @@ public class Interpreter {
     // TODO; should have functions for checking that pieces of data are of specific
     // data type
     // and nned better way to interact with array dt
-    // also need to make sure to not clone stuff (most of the time) so [g]sub actualy replaces strings
+    // also need to make sure to not clone stuff (most of the time) so [g]sub
+    // actualy replaces strings
     // TODO: tinterpreter needs custom exception b/c doesn't know line numbers
     // docs https://pubs.opengroup.org/onlinepubs/7908799/xcu/awk.html
-    // slightly more formatted https://manpages.ubuntu.com/manpages/focal/en/man1/awk.1posix.html
+    // slightly more formatted
+    // https://manpages.ubuntu.com/manpages/focal/en/man1/awk.1posix.html
     private HashMap<String, FunctionNode> functions = new HashMap<String, FunctionNode>() {
         {
 
@@ -106,6 +108,17 @@ public class Interpreter {
             put("next", new BuiltInFunctionDefinitionNode((vars) -> input.SplitAndAssign() ? "" : "",
                     new LinkedList<>(), false));
             put("gsub", new BuiltInFunctionDefinitionNode((vars) -> {
+                String pattern = vars.get("pattern").getContents();
+                String replacement = (vars.get("replacement").getContents());
+                InterpreterDataType target;
+                // Substitute the string repl in place of the each instance of the extended
+                // regular expression ERE in string in and return the number of substitutions.
+                try {
+                    target = ((InterpreterArrayDataType) vars.get("target")).getItemsList().get(0);
+                } catch (IndexOutOfBoundsException e) {
+                    target = variables.get("$0");
+                }
+                target.setContents(target.getContents().replaceAll(pattern, replacement));
                 return "";
             }, new LinkedList<>() {
                 {
@@ -128,6 +141,17 @@ public class Interpreter {
                 }
             }, false));
             put("sub", new BuiltInFunctionDefinitionNode((vars) -> {
+                String pattern = vars.get("pattern").getContents();
+                String replacement = (vars.get("replacement").getContents());
+                InterpreterDataType target;
+                // Substitute the string repl in place of the first instance of the extended
+                // regular expression ERE in string in and return the number of substitutions.
+                try {
+                    target = ((InterpreterArrayDataType) vars.get("target")).getItemsList().get(0);
+                } catch (IndexOutOfBoundsException e) {
+                    target = variables.get("$0");
+                }
+                target.setContents(target.getContents().replaceFirst(pattern, replacement));
                 return "";
             }, new LinkedList<>() {
                 {
