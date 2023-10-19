@@ -117,9 +117,7 @@ public class Parser {
                             LinkedList<StatementNode> nodes = new LinkedList<>();
                             AcceptSeperators();
                             while (!MatchAndRemove(Token.TokenType.CLOSEBRACE).isPresent()) {
-                                if (tokens.MoreTokens()) {
-                                    nodes.add(ParseStatement());
-                                }
+                                nodes.add(ParseStatement());
                                 // if there is still tokenss left from blocknode we neet to make sure that there
                                 // is seperator between each statement
                                 AcceptSeperators();

@@ -7,6 +7,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.function.Function;
 
 public class Interpreter {
     private class LineManager {
@@ -64,12 +65,11 @@ public class Interpreter {
     // docs https://pubs.opengroup.org/onlinepubs/7908799/xcu/awk.html
     // slightly more formatted
     // https://manpages.ubuntu.com/manpages/focal/en/man1/awk.1posix.html
+    // TODO: make function that get varidiac arguements contents (for varidaic buitins with single thing that is varidac)
     private HashMap<String, FunctionNode> functions = new HashMap<String, FunctionNode>() {
         {
-
             // TODO: builtin functions also need to figure out what each function does
             // TODO: printing arrays is not valid
-            // TODO: what do functiions that return nothing return? null? empty string? ..
             put("print", new BuiltInFunctionDefinitionNode((vars) -> {
                 InterpreterArrayDataType strings = (InterpreterArrayDataType) vars.get("strings");
                 System.out.println(
@@ -107,59 +107,51 @@ public class Interpreter {
                     new LinkedList<>(), false));
             put("next", new BuiltInFunctionDefinitionNode((vars) -> input.SplitAndAssign() ? "" : "",
                     new LinkedList<>(), false));
-            put("gsub", new BuiltInFunctionDefinitionNode((vars) -> {
-                String pattern = vars.get("pattern").getContents();
-                String replacement = (vars.get("replacement").getContents());
-                InterpreterDataType target;
-                // Substitute the string repl in place of the each instance of the extended
-                // regular expression ERE in string in and return the number of substitutions.
-                try {
-                    target = ((InterpreterArrayDataType) vars.get("target")).getItemsList().get(0);
-                } catch (IndexOutOfBoundsException e) {
-                    target = variables.get("$0");
-                }
-                target.setContents(target.getContents().replaceAll(pattern, replacement));
-                return "";
-            }, new LinkedList<>() {
-                {
-                    add("pattern");
-                    add("replacement");
-                    add("target");
-                }
-            }, true));
+            @FunctionalInterface
+            interface TriFunction<T, U, V, K> {
+                K apply(T t, U u, V v);
+            }
+            Function<TriFunction<String, String, String, String>, BuiltInFunctionDefinitionNode> sub = (
+                    replacer) -> new BuiltInFunctionDefinitionNode((vars) -> {
+                        String pattern = vars.get("pattern").getContents();
+                        String replacement = (vars.get("replacement").getContents());
+                        InterpreterDataType target;
+                        // Substitute the string repl in place of the first instance of the extended
+                        // regular expression ERE in string in and return the number of substitutions.
+                        try {
+                            target = ((InterpreterArrayDataType) vars.get("target")).get("0");
+                        } catch (IndexOutOfBoundsException e) {
+                            target = variables.get("$0");
+                        }
+                        target.setContents(replacer.apply(target.getContents(), pattern, replacement));
+                        return "";
+                    }, new LinkedList<>() {
+                        {
+                            add("pattern");
+                            add("replacement");
+                            add("target");
+                        }
+                    }, true);
+            put("gsub", sub.apply(String::replaceAll));
             put("match", new BuiltInFunctionDefinitionNode((vars) -> {
-                // TODO: maybe set rstart/rlength
                 String haystack = vars.get("haystack").getContents();
                 String needle = vars.get("needle").getContents();
                 var pattern = Pattern.compile(needle);
                 var matcher = pattern.matcher(haystack);
-                return String.valueOf(matcher.matches() ? matcher.start() : 0);
+                boolean matches = matcher.matches();
+                String index = String.valueOf(matches ? matcher.start() + 1 : 0);
+                String length = String.valueOf((matches) ? matcher.end() - matcher.start() : -1);
+                variables.put("RSTART", new InterpreterDataType(index));
+                variables.put("RLENGTH", new InterpreterDataType(length));
+                return index;
             }, new LinkedList<>() {
                 {
                     add("haystack");
                     add("needle");
                 }
             }, false));
-            put("sub", new BuiltInFunctionDefinitionNode((vars) -> {
-                String pattern = vars.get("pattern").getContents();
-                String replacement = (vars.get("replacement").getContents());
-                InterpreterDataType target;
-                // Substitute the string repl in place of the first instance of the extended
-                // regular expression ERE in string in and return the number of substitutions.
-                try {
-                    target = ((InterpreterArrayDataType) vars.get("target")).getItemsList().get(0);
-                } catch (IndexOutOfBoundsException e) {
-                    target = variables.get("$0");
-                }
-                target.setContents(target.getContents().replaceFirst(pattern, replacement));
-                return "";
-            }, new LinkedList<>() {
-                {
-                    add("pattern");
-                    add("replacement");
-                    add("target");
-                }
-            }, true));
+
+            put("sub", sub.apply(String::replaceFirst));
             put("index", new BuiltInFunctionDefinitionNode((vars) -> {
                 String haystack = vars.get("haystack").getContents();
                 String needle = vars.get("needle").getContents();
@@ -173,19 +165,24 @@ public class Interpreter {
             }, false));
             // defaults to $0 if nothing maybee
             put("length", new BuiltInFunctionDefinitionNode((vars) -> {
-                String string = vars.get("string").getContents();
+                String string;
+                try {
+                    string = ((InterpreterArrayDataType) vars.get("string")).get("0").getContents();
+                } catch (IndexOutOfBoundsException e) {
+                    string = variables.get("$0").getContents();
+                }
                 return String.valueOf(string.length());
             }, new LinkedList<>() {
                 {
                     add("string");
                 }
-            }, false));
+            }, true));
             put("split", new BuiltInFunctionDefinitionNode((vars) -> {
                 String string = vars.get("string").getContents();
                 InterpreterArrayDataType array = (InterpreterArrayDataType) vars.get("array");
                 String sep;
                 try {
-                    sep = ((InterpreterArrayDataType) vars.get("sep")).getItemsList().get(0).getContents();
+                    sep = ((InterpreterArrayDataType) vars.get("sep")).get("0").getContents();
                 } catch (IndexOutOfBoundsException e) {
                     sep = variables.get("FS").getContents();
                 }
@@ -205,12 +202,13 @@ public class Interpreter {
             put("substr", new BuiltInFunctionDefinitionNode((vars) -> {
                 String string = vars.get("string").getContents();
                 // TODO: handle parse number exceptions
-                int start = Integer.parseInt(vars.get("start").getContents());
+                // we do start -1 b\c according to spec the start is 1-based index
+                int start = Integer.parseInt(vars.get("start").getContents()) - 1;
 
                 try {
                     int end = start + Integer.parseInt(
-                            ((InterpreterArrayDataType) vars.get("length")).getItemsList().get(0).getContents());
-                    // we do not need top check if endgreather than string length as that is index
+                            ((InterpreterArrayDataType) vars.get("length")).get("0").getContents());
+                    // we do not need top check if end greater than string length as that is index
                     // out of bounds and gets caught by catch
                     return string.substring(start, end);
                 } catch (IndexOutOfBoundsException e) {
@@ -224,22 +222,17 @@ public class Interpreter {
                     add("length");
                 }
             }, true));
-            put("tolower", new BuiltInFunctionDefinitionNode((vars) -> {
-                String string = vars.get("string").getContents();
-                return string.toLowerCase();
-            }, new LinkedList<>() {
-                {
-                    add("string");
-                }
-            }, false));
-            put("toupper", new BuiltInFunctionDefinitionNode((vars) -> {
-                String string = vars.get("string").getContents();
-                return string.toUpperCase();
-            }, new LinkedList<>() {
-                {
-                    add("string");
-                }
-            }, false));
+            Function<Function<String, String>, BuiltInFunctionDefinitionNode> strUpdate = (
+                    mapper) -> new BuiltInFunctionDefinitionNode((vars) -> {
+                        String string = vars.get("string").getContents();
+                        return mapper.apply(string);
+                    }, new LinkedList<>() {
+                        {
+                            add("string");
+                        }
+                    }, false);
+            put("tolower", strUpdate.apply(String::toLowerCase));
+            put("toupper", strUpdate.apply(String::toUpperCase));
         }
     };
 

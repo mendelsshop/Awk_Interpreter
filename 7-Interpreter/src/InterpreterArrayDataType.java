@@ -14,7 +14,8 @@ public class InterpreterArrayDataType extends InterpreterDataType {
         return new LinkedList<>(contents.values());
     }
 
-    public InterpreterDataType get(String index) throws Exception {
+    // TODO through exception if contents is null
+    public InterpreterDataType get(String index) {
         return contents.get(index);
     } 
 
