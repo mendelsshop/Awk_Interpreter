@@ -14,9 +14,9 @@ public class InterpreterArrayDataType extends InterpreterDataType {
         return new LinkedList<>(contents.values());
     }
 
-    // TODO through exception if contents is null
-    public InterpreterDataType get(String index) {
-        return contents.get(index);
+    public Optional<InterpreterDataType> get(String index) {
+        // javas hashmap returns null if cannot find value for a given key
+        return Optional.ofNullable(contents.get(index));
     } 
 
     public void insert(String name, InterpreterDataType value) {

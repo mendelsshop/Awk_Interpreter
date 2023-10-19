@@ -65,7 +65,8 @@ public class Interpreter {
     // docs https://pubs.opengroup.org/onlinepubs/7908799/xcu/awk.html
     // slightly more formatted
     // https://manpages.ubuntu.com/manpages/focal/en/man1/awk.1posix.html
-    // TODO: make function that get varidiac arguements contents (for varidaic buitins with single thing that is varidac)
+    // TODO: make function that get varidiac arguements contents (for varidaic
+    // buitins with single thing that is varidac)
     private HashMap<String, FunctionNode> functions = new HashMap<String, FunctionNode>() {
         {
             // TODO: builtin functions also need to figure out what each function does
@@ -115,14 +116,8 @@ public class Interpreter {
                     replacer) -> new BuiltInFunctionDefinitionNode((vars) -> {
                         String pattern = vars.get("pattern").getContents();
                         String replacement = (vars.get("replacement").getContents());
-                        InterpreterDataType target;
-                        // Substitute the string repl in place of the first instance of the extended
-                        // regular expression ERE in string in and return the number of substitutions.
-                        try {
-                            target = ((InterpreterArrayDataType) vars.get("target")).get("0");
-                        } catch (IndexOutOfBoundsException e) {
-                            target = variables.get("$0");
-                        }
+                        InterpreterDataType target = ((InterpreterArrayDataType) vars.get("target")).get("0")
+                                .orElse(variables.get("$0"));
                         target.setContents(replacer.apply(target.getContents(), pattern, replacement));
                         return "";
                     }, new LinkedList<>() {
@@ -165,12 +160,8 @@ public class Interpreter {
             }, false));
             // defaults to $0 if nothing maybee
             put("length", new BuiltInFunctionDefinitionNode((vars) -> {
-                String string;
-                try {
-                    string = ((InterpreterArrayDataType) vars.get("string")).get("0").getContents();
-                } catch (IndexOutOfBoundsException e) {
-                    string = variables.get("$0").getContents();
-                }
+                String string = ((InterpreterArrayDataType) vars.get("string")).get("0").orElse(variables.get("$0"))
+                        .getContents();
                 return String.valueOf(string.length());
             }, new LinkedList<>() {
                 {
@@ -180,12 +171,8 @@ public class Interpreter {
             put("split", new BuiltInFunctionDefinitionNode((vars) -> {
                 String string = vars.get("string").getContents();
                 InterpreterArrayDataType array = (InterpreterArrayDataType) vars.get("array");
-                String sep;
-                try {
-                    sep = ((InterpreterArrayDataType) vars.get("sep")).get("0").getContents();
-                } catch (IndexOutOfBoundsException e) {
-                    sep = variables.get("FS").getContents();
-                }
+                String sep = ((InterpreterArrayDataType) vars.get("sep")).get("0").orElse(variables.get("FS"))
+                        .getContents();
                 var strings = string.split(sep);
                 int index = 0;
                 for (String s : strings) {
@@ -204,16 +191,9 @@ public class Interpreter {
                 // TODO: handle parse number exceptions
                 // we do start -1 b\c according to spec the start is 1-based index
                 int start = Integer.parseInt(vars.get("start").getContents()) - 1;
-
-                try {
-                    int end = start + Integer.parseInt(
-                            ((InterpreterArrayDataType) vars.get("length")).get("0").getContents());
-                    // we do not need top check if end greater than string length as that is index
-                    // out of bounds and gets caught by catch
-                    return string.substring(start, end);
-                } catch (IndexOutOfBoundsException e) {
-                    return string.substring(start);
-                }
+                return ((InterpreterArrayDataType) vars.get("length")).get("0")
+                        .<String>map(n -> string.substring(start, start + Integer.parseInt(n.getContents())))
+                        .orElse(string.substring(start));
 
             }, new LinkedList<>() {
                 {
