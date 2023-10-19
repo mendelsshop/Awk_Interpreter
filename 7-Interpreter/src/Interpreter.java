@@ -21,12 +21,15 @@ public class Interpreter {
         }
 
         public boolean SplitAndAssign() {
+            // variables.clear();
+            getGlobal("$)").setContents("");
+            // TODO: should we clear N(FR|F|R)
             if (!lines.isEmpty()) {
                 variables.put("NR", new InterpreterDataType("" + (++linesProcessed)));
                 // TODO: since no multi-file support nr = nfr
                 variables.put("NFR", new InterpreterDataType("" + linesProcessed));
                 String text = lines.remove(0);
-                var line = text.split(variables.get("FS").getContents());
+                var line = text.split(getGlobal("FS").getContents());
                 variables.put("NR", new InterpreterDataType("" + lines.size()));
                 // assign each variable to $n
                 // assign lines and nf,fnr,nr
@@ -42,6 +45,10 @@ public class Interpreter {
         }
     }
 
+    interface GetOrAdd {
+
+    }
+
     // TODO: i assume that we need the program node for interpreter
     private ProgramNode program;
     private LineManager input;
@@ -51,28 +58,41 @@ public class Interpreter {
             put("OFS", new InterpreterDataType(" "));
             put("OFT", new InterpreterDataType("%.6g"));
             put("ORS", new InterpreterDataType("\n"));
-            put("NF", new InterpreterDataType());
-            put("NFR", new InterpreterDataType());
-            put("NR", new InterpreterDataType());
+            // we dont set nr/nf/nfr as getglobal will auto assign them if accesed
         }
     };
+
+    public InterpreterDataType getGlobal(String index) {
+        return getVariable(index, variables);
+    }
+
+    private InterpreterDataType getVariable(String index, HashMap<String, InterpreterDataType> vars) {
+        // TODO: maybe through nice exception if not variable
+        return (vars.computeIfAbsent(index, u -> new InterpreterDataType()));
+    }
+
+    private InterpreterArrayDataType getArray(String index, HashMap<String, InterpreterDataType> vars) {
+        // TODO: proper exception if not array
+        return (InterpreterArrayDataType) (vars.computeIfAbsent(index, u -> new InterpreterArrayDataType()));
+    }
+
     // TODO; should have functions for checking that pieces of data are of specific
     // data type
-    // and nned better way to interact with array dt
     // also need to make sure to not clone stuff (most of the time) so [g]sub
     // actualy replaces strings
     // TODO: tinterpreter needs custom exception b/c doesn't know line numbers
     // docs https://pubs.opengroup.org/onlinepubs/7908799/xcu/awk.html
     // slightly more formatted
     // https://manpages.ubuntu.com/manpages/focal/en/man1/awk.1posix.html
-    // TODO: make function that get varidiac arguements contents (for varidaic
-    // buitins with single thing that is varidac)
     private HashMap<String, FunctionNode> functions = new HashMap<String, FunctionNode>() {
         {
             // TODO: builtin functions also need to figure out what each function does
             // TODO: printing arrays is not valid
+            // for all the varidiac functions we can assume that the vardiac paramter is of
+            // type InterpereterArrayDataType as the caller of each function knows to do
+            // that
             put("print", new BuiltInFunctionDefinitionNode((vars) -> {
-                InterpreterArrayDataType strings = (InterpreterArrayDataType) vars.get("strings");
+                InterpreterArrayDataType strings = getArray("strings", vars);
                 System.out.println(
                         strings.getItemsStream().map(InterpreterDataType::toString).collect(Collectors.joining(" ")));
                 return "";
@@ -82,8 +102,8 @@ public class Interpreter {
                 }
             }, true));
             put("printf", new BuiltInFunctionDefinitionNode((vars) -> {
-                String format = vars.get("format").getContents();
-                InterpreterArrayDataType strings = (InterpreterArrayDataType) vars.get("strings");
+                String format = getVariable("format", vars).getContents();
+                InterpreterArrayDataType strings = getArray("strings", vars);
                 // how to use print to format elements of stream of strings by format
                 System.out.printf(format, strings.getItemsStream().map(InterpreterDataType::toString).toArray());
                 return "";
@@ -94,8 +114,8 @@ public class Interpreter {
                 }
             }, true));
             put("sprintf", new BuiltInFunctionDefinitionNode((vars) -> {
-                String format = vars.get("format").getContents();
-                InterpreterArrayDataType strings = (InterpreterArrayDataType) vars.get("strings");
+                String format = getVariable("format", vars).getContents();
+                InterpreterArrayDataType strings = getArray("strings", vars);
                 return format.formatted(strings.getItemsStream().map(InterpreterDataType::toString).toArray());
             }, new LinkedList<>() {
                 {
@@ -114,10 +134,12 @@ public class Interpreter {
             }
             Function<TriFunction<String, String, String, String>, BuiltInFunctionDefinitionNode> sub = (
                     replacer) -> new BuiltInFunctionDefinitionNode((vars) -> {
-                        String pattern = vars.get("pattern").getContents();
-                        String replacement = (vars.get("replacement").getContents());
-                        InterpreterDataType target = ((InterpreterArrayDataType) vars.get("target")).get("0")
-                                .orElse(variables.get("$0"));
+                        String pattern = getVariable("pattern", vars).getContents();
+                        String replacement = (getVariable("replacement", vars)
+                                .getContents());
+                        InterpreterDataType target = (getArray("target", vars))
+                                .getOptional("0")
+                                .orElse(getGlobal("$0"));
                         target.setContents(replacer.apply(target.getContents(), pattern, replacement));
                         return "";
                     }, new LinkedList<>() {
@@ -129,8 +151,8 @@ public class Interpreter {
                     }, true);
             put("gsub", sub.apply(String::replaceAll));
             put("match", new BuiltInFunctionDefinitionNode((vars) -> {
-                String haystack = vars.get("haystack").getContents();
-                String needle = vars.get("needle").getContents();
+                String haystack = getVariable("haystack", vars).getContents();
+                String needle = getVariable("needle", vars).getContents();
                 var pattern = Pattern.compile(needle);
                 var matcher = pattern.matcher(haystack);
                 boolean matches = matcher.matches();
@@ -148,8 +170,8 @@ public class Interpreter {
 
             put("sub", sub.apply(String::replaceFirst));
             put("index", new BuiltInFunctionDefinitionNode((vars) -> {
-                String haystack = vars.get("haystack").getContents();
-                String needle = vars.get("needle").getContents();
+                String haystack = getVariable("haystack", vars).getContents();
+                String needle = getVariable("needle", vars).getContents();
                 int index = haystack.indexOf(needle);
                 return String.valueOf(index == -1 ? 0 : index + 1);
             }, new LinkedList<>() {
@@ -160,7 +182,8 @@ public class Interpreter {
             }, false));
             // defaults to $0 if nothing maybee
             put("length", new BuiltInFunctionDefinitionNode((vars) -> {
-                String string = ((InterpreterArrayDataType) vars.get("string")).get("0").orElse(variables.get("$0"))
+                String string = (getArray("string", vars)).getOptional("0")
+                        .orElse(getGlobal("$0"))
                         .getContents();
                 return String.valueOf(string.length());
             }, new LinkedList<>() {
@@ -169,9 +192,10 @@ public class Interpreter {
                 }
             }, true));
             put("split", new BuiltInFunctionDefinitionNode((vars) -> {
-                String string = vars.get("string").getContents();
-                InterpreterArrayDataType array = (InterpreterArrayDataType) vars.get("array");
-                String sep = ((InterpreterArrayDataType) vars.get("sep")).get("0").orElse(variables.get("FS"))
+                String string = getVariable("string", vars).getContents();
+                InterpreterArrayDataType array = getArray("array", vars);
+                String sep = (getArray("sep", vars))
+                        .getOptional("0").orElse(getGlobal("FS"))
                         .getContents();
                 var strings = string.split(sep);
                 int index = 0;
@@ -187,11 +211,13 @@ public class Interpreter {
                 }
             }, true));
             put("substr", new BuiltInFunctionDefinitionNode((vars) -> {
-                String string = vars.get("string").getContents();
+                String string = getVariable("string", vars).getContents();
                 // TODO: handle parse number exceptions
                 // we do start -1 b\c according to spec the start is 1-based index
-                int start = Integer.parseInt(vars.get("start").getContents()) - 1;
-                return ((InterpreterArrayDataType) vars.get("length")).get("0")
+                int start = Integer
+                        .parseInt(getVariable("start", vars).getContents()) - 1;
+                return (getArray("length", vars))
+                        .getOptional("0")
                         .<String>map(n -> string.substring(start, start + Integer.parseInt(n.getContents())))
                         .orElse(string.substring(start));
 
@@ -204,7 +230,7 @@ public class Interpreter {
             }, true));
             Function<Function<String, String>, BuiltInFunctionDefinitionNode> strUpdate = (
                     mapper) -> new BuiltInFunctionDefinitionNode((vars) -> {
-                        String string = vars.get("string").getContents();
+                        String string = getVariable("string", vars).getContents();
                         return mapper.apply(string);
                     }, new LinkedList<>() {
                         {
