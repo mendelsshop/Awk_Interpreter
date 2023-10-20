@@ -12,7 +12,10 @@ public class FunctionNode extends Node {
     private String name;
     private LinkedList<String> parameters;
     private LinkedList<StatementNode> statements;
-
+    protected FunctionNode(String name, LinkedList<String> parameters) {
+        this.name = name;
+        this.parameters = parameters;
+    }
     public FunctionNode(String name, LinkedList<String> parameters, LinkedList<StatementNode> statements) {
         this.name = name;
         this.parameters = parameters;

@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.function.Function;
-
+import java.util.function.BiFunction;
 public class Interpreter {
     private class LineManager {
         List<String> lines;
@@ -91,7 +91,7 @@ public class Interpreter {
             // for all the varidiac functions we can assume that the vardiac paramter is of
             // type InterpereterArrayDataType as the caller of each function knows to do
             // that
-            put("print", new BuiltInFunctionDefinitionNode((vars) -> {
+            put("print", new BuiltInFunctionDefinitionNode("print", (vars) -> {
                 InterpreterArrayDataType strings = getArray("strings", vars);
                 System.out.println(
                         strings.getItemsStream().map(InterpreterDataType::toString).collect(Collectors.joining(" ")));
@@ -101,7 +101,7 @@ public class Interpreter {
                     add("strings");
                 }
             }, true));
-            put("printf", new BuiltInFunctionDefinitionNode((vars) -> {
+            put("printf", new BuiltInFunctionDefinitionNode("printf", (vars) -> {
                 String format = getVariable("format", vars).getContents();
                 InterpreterArrayDataType strings = getArray("strings", vars);
                 // how to use print to format elements of stream of strings by format
@@ -113,7 +113,7 @@ public class Interpreter {
                     add("strings");
                 }
             }, true));
-            put("sprintf", new BuiltInFunctionDefinitionNode((vars) -> {
+            put("sprintf", new BuiltInFunctionDefinitionNode("sprintf", (vars) -> {
                 String format = getVariable("format", vars).getContents();
                 InterpreterArrayDataType strings = getArray("strings", vars);
                 return format.formatted(strings.getItemsStream().map(InterpreterDataType::toString).toArray());
@@ -124,16 +124,16 @@ public class Interpreter {
                 }
             }, true));
             // are next and getline samething
-            put("getline", new BuiltInFunctionDefinitionNode((vars) -> input.SplitAndAssign() ? "" : "",
+            put("getline", new BuiltInFunctionDefinitionNode("getline", (vars) -> input.SplitAndAssign() ? "" : "",
                     new LinkedList<>(), false));
-            put("next", new BuiltInFunctionDefinitionNode((vars) -> input.SplitAndAssign() ? "" : "",
+            put("next", new BuiltInFunctionDefinitionNode("next", (vars) -> input.SplitAndAssign() ? "" : "",
                     new LinkedList<>(), false));
             @FunctionalInterface
             interface TriFunction<T, U, V, K> {
                 K apply(T t, U u, V v);
             }
-            Function<TriFunction<String, String, String, String>, BuiltInFunctionDefinitionNode> sub = (
-                    replacer) -> new BuiltInFunctionDefinitionNode((vars) -> {
+            BiFunction<String, TriFunction<String, String, String, String>, BuiltInFunctionDefinitionNode>  sub = (name,
+                    replacer) -> new BuiltInFunctionDefinitionNode(name,(vars) -> {
                         String pattern = getVariable("pattern", vars).getContents();
                         String replacement = (getVariable("replacement", vars)
                                 .getContents());
@@ -149,8 +149,8 @@ public class Interpreter {
                             add("target");
                         }
                     }, true);
-            put("gsub", sub.apply(String::replaceAll));
-            put("match", new BuiltInFunctionDefinitionNode((vars) -> {
+            put("gsub", sub.apply("gsub",String::replaceAll));
+            put("match", new BuiltInFunctionDefinitionNode("match", (vars) -> {
                 String haystack = getVariable("haystack", vars).getContents();
                 String needle = getVariable("needle", vars).getContents();
                 var pattern = Pattern.compile(needle);
@@ -168,8 +168,8 @@ public class Interpreter {
                 }
             }, false));
 
-            put("sub", sub.apply(String::replaceFirst));
-            put("index", new BuiltInFunctionDefinitionNode((vars) -> {
+            put("sub", sub.apply("sub", String::replaceFirst));
+            put("index", new BuiltInFunctionDefinitionNode("index",(vars) -> {
                 String haystack = getVariable("haystack", vars).getContents();
                 String needle = getVariable("needle", vars).getContents();
                 int index = haystack.indexOf(needle);
@@ -181,7 +181,7 @@ public class Interpreter {
                 }
             }, false));
             // defaults to $0 if nothing maybee
-            put("length", new BuiltInFunctionDefinitionNode((vars) -> {
+            put("length", new BuiltInFunctionDefinitionNode( "length", (vars) -> {
                 String string = (getArray("string", vars)).getOptional("0")
                         .orElse(getGlobal("$0"))
                         .getContents();
@@ -191,7 +191,7 @@ public class Interpreter {
                     add("string");
                 }
             }, true));
-            put("split", new BuiltInFunctionDefinitionNode((vars) -> {
+            put("split", new BuiltInFunctionDefinitionNode("split",(vars) -> {
                 String string = getVariable("string", vars).getContents();
                 InterpreterArrayDataType array = getArray("array", vars);
                 String sep = (getArray("sep", vars))
@@ -210,7 +210,7 @@ public class Interpreter {
                     add("sep");
                 }
             }, true));
-            put("substr", new BuiltInFunctionDefinitionNode((vars) -> {
+            put("substr", new BuiltInFunctionDefinitionNode("substr", (vars) -> {
                 String string = getVariable("string", vars).getContents();
                 // TODO: handle parse number exceptions
                 // we do start -1 b\c according to spec the start is 1-based index
@@ -228,8 +228,8 @@ public class Interpreter {
                     add("length");
                 }
             }, true));
-            Function<Function<String, String>, BuiltInFunctionDefinitionNode> strUpdate = (
-                    mapper) -> new BuiltInFunctionDefinitionNode((vars) -> {
+            BiFunction<String, Function<String, String>, BuiltInFunctionDefinitionNode> strUpdate = (name,
+                    mapper) -> new BuiltInFunctionDefinitionNode(name, (vars) -> {
                         String string = getVariable("string", vars).getContents();
                         return mapper.apply(string);
                     }, new LinkedList<>() {
@@ -237,8 +237,8 @@ public class Interpreter {
                             add("string");
                         }
                     }, false);
-            put("tolower", strUpdate.apply(String::toLowerCase));
-            put("toupper", strUpdate.apply(String::toUpperCase));
+            put("tolower", strUpdate.apply("tolower", String::toLowerCase));
+            put("toupper", strUpdate.apply("toupper", String::toUpperCase));
         }
     };
 
