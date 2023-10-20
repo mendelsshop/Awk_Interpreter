@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 public class Interpreter {
     private class LineManager {
@@ -298,8 +297,8 @@ public class Interpreter {
                         if (orElseGet instanceof InterpreterArrayDataType va) {
                             return va.get(index);
                         } else {
-                           throw new AwkRuntimeError.ExpectedArray(index, orElseGet.getContents());
- 
+                            throw new AwkRuntimeError.ExpectedArray(index, orElseGet.getContents());
+
                         }
                     }
                 }).orElseGet(() -> {
@@ -315,7 +314,7 @@ public class Interpreter {
                 });
             }
             case OperationNode op -> {
-                return GetIDT(op);
+                return GetIDT(op, locals);
             }
             default -> {
                 return null;
@@ -323,7 +322,80 @@ public class Interpreter {
         }
     }
 
-    private InterpreterDataType GetIDT(OperationNode op ) {
+    private InterpreterDataType GetIDT(OperationNode op, HashMap<String, InterpreterDataType> locals) {
+        switch (op.getOperation()) {
+            case DOLLAR -> {
+                var index = GetIDT(op.getLeft(), locals);
+                return getGlobal("$" + index);
+            }
+            case ADD -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case AND -> {
+                return new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
+                        ? truthyValue(GetIDT(op.getRight().get(), locals).getContents())
+                        : "0");
+            }
+            case CONCATENATION -> {
+                return new InterpreterDataType(
+                        GetIDT(op.getLeft(), locals).getContents() + GetIDT(op.getRight().get(), locals));
+            }
+            case DIVIDE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case EQ -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case EXPONENT -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case GE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case GT -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case IN -> {
+                var index = GetIDT(op.getLeft(), locals).getContents();
 
+                if (op.getRight().get() instanceof VariableReferenceNode v) {
+                    // TODO: make sure that variablerefnod index is empty
+                    if (locals == null) {
+                        return getArray(v.getName(), variables).get(index);
+                    } else {
+                        InterpreterDataType orElseGet = Optional.ofNullable(locals.get(v.getName()))
+                                .or(() -> Optional.ofNullable(variables.get(v.getName())))
+                                .orElseGet(() -> locals.computeIfAbsent(v.getName(),
+                                        u -> new InterpreterArrayDataType()));
+                        if (orElseGet instanceof InterpreterArrayDataType va) {
+                            return va.get(index);
+                        } else {
+                            throw new AwkRuntimeError.ExpectedArray(index, orElseGet.getContents());
+
+                        }
+                    }
+                } else {
+                    throw new AwkRuntimeError.ExpectedArray(index, "");
+                }
+            }
+            case LE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case LT -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case MATCH -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case MODULO -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case MULTIPLY -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case NE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case NOT -> {
+                return new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
+                        ? "0"
+                        : "1");
+            }
+            case NOTMATCH -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case OR -> {
+                return new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
+                        ? "1"
+                        : truthyValue(GetIDT(op.getRight().get(), locals).getContents()));
+            }
+            case POSTDEC -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case POSTINC -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case PREDEC -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case PREINC -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case SUBTRACT -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case UNARYNEG -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case UNARYPOS -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            default -> throw new IllegalArgumentException("Unexpected value: " + op.getOperation());
+
+        }
+    }
+
+    private String truthyValue(String value) {
+        return (Float.parseFloat(value) == 0.0) || (value == "") || (value == "0") ? "0" : "1";
     }
 }

@@ -1,8 +1,8 @@
 {
-     aa = 6
+     aa = 2
     ;;;;;
     # for (i = 0; i < aa; i++) {
-b = $666
-        print "a",b, "aaa"
+b = 4
+        print b && aa
 # }
 } 
