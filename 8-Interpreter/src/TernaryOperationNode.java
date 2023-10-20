@@ -3,6 +3,18 @@ public class TernaryOperationNode extends Node {
     private Node then;
     private Node alt;
 
+    public Node getCond() {
+        return cond;
+    }
+
+    public Node getThen() {
+        return then;
+    }
+
+    public Node getAlt() {
+        return alt;
+    }
+
     public TernaryOperationNode(Node cond, Node then, Node alt) {
         this.cond = cond;
         this.then = then;

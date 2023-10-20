@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class Interpreter {
     private class LineManager {
@@ -45,10 +46,6 @@ public class Interpreter {
         }
     }
 
-    interface GetOrAdd {
-
-    }
-
     // TODO: i assume that we need the program node for interpreter
     private ProgramNode program;
     private LineManager input;
@@ -73,7 +70,13 @@ public class Interpreter {
 
     private InterpreterArrayDataType getArray(String index, HashMap<String, InterpreterDataType> vars) {
         // TODO: proper exception if not array
-        return (InterpreterArrayDataType) (vars.computeIfAbsent(index, u -> new InterpreterArrayDataType()));
+        if (vars.computeIfAbsent(index,
+                u -> new InterpreterArrayDataType()) instanceof InterpreterArrayDataType array) {
+            return array;
+        } else {
+            var contents = getVariable(index, vars);
+            throw new AwkRuntimeError.ExpectedArray(index, contents);
+        }
     }
 
     // TODO; should have functions for checking that pieces of data are of specific
@@ -248,6 +251,79 @@ public class Interpreter {
         this.program = program;
         functions.putAll(
                 program.getFunctions().stream().collect(Collectors.toMap(FunctionNode::getName, function -> function)));
+
+    }
+
+    private String RunFunctionCall(FunctionCallNode function, HashMap<String, InterpreterDataType> locals) {
+        return "";
+    }
+
+    // TODO: prefer locals to be optional
+    private InterpreterDataType GetIDT(Node value, HashMap<String, InterpreterDataType> locals) {
+
+        switch (value) {
+            case AssignmentNode a -> {
+                var newValue = GetIDT(a.getExpression(), locals);
+                return newValue;
+            }
+            case ConstantNode c -> {
+                return new InterpreterDataType(c.getValue());
+            }
+            case FunctionCallNode f -> {
+                return new InterpreterDataType(RunFunctionCall(f, locals));
+            }
+            case PatternNode p -> {
+                throw new AwkRuntimeError.PatternError(p);
+            }
+            case TernaryOperationNode t -> {
+                var cond = GetIDT(t.getCond(), locals);
+                if (cond.getContents().trim() == "0" || cond.getContents().trim() == "") {
+                    return GetIDT(t.getThen(), locals);
+                } else {
+                    return GetIDT(t.getAlt(), locals);
+                }
+
+            }
+            // TODO: logic here got very messy with indexing + globals+locals
+            case VariableReferenceNode v -> {
+                return v.getIndex().<InterpreterDataType>map(i -> {
+                    var index = GetIDT(i, locals).getContents();
+                    if (locals == null) {
+                        return getArray(v.getName(), variables).get(index);
+                    } else {
+                        InterpreterDataType orElseGet = Optional.ofNullable(locals.get(v.getName()))
+                                .or(() -> Optional.ofNullable(variables.get(v.getName())))
+                                .orElseGet(() -> locals.computeIfAbsent(v.getName(),
+                                        u -> new InterpreterArrayDataType()));
+                        if (orElseGet instanceof InterpreterArrayDataType va) {
+                            return va.get(index);
+                        } else {
+                           throw new AwkRuntimeError.ExpectedArray(index, orElseGet.getContents());
+ 
+                        }
+                    }
+                }).orElseGet(() -> {
+                    if (locals == null) {
+                        return getGlobal(v.getName());
+                    } else {
+                        var va = Optional.ofNullable(locals.get(v.getName()))
+                                .or(() -> Optional.ofNullable(variables.get(v.getName())))
+                                .orElseGet(() -> locals.computeIfAbsent(v.getName(),
+                                        u -> new InterpreterDataType()));
+                        return va;
+                    }
+                });
+            }
+            case OperationNode op -> {
+                return GetIDT(op);
+            }
+            default -> {
+                return null;
+            }
+        }
+    }
+
+    private InterpreterDataType GetIDT(OperationNode op ) {
 
     }
 }
