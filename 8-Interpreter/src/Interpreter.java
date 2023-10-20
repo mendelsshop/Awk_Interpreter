@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.function.BiFunction;
 
 public class Interpreter {
@@ -60,18 +61,32 @@ public class Interpreter {
     };
 
     public InterpreterDataType getGlobal(String index) {
-        return getVariable(index, variables);
+        return (variables.computeIfAbsent(index, u -> new InterpreterDataType()));
+    }
+
+    private InterpreterDataType getOrInit(String index, Optional<HashMap<String, InterpreterDataType>> vars,
+            Supplier<InterpreterDataType> defaultValue) {
+        return vars
+                .map(v -> Optional.ofNullable(v.get(index)).or(() -> Optional.ofNullable(variables.get(index)))
+                        .orElseGet(() -> v.computeIfAbsent(index, (u) -> defaultValue.get())))
+                .orElseGet(() -> variables.computeIfAbsent(index, (u) -> defaultValue.get()));
+
+    }
+
+    private InterpreterDataType getVariable(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
+        return getOrInit(index, vars, () -> new InterpreterDataType());
     }
 
     private InterpreterDataType getVariable(String index, HashMap<String, InterpreterDataType> vars) {
-        // TODO: maybe through nice exception if not variable
-        return (vars.computeIfAbsent(index, u -> new InterpreterDataType()));
+        return getVariable(index, Optional.ofNullable(vars));
     }
 
     private InterpreterArrayDataType getArray(String index, HashMap<String, InterpreterDataType> vars) {
-        // TODO: proper exception if not array
-        if (vars.computeIfAbsent(index,
-                u -> new InterpreterArrayDataType()) instanceof InterpreterArrayDataType array) {
+        return getArray(index, Optional.ofNullable(vars));
+    }
+
+    private InterpreterArrayDataType getArray(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
+        if (getOrInit(index, vars, () -> new InterpreterArrayDataType()) instanceof InterpreterArrayDataType array) {
             return array;
         } else {
             var contents = getVariable(index, vars);
@@ -288,31 +303,8 @@ public class Interpreter {
             case VariableReferenceNode v -> {
                 return v.getIndex().<InterpreterDataType>map(i -> {
                     var index = GetIDT(i, locals).getContents();
-                    if (locals == null) {
-                        return getArray(v.getName(), variables).get(index);
-                    } else {
-                        InterpreterDataType orElseGet = Optional.ofNullable(locals.get(v.getName()))
-                                .or(() -> Optional.ofNullable(variables.get(v.getName())))
-                                .orElseGet(() -> locals.computeIfAbsent(v.getName(),
-                                        u -> new InterpreterArrayDataType()));
-                        if (orElseGet instanceof InterpreterArrayDataType va) {
-                            return va.get(index);
-                        } else {
-                            throw new AwkRuntimeError.ExpectedArray(index, orElseGet.getContents());
-
-                        }
-                    }
-                }).orElseGet(() -> {
-                    if (locals == null) {
-                        return getGlobal(v.getName());
-                    } else {
-                        var va = Optional.ofNullable(locals.get(v.getName()))
-                                .or(() -> Optional.ofNullable(variables.get(v.getName())))
-                                .orElseGet(() -> locals.computeIfAbsent(v.getName(),
-                                        u -> new InterpreterDataType()));
-                        return va;
-                    }
-                });
+                    return getArray(v.getName(), locals).get(index);
+                }).orElseGet(() -> getVariable(v.getName(), locals));
             }
             case OperationNode op -> {
                 return GetIDT(op, locals);
@@ -348,21 +340,8 @@ public class Interpreter {
                 var index = GetIDT(op.getLeft(), locals).getContents();
 
                 if (op.getRight().get() instanceof VariableReferenceNode v) {
-                    // TODO: make sure that variablerefnod index is empty
-                    if (locals == null) {
-                        return getArray(v.getName(), variables).get(index);
-                    } else {
-                        InterpreterDataType orElseGet = Optional.ofNullable(locals.get(v.getName()))
-                                .or(() -> Optional.ofNullable(variables.get(v.getName())))
-                                .orElseGet(() -> locals.computeIfAbsent(v.getName(),
-                                        u -> new InterpreterArrayDataType()));
-                        if (orElseGet instanceof InterpreterArrayDataType va) {
-                            return va.get(index);
-                        } else {
-                            throw new AwkRuntimeError.ExpectedArray(index, orElseGet.getContents());
-
-                        }
-                    }
+                    var array = getArray(v.getName(), locals);
+                    return new InterpreterDataType(array.contains(index) ? "1" : "0");
                 } else {
                     throw new AwkRuntimeError.ExpectedArray(index, "");
                 }

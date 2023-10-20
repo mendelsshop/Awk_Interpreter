@@ -55,5 +55,19 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
             return "Expeced " + variable + " to be array but was scalar with value" + contents;
         }
 
+    }    // when not enough/to many arguments passed to a function
+    public static class ExpectedScalarError extends AwkRuntimeError {
+        private InterpreterArrayDataType value;
+
+        public ExpectedScalarError(InterpreterArrayDataType value) {
+            this.value = value;
+        }
+
+        @Override
+        public String message() {
+            // TODO Auto-generated method stub
+            throw new UnsupportedOperationException("Unimplemented method 'message'");
+        }
+
     }
 }

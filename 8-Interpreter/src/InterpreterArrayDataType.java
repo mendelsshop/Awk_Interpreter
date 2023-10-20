@@ -28,6 +28,16 @@ public class InterpreterArrayDataType extends InterpreterDataType {
         return Optional.ofNullable(contents.get(index));
     }
 
+    public boolean contains(String index) {
+        return contents.containsKey(index);
+    }
+
+    // make sure that if we try to get it like its a scalar that we throw exception
+    @Override
+    public String getContents() {
+        throw new AwkRuntimeError.ExpectedScalarError(this);
+    }
+
     public void insert(String name, InterpreterDataType value) {
         contents.put(name, value);
     }

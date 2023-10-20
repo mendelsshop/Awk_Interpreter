@@ -35,5 +35,10 @@ public class InterpreterArrayDataType extends InterpreterDataType {
     public InterpreterArrayDataType() {
     }
 
+    // make sure that if we try to get it like its a scalar that we throw exception
+    @Override
+    public String getContents() {
+        throw new AwkRuntimeError.ExpectedScalarError(this);
+    }
     // TODO: printing arrays is not valid
 }
