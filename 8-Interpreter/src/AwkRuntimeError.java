@@ -1,9 +1,12 @@
 // Decided to make each error indivdual class makes it easier to test what type of errors are being thrown
 // TODO: make the inner classes accesable without/outer class
 public abstract class AwkRuntimeError extends RuntimeException implements DisplayError {
-
+    // we make them subclasses static which just means they don't have acccess to
+    // the outer classes instance varaibles -> we can access the inner classes
+    // without an instance to the outer class
+    // in our class making the outer class act kinda of like a single file package
     // when not enough/to many arguments passed to a function
-    public class AwkArittyError extends AwkRuntimeError {
+    public static class AwkArittyError extends AwkRuntimeError {
         String functionName;
         int expected;
         int found;
@@ -24,7 +27,7 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
 
     }
 
-    public class PatternError extends AwkRuntimeError {
+    public static class PatternError extends AwkRuntimeError {
         private PatternNode pattern;
 
         public PatternError(PatternNode pattern) {
@@ -38,7 +41,7 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
 
     }
 
-    public class ExpectedArray extends AwkRuntimeError {
+    public static class ExpectedArray extends AwkRuntimeError {
         private String variable;
         private String contents;
 

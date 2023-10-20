@@ -75,7 +75,7 @@ public class Interpreter {
             return array;
         } else {
             var contents = getVariable(index, vars);
-            throw new AwkRuntimeError.ExpectedArray(index, contents);
+            throw new AwkRuntimeError.ExpectedArray(index, contents.getContents());
         }
     }
 
