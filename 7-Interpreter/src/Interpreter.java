@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.function.Function;
 import java.util.function.BiFunction;
+
 public class Interpreter {
     private class LineManager {
         List<String> lines;
@@ -78,7 +79,7 @@ public class Interpreter {
 
     private <T> T parse(Function<String, T> parser, InterpreterDataType value) {
         try {
-        return parser.apply(value.getContents());
+            return parser.apply(value.getContents());
         } catch (NumberFormatException e) {
             throw new AwkRuntimeError.ExpectedNumberError(value, e);
         }
@@ -140,8 +141,8 @@ public class Interpreter {
             interface TriFunction<T, U, V, K> {
                 K apply(T t, U u, V v);
             }
-            BiFunction<String, TriFunction<String, String, String, String>, BuiltInFunctionDefinitionNode>  sub = (name,
-                    replacer) -> new BuiltInFunctionDefinitionNode(name,(vars) -> {
+            BiFunction<String, TriFunction<String, String, String, String>, BuiltInFunctionDefinitionNode> sub = (name,
+                    replacer) -> new BuiltInFunctionDefinitionNode(name, (vars) -> {
                         String pattern = getVariable("pattern", vars).getContents();
                         String replacement = (getVariable("replacement", vars)
                                 .getContents());
@@ -157,7 +158,7 @@ public class Interpreter {
                             add("target");
                         }
                     }, true);
-            put("gsub", sub.apply("gsub",String::replaceAll));
+            put("gsub", sub.apply("gsub", String::replaceAll));
             put("match", new BuiltInFunctionDefinitionNode("match", (vars) -> {
                 String haystack = getVariable("haystack", vars).getContents();
                 String needle = getVariable("needle", vars).getContents();
@@ -177,7 +178,7 @@ public class Interpreter {
             }, false));
 
             put("sub", sub.apply("sub", String::replaceFirst));
-            put("index", new BuiltInFunctionDefinitionNode("index",(vars) -> {
+            put("index", new BuiltInFunctionDefinitionNode("index", (vars) -> {
                 String haystack = getVariable("haystack", vars).getContents();
                 String needle = getVariable("needle", vars).getContents();
                 int index = haystack.indexOf(needle);
@@ -189,7 +190,7 @@ public class Interpreter {
                 }
             }, false));
             // defaults to $0 if nothing maybee
-            put("length", new BuiltInFunctionDefinitionNode( "length", (vars) -> {
+            put("length", new BuiltInFunctionDefinitionNode("length", (vars) -> {
                 String string = (getArray("string", vars)).getOptional("0")
                         .orElse(getGlobal("$0"))
                         .getContents();
@@ -199,7 +200,7 @@ public class Interpreter {
                     add("string");
                 }
             }, true));
-            put("split", new BuiltInFunctionDefinitionNode("split",(vars) -> {
+            put("split", new BuiltInFunctionDefinitionNode("split", (vars) -> {
                 String string = getVariable("string", vars).getContents();
                 InterpreterArrayDataType array = getArray("array", vars);
                 String sep = (getArray("sep", vars))

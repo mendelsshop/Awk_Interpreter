@@ -7,6 +7,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.BiFunction;
@@ -90,7 +91,15 @@ public class Interpreter {
             return array;
         } else {
             var contents = getVariable(index, vars);
-            throw new AwkRuntimeError.ExpectedArray(index, contents.getContents());
+            throw new AwkRuntimeError.ExpectedArrayError(index, contents.getContents());
+        }
+    }
+
+    private <T> T parse(Function<String, T> parser, InterpreterDataType value) {
+        try {
+            return parser.apply(value.getContents());
+        } catch (NumberFormatException e) {
+            throw new AwkRuntimeError.ExpectedNumberError(value, e);
         }
     }
 
@@ -232,11 +241,10 @@ public class Interpreter {
                 String string = getVariable("string", vars).getContents();
                 // TODO: handle parse number exceptions
                 // we do start -1 b\c according to spec the start is 1-based index
-                int start = Integer
-                        .parseInt(getVariable("start", vars).getContents()) - 1;
+                int start = parse(Integer::parseInt, getVariable("start", vars)) - 1;
                 return (getArray("length", vars))
                         .getOptional("0")
-                        .<String>map(n -> string.substring(start, start + Integer.parseInt(n.getContents())))
+                        .<String>map(n -> string.substring(start, start + parse(Integer::parseInt, n)))
                         .orElse(string.substring(start));
 
             }, new LinkedList<>() {
@@ -343,7 +351,7 @@ public class Interpreter {
                     var array = getArray(v.getName(), locals);
                     return new InterpreterDataType(array.contains(index) ? "1" : "0");
                 } else {
-                    throw new AwkRuntimeError.ExpectedArray(index, "");
+                    throw new AwkRuntimeError.ExpectedArrayError(index, "");
                 }
             }
             case LE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
