@@ -1,6 +1,7 @@
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class InterpreterArrayDataType extends InterpreterDataType {
@@ -40,5 +41,11 @@ public class InterpreterArrayDataType extends InterpreterDataType {
     public String getContents() {
         throw new AwkRuntimeError.ExpectedScalarError(this);
     }
-    // TODO: printing arrays is not valid
+
+    @Override
+    // just for errors
+    public String toString() {
+        return "{" + contents.entrySet().stream().map(e -> e.getKey() + ": " + e.getValue())
+                .collect(Collectors.joining(",")) + "}";
+    }
 }

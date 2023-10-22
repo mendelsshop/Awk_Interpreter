@@ -23,7 +23,7 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
         }
 
     }
-    // when not enough/to many arguments passed to a function
+
     public static class ExpectedScalarError extends AwkRuntimeError {
         private InterpreterArrayDataType value;
 
@@ -33,24 +33,42 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
 
         @Override
         public String message() {
-            // TODO Auto-generated method stub
-            throw new UnsupportedOperationException("Unimplemented method 'message'");
+            return "Expected scalar value, but found array with {key:value}:" + value;
         }
 
     }
-     public static class ExpectedArray extends AwkRuntimeError {
+
+    public static class ExpectedArrayError extends AwkRuntimeError {
         private String variable;
         private String contents;
 
-        public ExpectedArray(String variable, String contents) {
+        public ExpectedArrayError(String variable, String contents) {
             this.variable = variable;
             this.contents = contents;
         }
 
         @Override
         public String message() {
-            return "Expeced " + variable + " to be array but was scalar with value" + contents;
+            return "Expeced " + variable + " to be array but was scalar with value: " + contents;
         }
 
     }
-}   
+
+    public static class ExpectedNumberError extends AwkRuntimeError {
+        private InterpreterDataType value;
+        private NumberFormatException parseError;
+
+        public ExpectedNumberError(InterpreterDataType value, NumberFormatException parseError) {
+            this.value = value;
+            this.parseError = parseError;
+        }
+
+        @Override
+        public String message() {
+            return "Expected " + value + " to be a number, but it couldn't be coerreced to a number: "
+                    + parseError.getMessage();
+        }
+
+    }
+
+}

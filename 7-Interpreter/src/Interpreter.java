@@ -76,6 +76,14 @@ public class Interpreter {
         return (InterpreterArrayDataType) (vars.computeIfAbsent(index, u -> new InterpreterArrayDataType()));
     }
 
+    private <T> T parse(Function<String, T> parser, InterpreterDataType value) {
+        try {
+        return parser.apply(value.getContents());
+        } catch (NumberFormatException e) {
+            throw new AwkRuntimeError.ExpectedNumberError(value, e);
+        }
+    }
+
     // TODO; should have functions for checking that pieces of data are of specific
     // data type
     // also need to make sure to not clone stuff (most of the time) so [g]sub
@@ -214,11 +222,10 @@ public class Interpreter {
                 String string = getVariable("string", vars).getContents();
                 // TODO: handle parse number exceptions
                 // we do start -1 b\c according to spec the start is 1-based index
-                int start = Integer
-                        .parseInt(getVariable("start", vars).getContents()) - 1;
+                int start = parse(Integer::parseInt, getVariable("start", vars)) - 1;
                 return (getArray("length", vars))
                         .getOptional("0")
-                        .<String>map(n -> string.substring(start, start + Integer.parseInt(n.getContents())))
+                        .<String>map(n -> string.substring(start, start + parse(Integer::parseInt, n)))
                         .orElse(string.substring(start));
 
             }, new LinkedList<>() {
