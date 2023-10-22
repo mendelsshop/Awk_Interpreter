@@ -103,6 +103,11 @@ public class Interpreter {
         }
     }
 
+    @FunctionalInterface
+    interface TriFunction<T, U, V, K> {
+        K apply(T t, U u, V v);
+    }
+
     // TODO; should have functions for checking that pieces of data are of specific
     // data type
     // also need to make sure to not clone stuff (most of the time) so [g]sub
@@ -155,10 +160,7 @@ public class Interpreter {
                     new LinkedList<>(), false));
             put("next", new BuiltInFunctionDefinitionNode("next", (vars) -> input.SplitAndAssign() ? "" : "",
                     new LinkedList<>(), false));
-            @FunctionalInterface
-            interface TriFunction<T, U, V, K> {
-                K apply(T t, U u, V v);
-            }
+
             BiFunction<String, TriFunction<String, String, String, String>, BuiltInFunctionDefinitionNode> sub = (name,
                     replacer) -> new BuiltInFunctionDefinitionNode(name, (vars) -> {
                         String pattern = getVariable("pattern", vars).getContents();
@@ -324,24 +326,25 @@ public class Interpreter {
     }
 
     private InterpreterDataType GetIDT(OperationNode op, HashMap<String, InterpreterDataType> locals) {
-        switch (op.getOperation()) {
+        // yield is used to return from a block
+        // https://stackoverflow.com/questions/56806905/return-outside-of-enclosing-switch-expression
+        TriFunction<Node, Node, BiFunction<Float, Float, Float>, InterpreterDataType> mathOp = (a, b,
+                math) -> new InterpreterDataType("" + math.apply(
+                        parse(Float::parseFloat, GetIDT(a, locals)), parse(Float::parseFloat, GetIDT(b, locals))));
+        return switch (op.getOperation()) {
             case DOLLAR -> {
                 var index = GetIDT(op.getLeft(), locals);
-                return getGlobal("$" + index);
+                yield getGlobal("$" + index);
             }
-            case ADD -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case AND -> {
-                return new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
-                        ? truthyValue(GetIDT(op.getRight().get(), locals).getContents())
-                        : "0");
-            }
-            case CONCATENATION -> {
-                return new InterpreterDataType(
-                        GetIDT(op.getLeft(), locals).getContents() + GetIDT(op.getRight().get(), locals));
-            }
-            case DIVIDE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case ADD -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x + y);
+            case AND -> new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
+                    ? truthyValue(GetIDT(op.getRight().get(), locals).getContents())
+                    : "0");
+            case CONCATENATION -> new InterpreterDataType(
+                    GetIDT(op.getLeft(), locals).getContents() + GetIDT(op.getRight().get(), locals));
+            case DIVIDE -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x / y);
             case EQ -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case EXPONENT -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case EXPONENT -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> (float) Math.pow(x, y));
             case GE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             case GT -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             case IN -> {
@@ -349,7 +352,7 @@ public class Interpreter {
 
                 if (op.getRight().get() instanceof VariableReferenceNode v) {
                     var array = getArray(v.getName(), locals);
-                    return new InterpreterDataType(array.contains(index) ? "1" : "0");
+                    yield new InterpreterDataType(array.contains(index) ? "1" : "0");
                 } else {
                     throw new AwkRuntimeError.ExpectedArrayError(index, "");
                 }
@@ -357,30 +360,28 @@ public class Interpreter {
             case LE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             case LT -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             case MATCH -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case MODULO -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case MULTIPLY -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case MODULO -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x % y);
+            case MULTIPLY -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x * y);
             case NE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case NOT -> {
-                return new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
+            case NOT ->
+                new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
                         ? "0"
                         : "1");
-            }
             case NOTMATCH -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case OR -> {
-                return new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
+            case OR ->
+                new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
                         ? "1"
                         : truthyValue(GetIDT(op.getRight().get(), locals).getContents()));
-            }
             case POSTDEC -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             case POSTINC -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             case PREDEC -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             case PREINC -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case SUBTRACT -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case SUBTRACT -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x - y);
             case UNARYNEG -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             case UNARYPOS -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             default -> throw new IllegalArgumentException("Unexpected value: " + op.getOperation());
 
-        }
+        };
     }
 
     private String truthyValue(String value) {
