@@ -396,6 +396,7 @@ public class Interpreter {
             case MULTIPLY -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x * y);
             case NE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             case NOT ->
+
                 new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
                         ? "0"
                         : "1");
@@ -409,8 +410,9 @@ public class Interpreter {
             case PREDEC -> opAssign.apply(op.getLeft(), true, (x) -> x - 1);
             case PREINC -> opAssign.apply(op.getLeft(), true, (x) -> x + 1);
             case SUBTRACT -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x - y);
-            case UNARYNEG -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case UNARYPOS -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case UNARYNEG -> new InterpreterDataType("" + (-parse(Float::parseFloat, GetIDT(op.getLeft(), locals))));
+            // unary pos is just used to check that a IDT is a numberish
+            case UNARYPOS -> new InterpreterDataType("" + parse(Float::parseFloat, GetIDT(op.getLeft(), locals)));
             default -> throw new IllegalArgumentException("Unexpected value: " + op.getOperation());
 
         };
