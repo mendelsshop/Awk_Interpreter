@@ -8,4 +8,11 @@ b = 4
 $1= 5
 $1++
 print $1
+c[0] = 6
+foo(c)
 } 
+
+function foo(x) {
+        x =5
+        
+}

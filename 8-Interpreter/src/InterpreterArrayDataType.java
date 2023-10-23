@@ -39,6 +39,12 @@ public class InterpreterArrayDataType extends InterpreterDataType {
         throw new AwkRuntimeError.ExpectedScalarError(this);
     }
 
+    // make sure that if we try to set it like its a scalar that we throw exception
+    @Override
+    public void setContents(String contents) {
+        throw new AwkRuntimeError.ExpectedScalarError(this);
+    }
+
     public void insert(String name, InterpreterDataType value) {
         contents.put(name, value);
     }

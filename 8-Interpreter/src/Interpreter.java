@@ -305,6 +305,7 @@ public class Interpreter {
                 // throw new AwkRuntimeError.NotAVariableError(value);
                 // }
                 checkAssignAble(a.getTarget());
+                // we can really only assign to scalar
                 GetIDT(a.getTarget(), locals).setContents(newValue.getContents());
                 return newValue;
             }
@@ -318,12 +319,8 @@ public class Interpreter {
                 throw new AwkRuntimeError.PatternError(p);
             }
             case TernaryOperationNode t -> {
-                var cond = GetIDT(t.getCond(), locals);
-                if (cond.getContents().trim() == "0" || cond.getContents().trim() == "") {
-                    return GetIDT(t.getThen(), locals);
-                } else {
-                    return GetIDT(t.getAlt(), locals);
-                }
+                return truthyValue(GetIDT(t.getCond(), locals).getContents()) == "1" ? GetIDT(t.getThen(), locals)
+                        : GetIDT(t.getAlt(), locals);
 
             }
             case VariableReferenceNode v -> {
@@ -364,6 +361,9 @@ public class Interpreter {
             var newValue = math.apply(oldValue);
             return new InterpreterDataType("" + (pre ? oldValue : newValue));
         };
+        BiFunction<String, String, String> match = (pattern, string) -> {
+            return Pattern.matches(pattern, string) ? "1" : "0";
+        };
         return switch (op.getOperation()) {
             case DOLLAR -> {
                 var index = GetIDT(op.getLeft(), locals);
@@ -391,16 +391,17 @@ public class Interpreter {
             }
             case LE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             case LT -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case MATCH -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case MATCH -> new InterpreterDataType(match.apply(GetIDT(op.getLeft(), locals).getContents(),
+                    GetIDT(op.getRight().get(), locals).getContents()));
             case MODULO -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x % y);
             case MULTIPLY -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x * y);
             case NE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             case NOT ->
-
                 new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
                         ? "0"
                         : "1");
-            case NOTMATCH -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case NOTMATCH -> new InterpreterDataType(match.apply(GetIDT(op.getLeft(), locals).getContents(),
+                    GetIDT(op.getRight().get(), locals).getContents()) == "1" ? "0" : "1");
             case OR ->
                 new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
                         ? "1"
