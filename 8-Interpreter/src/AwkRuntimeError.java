@@ -87,4 +87,18 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
         }
 
     }
+
+    public static class NotAVariableError extends AwkRuntimeError {
+        private Node attempted;
+
+        public NotAVariableError(Node attempted) {
+            this.attempted = attempted;
+        }
+
+        @Override
+        public String message() {
+            return "Expected " + attempted + " to be a variable so it could be assigned to but was not";
+        }
+
+    }
 }

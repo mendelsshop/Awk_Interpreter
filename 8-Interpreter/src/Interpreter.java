@@ -288,7 +288,24 @@ public class Interpreter {
 
         switch (value) {
             case AssignmentNode a -> {
+                // TODO: make sure assigmnet is right ie array to array or scalr to scale ...
                 var newValue = GetIDT(a.getExpression(), locals);
+                // if (a.getTarget() instanceof VariableReferenceNode || a.getTarget()
+                // instanceof OperationNode op
+                // && op.getOperation() == OperationNode.Operation.DOLLAR) {
+                // var target = GetIDT(v, locals).getContents();
+                // v.getIndex().ifPresentOrElse(i->{
+                // String index = GetIDT(i, locals).getContents();
+                // getArray(target, locals).insert(index, newValue);
+                // }, ()-> {
+                // getVariable(target, locals).setContents(newValue.getContents());
+                // });
+
+                // } else {
+                // throw new AwkRuntimeError.NotAVariableError(value);
+                // }
+                checkAssignAble(a.getTarget());
+                GetIDT(a.getTarget(), locals).setContents(newValue.getContents());
                 return newValue;
             }
             case ConstantNode c -> {
@@ -309,7 +326,6 @@ public class Interpreter {
                 }
 
             }
-            // TODO: logic here got very messy with indexing + globals+locals
             case VariableReferenceNode v -> {
                 return v.getIndex().<InterpreterDataType>map(i -> {
                     var index = GetIDT(i, locals).getContents();
@@ -325,12 +341,29 @@ public class Interpreter {
         }
     }
 
+    private void checkAssignAble(Node value) {
+        if (value instanceof VariableReferenceNode || value instanceof OperationNode op
+                && op.getOperation() == OperationNode.Operation.DOLLAR) {
+
+        } else {
+            throw new AwkRuntimeError.NotAVariableError(value);
+        }
+
+    }
+
     private InterpreterDataType GetIDT(OperationNode op, HashMap<String, InterpreterDataType> locals) {
         // yield is used to return from a block
         // https://stackoverflow.com/questions/56806905/return-outside-of-enclosing-switch-expression
         TriFunction<Node, Node, BiFunction<Float, Float, Float>, InterpreterDataType> mathOp = (a, b,
                 math) -> new InterpreterDataType("" + math.apply(
                         parse(Float::parseFloat, GetIDT(a, locals)), parse(Float::parseFloat, GetIDT(b, locals))));
+        TriFunction<Node, Boolean, Function<Float, Float>, InterpreterDataType> opAssign = (v, pre, math) -> {
+            checkAssignAble(v);
+            var variable = GetIDT(v, locals);
+            var oldValue = parse(Float::parseFloat, variable);
+            var newValue = math.apply(oldValue);
+            return new InterpreterDataType("" + (pre ? oldValue : newValue));
+        };
         return switch (op.getOperation()) {
             case DOLLAR -> {
                 var index = GetIDT(op.getLeft(), locals);
@@ -349,7 +382,6 @@ public class Interpreter {
             case GT -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             case IN -> {
                 var index = GetIDT(op.getLeft(), locals).getContents();
-
                 if (op.getRight().get() instanceof VariableReferenceNode v) {
                     var array = getArray(v.getName(), locals);
                     yield new InterpreterDataType(array.contains(index) ? "1" : "0");
@@ -372,10 +404,10 @@ public class Interpreter {
                 new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
                         ? "1"
                         : truthyValue(GetIDT(op.getRight().get(), locals).getContents()));
-            case POSTDEC -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case POSTINC -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case PREDEC -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case PREINC -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case POSTDEC -> opAssign.apply(op.getLeft(), false, (x) -> x - 1);
+            case POSTINC -> opAssign.apply(op.getLeft(), false, (x) -> x + 1);
+            case PREDEC -> opAssign.apply(op.getLeft(), true, (x) -> x - 1);
+            case PREINC -> opAssign.apply(op.getLeft(), true, (x) -> x + 1);
             case SUBTRACT -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x - y);
             case UNARYNEG -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
             case UNARYPOS -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
@@ -385,6 +417,10 @@ public class Interpreter {
     }
 
     private String truthyValue(String value) {
-        return (Float.parseFloat(value) == 0.0) || (value == "") || (value == "0") ? "0" : "1";
+        try {
+            return (Float.parseFloat(value) == 0.0) ? "0" : "1";
+        } catch (NumberFormatException e) {
+            return "0";
+        }
     }
 }
