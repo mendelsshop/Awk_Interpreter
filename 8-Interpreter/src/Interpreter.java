@@ -25,7 +25,7 @@ public class Interpreter {
 
         public boolean SplitAndAssign() {
             // variables.clear();
-            getGlobal("$)").setContents("");
+            // getGlobal("$)").setContents("");
             // TODO: should we clear N(FR|F|R)
             if (!lines.isEmpty()) {
                 variables.put("NR", new InterpreterDataType("" + (++linesProcessed)));
@@ -156,7 +156,7 @@ public class Interpreter {
                 }
             }, true));
             // are next and getline samething
-            put("getline", new BuiltInFunctionDefinitionNode("getline", (vars) -> input.SplitAndAssign() ? "" : "",
+            put("getline", new BuiltInFunctionDefinitionNode("getline", (vars) -> input.SplitAndAssign() ? "1" : "0",
                     new LinkedList<>(), false));
             put("next", new BuiltInFunctionDefinitionNode("next", (vars) -> input.SplitAndAssign() ? "" : "",
                     new LinkedList<>(), false));
