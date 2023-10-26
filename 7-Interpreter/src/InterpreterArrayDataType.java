@@ -48,4 +48,10 @@ public class InterpreterArrayDataType extends InterpreterDataType {
         return "{" + contents.entrySet().stream().map(e -> e.getKey() + ": " + e.getValue())
                 .collect(Collectors.joining(",")) + "}";
     }
+
+    // Cloning array does not do anything
+    @Override
+    public InterpreterDataType Clone() {
+        return this;
+    }
 }

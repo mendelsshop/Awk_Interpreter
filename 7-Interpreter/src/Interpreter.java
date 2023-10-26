@@ -9,10 +9,19 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 public class Interpreter {
+
+    /// mutability
+    // scalars passed into builtins can effect outside call
+    // scalars passed into user defined function cannot cannot change outside call
+    /// (done by calling Clone on IDT at function call time)
+    // arrays will always will always modify outside outside call
+    // something assigned to an index of an array cannot modify the what that value
+    /// is
 
     // for managing $0 ,$n
     private class Record {
@@ -29,7 +38,8 @@ public class Interpreter {
                     .collect(Collectors.toCollection(() -> new LinkedList<>()));
         }
 
-        // we assume non negative b/c this will only be used in GetIDT and we can verify that there
+        // we assume non negative b/c this will only be used in GetIDT and we can verify
+        // that there
         public InterpreterDataType Get(int index) {
             return switch (index) {
                 case 0 -> record;
@@ -61,7 +71,15 @@ public class Interpreter {
                 super.setContents(contents);
                 ProcessRecord(contents);
             }
+
+            // cloning a $0 means you get the contents but not tha ability to modify the
+            // current record
+            @Override
+            public InterpreterDataType Clone() {
+                return super.Clone();
+            }
         }
+
         // reprsents $n overides IDT, so setting it can do special things
         private class Field extends InterpreterDataType {
             public Field(String contents) {
@@ -76,6 +94,14 @@ public class Interpreter {
                 record.updateRecord(fields.stream().map(Field::getContents).collect(Collectors.joining(" ")));
 
             }
+
+            // cloning a $n means you get the contents but not tha ability to modify the
+            // current record
+            @Override
+            public InterpreterDataType Clone() {
+                return super.Clone();
+            }
+
         }
     }
 
@@ -138,15 +164,37 @@ public class Interpreter {
     };
 
     public InterpreterDataType getGlobal(String index) {
-        return getVariable(index, variables);
+        return (variables.computeIfAbsent(index, u -> new InterpreterDataType()));
+    }
+
+    private InterpreterDataType getOrInit(String index, Optional<HashMap<String, InterpreterDataType>> vars,
+            Supplier<InterpreterDataType> defaultValue) {
+        return vars
+                .map(v -> Optional.ofNullable(v.get(index)).or(() -> Optional.ofNullable(variables.get(index)))
+                        .orElseGet(() -> v.computeIfAbsent(index, (u) -> defaultValue.get())))
+                .orElseGet(() -> variables.computeIfAbsent(index, (u) -> defaultValue.get()));
+
+    }
+
+    private InterpreterDataType getVariable(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
+        return getOrInit(index, vars, () -> new InterpreterDataType());
     }
 
     private InterpreterDataType getVariable(String index, HashMap<String, InterpreterDataType> vars) {
-        return (vars.computeIfAbsent(index, u -> new InterpreterDataType()));
+        return getVariable(index, Optional.ofNullable(vars));
     }
 
     private InterpreterArrayDataType getArray(String index, HashMap<String, InterpreterDataType> vars) {
-        return (InterpreterArrayDataType) (vars.computeIfAbsent(index, u -> new InterpreterArrayDataType()));
+        return getArray(index, Optional.ofNullable(vars));
+    }
+
+    private InterpreterArrayDataType getArray(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
+        if (getOrInit(index, vars, () -> new InterpreterArrayDataType()) instanceof InterpreterArrayDataType array) {
+            return array;
+        } else {
+            var contents = getVariable(index, vars);
+            throw new AwkRuntimeError.ExpectedArrayError(index, contents.getContents());
+        }
     }
 
     private Float parse(InterpreterDataType value) {
@@ -236,7 +284,7 @@ public class Interpreter {
                                 .getContents());
                         InterpreterDataType target = (getArray("target", vars))
                                 .getOptional("0")
-                                .orElse(getGlobal("$0"));
+                                .orElse(record.Get(0));
                         target.setContents(replacer.apply(target.getContents(), pattern, replacement));
                         return "";
                     }, new LinkedList<>() {
@@ -279,7 +327,7 @@ public class Interpreter {
             // defaults to $0 if nothing maybee
             put("length", new BuiltInFunctionDefinitionNode("length", (vars) -> {
                 String string = (getArray("string", vars)).getOptional("0")
-                        .orElse(getGlobal("$0"))
+                        .orElse(record.Get(0))
                         .getContents();
                 return String.valueOf(string.length());
             }, new LinkedList<>() {

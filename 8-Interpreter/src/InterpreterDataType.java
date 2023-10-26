@@ -23,4 +23,9 @@ public class InterpreterDataType {
     public String toString() {
         return contents;
     }
+
+    // cloning an IDT means you cannot modify the current IDT through the cloned one
+    public InterpreterDataType Clone() {
+        return new InterpreterDataType(contents);
+    }
 }

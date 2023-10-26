@@ -96,9 +96,31 @@
         # assign $0 splits with fs and reassigns $n
         # getline splits, reassign
         # getline var doesnt split or reassign
-        b = 7
-        q[0] = 1
-        # getline q
-        print q[0]  "ss"
-        # print 1
+        # b = 7
+        # q[0] = $0
+        # # # getline q
+        # # c =7
+        # # foo(c)
+        # w[0] = "sddffss"
+        # print "$", $0
+        # # print c
+        # # a = "foo"
+        # # print q[0]  "ss"
+        # ccc [1] = "sddffss"
+        # foo(w, a,"" )
+c
+        a = 0
+        b[0] = 0
+        # c[0] = 0
+        # d = 1
+        c[0] =8
+        foo(c, d)
+
+        
+}  
+
+function foo(a, b) {
+        a[0] = b++
+        print a[0]
+        print b
 }
