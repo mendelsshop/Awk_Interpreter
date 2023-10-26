@@ -9,37 +9,39 @@
         #         # $(i+1) = $i "saa"
         #         $i = "AA"
         #         # print $i
-        #         print a,
-        #          b c d ,e
+                print a, 
+                b c d, 0
+                ,0
+                
+                
+                
                  
                  
-                 
-        #          ,e;
-        #         getline i
-        #         if (i==0) {
-        #                 print "a" a
-        #                 a = $i 
-        #         } else            if (i==1) {
-        #                 print "b"b
-        #                 b = $i 
+                # getline i
+                if (i==0) {
+                        print "a" a
+                        a = $i 
+                } else            if (i==1) {
+                        print "b"b
+                        b = $i 
                 
-        #         } else            if (i==2) {
-        #                 print c
-        #                 c = $i 
+                } else            if (i==2) {
+                        print c
+                        c = $i 
                 
-        #         } else            if (i==3) {
-        #                 print d
-        #                 d = $i 
+                } else            if (i==3) {
+                        print d
+                        d = $i 
                 
-        #         } else            if (i==4) {
-        #                 print e
-        #                 e = $i 
+                } else            if (i==4) {
+                        print e
+                        e = $i 
                 
-        #         } else            if (i==5) {
-        #                 print a
-        #                 a = $i 
+                } else            if (i==5) {
+                        print a
+                        a = $i 
                 
-        #         } 
+                } 
         # }
         # z++
         # print z
@@ -108,13 +110,13 @@
         # # print q[0]  "ss"
         # ccc [1] = "sddffss"
         # foo(w, a,"" )
-c
-        a = 0
-        b[0] = 0
-        # c[0] = 0
-        # d = 1
-        c[0] =8
-        foo(c, d)
+# c
+#         a = 0
+#         b[0] = 0
+#         # c[0] = 0
+#         # d = 1
+#         c[0] =8
+#         foo(c, d)
 
         
 }  

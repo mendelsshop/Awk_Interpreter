@@ -312,24 +312,29 @@ public class Parser {
     // wouldn't have to do all this peek stuff
     private Optional<FunctionCallNode> ParseFunctionCall() throws AwkException {
         CheckedFunction<Token.TokenType, Optional<FunctionCallNode>, AwkException> builtin = (
-                token) -> MatchAndRemove(token).<FunctionCallNode, AwkException>CheckedMap(s -> {
-                    var ret = new LinkedList<Node>();
-                    // TODO: maybe we shouldnt let newline before first arg to builtin
-                    AcceptSeperators();
-                    ParseOperation().CheckedIfPresent(first -> {
-                        ret.add(first);
+            token) -> MatchAndRemove(token).<FunctionCallNode, AwkException>CheckedMap(s -> {
+                var ret = new LinkedList<Node>();
+                ParseOperation().CheckedIfPresent(first -> {
+                    ret.add(first);
+                    while (MatchAndRemove(Token.TokenType.COMMA).isPresent()) {
                         AcceptSeperators();
-                        // TODO: maybe we shouldnt let newline before `,` in builtin
-                        while (MatchAndRemove(Token.TokenType.COMMA).isPresent()) {
-                            AcceptSeperators();
-                            ret.add(ParseOperation()
-                                    .orElseThrow(() -> createException(
-                                            "call to builtin " + token + " missing expression after comma")));
-                            AcceptSeperators();
-                        }
-                    });
-                    return new FunctionCallNode(token.toString(), ret);
+                        // we can only acceptsepeorators after comma or else check seporarotrs will fail b/c we ate the seporator before
+                        // ie:
+                        // print a, b,
+                        //
+                        // c
+                        // is ok but 
+                        // print a
+                        // ,v 
+                        // is not
+                        ret.add(ParseOperation()
+                                .orElseThrow(() -> createException(
+                                        "call to builtin " + token + " missing expression after comma")));
+
+                    }
                 });
+                return new FunctionCallNode(token.toString(), ret);
+            });
         return Optional.ofNullable(tokens.Peek(0).map(Token::getType).equals(Optional.of(Token.TokenType.WORD))
                 && tokens.Peek(1).map(Token::getType).equals(Optional.of(Token.TokenType.OPENPAREN))
                         ? new FunctionCallNode(MatchAndRemove(Token.TokenType.WORD).get().getValue().get(),

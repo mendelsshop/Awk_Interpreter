@@ -314,18 +314,23 @@ public class Parser {
         CheckedFunction<Token.TokenType, Optional<FunctionCallNode>, AwkException> builtin = (
                 token) -> MatchAndRemove(token).<FunctionCallNode, AwkException>CheckedMap(s -> {
                     var ret = new LinkedList<Node>();
-                    // TODO: maybe we shouldnt let newline before first arg to builtin
-                    AcceptSeperators();
                     ParseOperation().CheckedIfPresent(first -> {
                         ret.add(first);
-                        AcceptSeperators();
-                        // TODO: maybe we shouldnt let newline before `,` in builtin
                         while (MatchAndRemove(Token.TokenType.COMMA).isPresent()) {
                             AcceptSeperators();
+                            // we can only acceptsepeorators after comma or else check seporarotrs will fail b/c we ate the seporator before
+                            // ie:
+                            // print a, b,
+                            //
+                            // c
+                            // is ok but 
+                            // print a
+                            // ,v 
+                            // is not
                             ret.add(ParseOperation()
                                     .orElseThrow(() -> createException(
                                             "call to builtin " + token + " missing expression after comma")));
-                            AcceptSeperators();
+
                         }
                     });
                     return new FunctionCallNode(token.toString(), ret);
