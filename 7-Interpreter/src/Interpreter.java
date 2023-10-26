@@ -7,52 +7,126 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.function.Function;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 public class Interpreter {
+
+    // for managing $0 ,$n
+    private class Record {
+        private LinkedList<Field> fields;
+        private HeadField record;
+
+        public Record(String record) {
+            ProcessRecord(record);
+        }
+
+        private void ProcessRecord(String record) {
+            this.record = new HeadField(record);
+            fields = Stream.of(record.split(getGlobal("FS").getContents())).map(f -> new Field(f))
+                    .collect(Collectors.toCollection(() -> new LinkedList<>()));
+        }
+
+        // we assume non negative b/c this will only be used in GetIDT and we can verify that there
+        public InterpreterDataType Get(int index) {
+            return switch (index) {
+                case 0 -> record;
+                default ->
+                    Optional.ofNullable(fields.get(index - 1)).orElseGet(() -> {
+                        // the second you update the record any witespace from record input ges removed
+                        record.updateRecord(fields.stream().map(Field::getContents).collect(Collectors.joining(" ")));
+                        Stream.iterate(fields.size() - 2 - index, n -> n < index - 1, n -> n + 1)
+                                .map(f -> new Field("")).forEach(f -> fields.add(f));
+                        return fields.get(index - 1);
+                    });
+
+            };
+        }
+
+        // reprsents $1 overides IDT, so setting it can do special things
+        private class HeadField extends InterpreterDataType {
+            public HeadField(String contents) {
+                super(contents);
+            }
+
+            private void updateRecord(String input) {
+                super.setContents(input);
+            }
+
+            @Override
+            public void setContents(String contents) {
+                // we only resplit on fs if we update whole record
+                super.setContents(contents);
+                ProcessRecord(contents);
+            }
+        }
+        // reprsents $n overides IDT, so setting it can do special things
+        private class Field extends InterpreterDataType {
+            public Field(String contents) {
+                super(contents);
+
+            }
+
+            @Override
+            public void setContents(String contents) {
+                super.setContents(contents);
+                // the second you update the record any witespace from record input ges removed
+                record.updateRecord(fields.stream().map(Field::getContents).collect(Collectors.joining(" ")));
+
+            }
+        }
+    }
+
     private class LineManager {
-        List<String> lines;
+        private List<String> lines;
         // we could keep track of the number of lines by using NR, but this much easier
         // and more efficient b/c no string->number parsing
-        int linesProcessed = 0;
+        // int linesProcessed = 0;
 
         public LineManager(List<String> lines) {
             this.lines = lines;
         }
 
-        public boolean SplitAndAssign() {
-            // variables.clear();
-            // getGlobal("$)").setContents("");
-            // TODO: should we clear N(FR|F|R)
+        // used for getline with variable
+        public boolean assign(InterpreterDataType var) {
             if (!lines.isEmpty()) {
-                variables.put("NR", new InterpreterDataType("" + (++linesProcessed)));
-                // TODO: since no multi-file support nr = nfr
-                variables.put("NFR", new InterpreterDataType("" + linesProcessed));
+                var.setContents(lines.remove(0));
+            }
+            return !lines.isEmpty();
+        }
+
+        public boolean SplitAndAssign() {
+            if (!lines.isEmpty()) {
+                Consumer<String> update = (n) -> {
+                    var nref = getGlobal(n);
+                    try {
+                        // if this is first record "" gets parsed to 0 (0 + 1) = 1
+                        nref.setContents("" + parse(nref) + 1);
+                    } catch (AwkRuntimeError.ExpectedNumberError e) {
+                        nref.setContents("1");
+                    }
+                };
+                update.accept("NR");
+                update.accept("NFR");
                 String text = lines.remove(0);
-                var line = text.split(getGlobal("FS").getContents());
-                variables.put("NR", new InterpreterDataType("" + lines.size()));
+                variables.put("NF", new InterpreterDataType("" + lines.size()));
                 // assign each variable to $n
                 // assign lines and nf,fnr,nr
                 // is $0 for whole line if so start from 1
                 // also need to clear variables from previous line
-                variables.put("$0", new InterpreterDataType(text));
-                for (int i = 1; i <= line.length; i++) {
-                    variables.put("$" + line, new InterpreterDataType(line[i]));
-                }
+                record = new Record(text);
                 return true;
             }
             return false;
         }
     }
 
-    interface GetOrAdd {
-
-    }
-
-    // TODO: i assume that we need the program node for interpreter
     private ProgramNode program;
     private LineManager input;
+    private boolean next = false;
+    private Record record;
     private HashMap<String, InterpreterDataType> variables = new HashMap<String, InterpreterDataType>() {
         {
             put("FS", new InterpreterDataType(" "));
@@ -68,18 +142,20 @@ public class Interpreter {
     }
 
     private InterpreterDataType getVariable(String index, HashMap<String, InterpreterDataType> vars) {
-        // TODO: maybe through nice exception if not variable
         return (vars.computeIfAbsent(index, u -> new InterpreterDataType()));
     }
 
     private InterpreterArrayDataType getArray(String index, HashMap<String, InterpreterDataType> vars) {
-        // TODO: proper exception if not array
         return (InterpreterArrayDataType) (vars.computeIfAbsent(index, u -> new InterpreterArrayDataType()));
     }
 
-    private <T> T parse(Function<String, T> parser, InterpreterDataType value) {
+    private Float parse(InterpreterDataType value) {
+        var string = value.getContents().trim();
         try {
-            return parser.apply(value.getContents());
+            if (string.isBlank()) {
+                return 0f;
+            }
+            return Float.parseFloat(string);
         } catch (NumberFormatException e) {
             throw new AwkRuntimeError.ExpectedNumberError(value, e);
         }
@@ -133,11 +209,22 @@ public class Interpreter {
                 }
             }, true));
             // are next and getline samething
-            put("getline", new BuiltInFunctionDefinitionNode("getline", (vars) -> input.SplitAndAssign() ? "1" : "0",
-                    new LinkedList<>(), false));
-            // next should be a statementnode b/c it changes control flow (if the entire awk program is essentialy a loop next is like a continue)
-            put("next", new BuiltInFunctionDefinitionNode("next", (vars) -> input.SplitAndAssign() ? "" : "",
-                    new LinkedList<>(), false));
+            // should getline be variadiac on a variable
+            put("getline",
+                    new BuiltInFunctionDefinitionNode("getline",
+                            (vars) -> getArray("var", vars).getOptional("0").map(v -> input.assign(v))
+                                    .orElseGet(() -> input.SplitAndAssign()) ? "1" : "0",
+                            new LinkedList<>() {
+                                {
+                                    add("var");
+                                }
+                            }, true));
+            // next should be a statementnode b/c it changes control flow (if the entire awk
+            // program is essentialy a loop next is like a continue)
+            put("next", new BuiltInFunctionDefinitionNode("next", (vars) -> {
+                next = true;
+                return "";
+            }, new LinkedList<>(), false));
             @FunctionalInterface
             interface TriFunction<T, U, V, K> {
                 K apply(T t, U u, V v);
@@ -177,7 +264,6 @@ public class Interpreter {
                     add("needle");
                 }
             }, false));
-
             put("sub", sub.apply("sub", String::replaceFirst));
             put("index", new BuiltInFunctionDefinitionNode("index", (vars) -> {
                 String haystack = getVariable("haystack", vars).getContents();
@@ -222,12 +308,11 @@ public class Interpreter {
             }, true));
             put("substr", new BuiltInFunctionDefinitionNode("substr", (vars) -> {
                 String string = getVariable("string", vars).getContents();
-                // TODO: handle parse number exceptions
                 // we do start -1 b\c according to spec the start is 1-based index
-                int start = parse(Integer::parseInt, getVariable("start", vars)) - 1;
+                int start = parse(getVariable("start", vars)).intValue() - 1;
                 return (getArray("length", vars))
                         .getOptional("0")
-                        .<String>map(n -> string.substring(start, start + parse(Integer::parseInt, n)))
+                        .<String>map(n -> string.substring(start, start + parse(n).intValue()))
                         .orElse(string.substring(start));
 
             }, new LinkedList<>() {

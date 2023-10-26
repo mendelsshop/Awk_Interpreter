@@ -1,56 +1,139 @@
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 public class Interpreter {
+    @FunctionalInterface
+    interface TriFunction<T, U, V, K> {
+        K apply(T t, U u, V v);
+    }
+
+    // for managing $0 ,$n
+    private class Record {
+        private LinkedList<Field> fields;
+        private HeadField record;
+
+        public Record(String record) {
+            ProcessRecord(record);
+        }
+
+        private void ProcessRecord(String record) {
+            this.record = new HeadField(record);
+            fields = Stream.of(record.split(getGlobal("FS").getContents())).map(f -> new Field(f))
+                    .collect(Collectors.toCollection(() -> new LinkedList<>()));
+        }
+
+        // we assume non negative b/c this will only be used in GetIDT and we can verify
+        // that there
+        public InterpreterDataType Get(int index) {
+            return switch (index) {
+                case 0 -> record;
+                default ->
+                    Optional.ofNullable(fields.get(index - 1)).orElseGet(() -> {
+                        // the second you update the record any witespace from record input ges removed
+                        record.updateRecord(fields.stream().map(Field::getContents).collect(Collectors.joining(" ")));
+                        Stream.iterate(fields.size() - 2 - index, n -> n < index - 1, n -> n + 1)
+                                .map(f -> new Field("")).forEach(f -> fields.add(f));
+                        return fields.get(index - 1);
+                    });
+
+            };
+        }
+
+        // reprsents $1 overides IDT, so setting it can do special things
+        private class HeadField extends InterpreterDataType {
+            public HeadField(String contents) {
+                super(contents);
+            }
+
+            private void updateRecord(String input) {
+                super.setContents(input);
+            }
+
+            @Override
+            public void setContents(String contents) {
+                // we only resplit on fs if we update whole record
+                super.setContents(contents);
+                ProcessRecord(contents);
+            }
+        }
+
+        // reprsents $n overides IDT, so setting it can do special things
+        private class Field extends InterpreterDataType {
+            public Field(String contents) {
+                super(contents);
+
+            }
+
+            @Override
+            public void setContents(String contents) {
+                super.setContents(contents);
+                // the second you update the record any witespace from record input ges removed
+                record.updateRecord(fields.stream().map(Field::getContents).collect(Collectors.joining(" ")));
+
+            }
+        }
+    }
+
     private class LineManager {
-        List<String> lines;
+        private List<String> lines;
         // we could keep track of the number of lines by using NR, but this much easier
         // and more efficient b/c no string->number parsing
-        int linesProcessed = 0;
+        // int linesProcessed = 0;
 
         public LineManager(List<String> lines) {
             this.lines = lines;
         }
 
-        public boolean SplitAndAssign() {
-            // variables.clear();
-            // getGlobal("$)").setContents("");
-            // TODO: should we clear N(FR|F|R)
+        // used for getline with variable
+        public boolean assign(InterpreterDataType var) {
             if (!lines.isEmpty()) {
-                variables.put("NR", new InterpreterDataType("" + (++linesProcessed)));
-                // TODO: since no multi-file support nr = nfr
-                variables.put("NFR", new InterpreterDataType("" + linesProcessed));
+                var.setContents(lines.remove(0));
+            }
+            return !lines.isEmpty();
+        }
+
+        public boolean SplitAndAssign() {
+            if (!lines.isEmpty()) {
+                Consumer<String> update = (n) -> {
+                    var nref = getGlobal(n);
+                    try {
+                        // if this is first record "" gets parsed to 0 (0 + 1) = 1
+                        nref.setContents("" + parse(nref) + 1);
+                    } catch (AwkRuntimeError.ExpectedNumberError e) {
+                        nref.setContents("1");
+                    }
+                };
+                update.accept("NR");
+                update.accept("NFR");
                 String text = lines.remove(0);
-                var line = text.split(getGlobal("FS").getContents());
-                variables.put("NR", new InterpreterDataType("" + lines.size()));
+                variables.put("NF", new InterpreterDataType("" + lines.size()));
                 // assign each variable to $n
                 // assign lines and nf,fnr,nr
                 // is $0 for whole line if so start from 1
                 // also need to clear variables from previous line
-                variables.put("$0", new InterpreterDataType(text));
-                for (int i = 1; i <= line.length; i++) {
-                    variables.put("$" + line, new InterpreterDataType(line[i]));
-                }
+                record = new Record(text);
                 return true;
             }
             return false;
         }
     }
 
-    // TODO: i assume that we need the program node for interpreter
     private ProgramNode program;
     private LineManager input;
+    private boolean next = false;
+    private Record record;
     private HashMap<String, InterpreterDataType> variables = new HashMap<String, InterpreterDataType>() {
         {
             put("FS", new InterpreterDataType(" "));
@@ -62,50 +145,27 @@ public class Interpreter {
     };
 
     public InterpreterDataType getGlobal(String index) {
-        return (variables.computeIfAbsent(index, u -> new InterpreterDataType()));
-    }
-
-    private InterpreterDataType getOrInit(String index, Optional<HashMap<String, InterpreterDataType>> vars,
-            Supplier<InterpreterDataType> defaultValue) {
-        return vars
-                .map(v -> Optional.ofNullable(v.get(index)).or(() -> Optional.ofNullable(variables.get(index)))
-                        .orElseGet(() -> v.computeIfAbsent(index, (u) -> defaultValue.get())))
-                .orElseGet(() -> variables.computeIfAbsent(index, (u) -> defaultValue.get()));
-
-    }
-
-    private InterpreterDataType getVariable(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
-        return getOrInit(index, vars, () -> new InterpreterDataType());
+        return getVariable(index, variables);
     }
 
     private InterpreterDataType getVariable(String index, HashMap<String, InterpreterDataType> vars) {
-        return getVariable(index, Optional.ofNullable(vars));
+        return (vars.computeIfAbsent(index, u -> new InterpreterDataType()));
     }
 
     private InterpreterArrayDataType getArray(String index, HashMap<String, InterpreterDataType> vars) {
-        return getArray(index, Optional.ofNullable(vars));
+        return (InterpreterArrayDataType) (vars.computeIfAbsent(index, u -> new InterpreterArrayDataType()));
     }
 
-    private InterpreterArrayDataType getArray(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
-        if (getOrInit(index, vars, () -> new InterpreterArrayDataType()) instanceof InterpreterArrayDataType array) {
-            return array;
-        } else {
-            var contents = getVariable(index, vars);
-            throw new AwkRuntimeError.ExpectedArrayError(index, contents.getContents());
-        }
-    }
-
-    private <T> T parse(Function<String, T> parser, InterpreterDataType value) {
+    private Float parse(InterpreterDataType value) {
+        var string = value.getContents().trim();
         try {
-            return parser.apply(value.getContents());
+            if (string.isBlank()) {
+                return 0f;
+            }
+            return Float.parseFloat(string);
         } catch (NumberFormatException e) {
             throw new AwkRuntimeError.ExpectedNumberError(value, e);
         }
-    }
-
-    @FunctionalInterface
-    interface TriFunction<T, U, V, K> {
-        K apply(T t, U u, V v);
     }
 
     // TODO; should have functions for checking that pieces of data are of specific
@@ -156,11 +216,22 @@ public class Interpreter {
                 }
             }, true));
             // are next and getline samething
-            put("getline", new BuiltInFunctionDefinitionNode("getline", (vars) -> input.SplitAndAssign() ? "1" : "0",
-                    new LinkedList<>(), false));
-            put("next", new BuiltInFunctionDefinitionNode("next", (vars) -> input.SplitAndAssign() ? "" : "",
-                    new LinkedList<>(), false));
-
+            // should getline be variadiac on a variable
+            put("getline",
+                    new BuiltInFunctionDefinitionNode("getline",
+                            (vars) -> getArray("var", vars).getOptional("0").map(v -> input.assign(v))
+                                    .orElseGet(() -> input.SplitAndAssign()) ? "1" : "0",
+                            new LinkedList<>() {
+                                {
+                                    add("var");
+                                }
+                            }, true));
+            // next should be a statementnode b/c it changes control flow (if the entire awk
+            // program is essentialy a loop next is like a continue)
+            put("next", new BuiltInFunctionDefinitionNode("next", (vars) -> {
+                next = true;
+                return "";
+            }, new LinkedList<>(), false));
             BiFunction<String, TriFunction<String, String, String, String>, BuiltInFunctionDefinitionNode> sub = (name,
                     replacer) -> new BuiltInFunctionDefinitionNode(name, (vars) -> {
                         String pattern = getVariable("pattern", vars).getContents();
@@ -196,7 +267,6 @@ public class Interpreter {
                     add("needle");
                 }
             }, false));
-
             put("sub", sub.apply("sub", String::replaceFirst));
             put("index", new BuiltInFunctionDefinitionNode("index", (vars) -> {
                 String haystack = getVariable("haystack", vars).getContents();
@@ -241,12 +311,11 @@ public class Interpreter {
             }, true));
             put("substr", new BuiltInFunctionDefinitionNode("substr", (vars) -> {
                 String string = getVariable("string", vars).getContents();
-                // TODO: handle parse number exceptions
                 // we do start -1 b\c according to spec the start is 1-based index
-                int start = parse(Integer::parseInt, getVariable("start", vars)) - 1;
+                int start = parse(getVariable("start", vars)).intValue() - 1;
                 return (getArray("length", vars))
                         .getOptional("0")
-                        .<String>map(n -> string.substring(start, start + parse(Integer::parseInt, n)))
+                        .<String>map(n -> string.substring(start, start + parse(n).intValue()))
                         .orElse(string.substring(start));
 
             }, new LinkedList<>() {
@@ -353,21 +422,36 @@ public class Interpreter {
         // https://stackoverflow.com/questions/56806905/return-outside-of-enclosing-switch-expression
         TriFunction<Node, Node, BiFunction<Float, Float, Float>, InterpreterDataType> mathOp = (a, b,
                 math) -> new InterpreterDataType("" + math.apply(
-                        parse(Float::parseFloat, GetIDT(a, locals)), parse(Float::parseFloat, GetIDT(b, locals))));
+                        parse(GetIDT(a, locals)), parse(GetIDT(b, locals))));
         TriFunction<Node, Boolean, Function<Float, Float>, InterpreterDataType> opAssign = (v, pre, math) -> {
             checkAssignAble(v);
             var variable = GetIDT(v, locals);
-            var oldValue = parse(Float::parseFloat, variable);
+            var oldValue = parse(variable);
             var newValue = math.apply(oldValue);
             return new InterpreterDataType("" + (pre ? oldValue : newValue));
         };
         BiFunction<String, String, String> match = (pattern, string) -> {
             return Pattern.matches(pattern, string) ? "1" : "0";
         };
+        TriFunction<Node, Node, Function<Integer, Boolean>, InterpreterDataType> compare = (
+                x, y, comparator) -> {
+            var new_x = GetIDT(x, locals);
+            var new_y = GetIDT(y, locals);
+            try {
+                return new InterpreterDataType(comparator.apply(parse(new_x).compareTo(parse(new_y))) ? "1" : "0");
+            } catch (AwkRuntimeError.ExpectedNumberError e) {
+                return new InterpreterDataType(
+                        comparator.apply(new_x.getContents().compareTo(new_y.getContents())) ? "1" : "0");
+            }
+
+        };
         return switch (op.getOperation()) {
             case DOLLAR -> {
-                var index = GetIDT(op.getLeft(), locals);
-                yield getGlobal("$" + index);
+                var index = parse(GetIDT(op.getLeft(), locals));
+                if (index < 0) {
+                    throw new AwkRuntimeError.NegativeFieldIndexError(op, index.intValue());
+                }
+                yield record.Get(index.intValue());
             }
             case ADD -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x + y);
             case AND -> new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
@@ -376,10 +460,11 @@ public class Interpreter {
             case CONCATENATION -> new InterpreterDataType(
                     GetIDT(op.getLeft(), locals).getContents() + GetIDT(op.getRight().get(), locals));
             case DIVIDE -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x / y);
-            case EQ -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case EQ -> compare.apply(op.getLeft(), op.getRight().get(), c -> c == 0);
             case EXPONENT -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> (float) Math.pow(x, y));
-            case GE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case GT -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case GE -> compare.apply(op.getLeft(), op.getRight().get(), c -> c >= 0);
+            case GT -> compare.apply(op.getLeft(), op.getRight().get(), c -> c > 0);
+
             case IN -> {
                 var index = GetIDT(op.getLeft(), locals).getContents();
                 if (op.getRight().get() instanceof VariableReferenceNode v) {
@@ -389,8 +474,8 @@ public class Interpreter {
                     throw new AwkRuntimeError.ExpectedArrayError(index, "");
                 }
             }
-            case LE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
-            case LT -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case LE -> compare.apply(op.getLeft(), op.getRight().get(), c -> c <= 0);
+            case LT -> compare.apply(op.getLeft(), op.getRight().get(), c -> c < 0);
             case MATCH -> new InterpreterDataType(match.apply(GetIDT(op.getLeft(), locals).getContents(),
                     GetIDT(op.getRight().get(), locals).getContents()));
             case MODULO -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x % y);
@@ -411,9 +496,9 @@ public class Interpreter {
             case PREDEC -> opAssign.apply(op.getLeft(), true, (x) -> x - 1);
             case PREINC -> opAssign.apply(op.getLeft(), true, (x) -> x + 1);
             case SUBTRACT -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x - y);
-            case UNARYNEG -> new InterpreterDataType("" + (-parse(Float::parseFloat, GetIDT(op.getLeft(), locals))));
+            case UNARYNEG -> new InterpreterDataType("" + (-parse(GetIDT(op.getLeft(), locals))));
             // unary pos is just used to check that a IDT is a numberish
-            case UNARYPOS -> new InterpreterDataType("" + parse(Float::parseFloat, GetIDT(op.getLeft(), locals)));
+            case UNARYPOS -> new InterpreterDataType("" + parse(GetIDT(op.getLeft(), locals)));
             default -> throw new IllegalArgumentException("Unexpected value: " + op.getOperation());
 
         };

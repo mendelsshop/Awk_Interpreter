@@ -99,6 +99,21 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
         public String message() {
             return "Expected " + attempted + " to be a variable so it could be assigned to but was not";
         }
+    }
 
+    
+    public static class NegativeFieldIndexError extends AwkRuntimeError {
+        private Node attempted;
+        private int index;
+
+        public NegativeFieldIndexError(Node attempted, int index) {
+            this.attempted = attempted;
+            this.index = index;
+        }
+
+        @Override
+        public String message() {
+            return "Cannot get field with negative index " + index + " in expression " + attempted;
+        }
     }
 }

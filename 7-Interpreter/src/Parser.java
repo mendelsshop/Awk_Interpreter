@@ -326,6 +326,8 @@ public class Parser {
                                     .orElseThrow(() -> createException(
                                             "call to builtin " + token + " missing expression after comma")));
                             AcceptSeperators();
+
+                            // no paren at end causes problems checkseporators
                         }
                     });
                     return new FunctionCallNode(token.toString(), ret);
