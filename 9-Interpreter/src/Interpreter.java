@@ -603,18 +603,59 @@ public class Interpreter {
             case ReturnNode rt -> rt.getReturnValue().map(
                     ret -> new ReturnType(GetIDT(ret, locals).getContents(), Interpreter.ReturnType.ReturnKind.Return))
                     .orElse(new ReturnType(Interpreter.ReturnType.ReturnKind.Return));
-            case DeleteNode dl -> {
-            }
+
             case DoWhileNode dw -> {
+                do {
+                    var maybeReturn = InterpretListOfStatements(dw.getBlock(), locals);
+                    var returnType = maybeReturn.map(ReturnType::getReturnKind)
+                            .orElse(Interpreter.ReturnType.ReturnKind.Normal);
+                    if (returnType == Interpreter.ReturnType.ReturnKind.Return) {
+                        yield maybeReturn.get();
+                    } else if (returnType == Interpreter.ReturnType.ReturnKind.Break) {
+                        break;
+                    }
+                } while (truthyValue(GetIDT(dw.getCondition(), locals).getContents()) == "1");
+                yield new ReturnType("", ReturnType.ReturnKind.Normal);
+            }
+
+            case WhileNode wl -> {
+                while (truthyValue(GetIDT(wl.getCondition(), locals).getContents()) == "1") {
+                    var maybeReturn = InterpretListOfStatements(wl.getBlock(), locals);
+                    var returnType = maybeReturn.map(ReturnType::getReturnKind)
+                            .orElse(Interpreter.ReturnType.ReturnKind.Normal);
+                    if (returnType == Interpreter.ReturnType.ReturnKind.Return) {
+                        yield maybeReturn.get();
+                    } else if (returnType == Interpreter.ReturnType.ReturnKind.Break) {
+                        break;
+                    }
+                }
+                yield new ReturnType("", ReturnType.ReturnKind.Normal);
+            }
+            case IfNode ifs -> {
+                if (truthyValue(GetIDT(ifs.getCondition(), locals).getContents()) == "1") {
+                    var maybeReturn = InterpretListOfStatements(ifs.getThenBlock(), locals);
+                    var returnType = maybeReturn.map(ReturnType::getReturnKind)
+                            .orElse(Interpreter.ReturnType.ReturnKind.Normal);
+                    if (returnType != Interpreter.ReturnType.ReturnKind.Normal) {
+                        yield maybeReturn.get();
+                    }
+                }
+                yield ifs.getOtherwise().<ReturnType>map(block -> {
+                    if (block instanceof IfNode elif) {
+                        return ProcessStatement(locals, elif);
+                    } else {
+                        return InterpretListOfStatements((BlockNode) block, locals)
+                                .orElse(new ReturnType("", Interpreter.ReturnType.ReturnKind.Normal));
+                    }
+                }).orElse(new ReturnType("", Interpreter.ReturnType.ReturnKind.Normal));
+
             }
             case ForNode fr -> {
             }
             case ForEachNode fe -> {
             }
-            case IfNode ifs -> {
-            }
 
-            case WhileNode wl -> {
+            case DeleteNode dl -> {
             }
             default -> throw new IllegalArgumentException("Unexpected value: " + stmt);
 
@@ -623,7 +664,7 @@ public class Interpreter {
 
     // only return non normal returns
     private Optional<ReturnType> InterpretListOfStatements(BlockNode block,
-            HashMap<String, InterpreterArrayDataType> locals) {
+            HashMap<String, InterpreterDataType> locals) {
         for (var stmt : block.getStatements()) {
             var maybeReturn = ProcessStatement(variables, stmt);
             if (maybeReturn.getReturnKind() != ReturnType.ReturnKind.Normal) {
