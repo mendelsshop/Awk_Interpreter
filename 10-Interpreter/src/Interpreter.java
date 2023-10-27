@@ -752,9 +752,9 @@ public class Interpreter {
     }
 
     public void InterpretBlock(BlockNode block) {
-        if (block.getCondition().map(cond -> truthyValue(GetIDT(cond, null)) == 1).orElse(true)) {
+        if (block.getCondition().map(cond -> truthyValue(GetIDT(cond, null).getContents()) == "1").orElse(true)) {
             InterpretListOfStatements(block, null).ifPresent(ret -> {
-                throw new AwkRuntimeError.ReturnInOuterBlockError(ret);
+                // throw new AwkRuntimeError.ReturnInOuterBlockError(ret);
             });
         }
     }

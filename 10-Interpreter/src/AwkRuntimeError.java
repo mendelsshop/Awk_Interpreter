@@ -146,7 +146,7 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
         }
     }
 
-    public static class ReturnInOuterBlockError {
+    public static class ReturnInOuterBlockError extends AwkRuntimeError {
         private Interpreter.ReturnType returnValue;
 
         public ReturnInOuterBlockError(Interpreter.ReturnType returnValue) {
@@ -154,7 +154,7 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
         }
 
         @Override
-        public String toString() {
+        public String message() {
             return "Cannot change control flow in outer block with " + returnValue;
 
         }
