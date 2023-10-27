@@ -662,6 +662,20 @@ public class Interpreter {
         };
     }
 
+    private ReturnType loop(Supplier<Boolean> hasNext, BlockNode block, HashMap<String, InterpreterDataType> locals) {
+        while (hasNext.get()) {
+            var maybeReturn = InterpretListOfStatements(block, locals);
+            var returnType = maybeReturn.map(ReturnType::getReturnKind)
+                    .orElse(Interpreter.ReturnType.ReturnKind.Normal);
+            if (returnType == Interpreter.ReturnType.ReturnKind.Return) {
+                return maybeReturn.get();
+            } else if (returnType == Interpreter.ReturnType.ReturnKind.Break) {
+                break;
+            }
+        }
+        return new ReturnType("", ReturnType.ReturnKind.Normal);
+    }
+
     // only return non normal returns
     private Optional<ReturnType> InterpretListOfStatements(BlockNode block,
             HashMap<String, InterpreterDataType> locals) {
