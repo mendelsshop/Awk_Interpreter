@@ -558,4 +558,78 @@ public class Interpreter {
             return "0";
         }
     }
+
+    private class ReturnType {
+        private enum ReturnKind {
+            Normal, Break, Continue, Return
+        }
+
+        private Optional<String> returnValue = Optional.empty();
+        private ReturnKind returnKind;
+
+        public Optional<String> getReturnValue() {
+            return returnValue;
+        }
+
+        public ReturnKind getReturnKind() {
+            return returnKind;
+        }
+
+        public ReturnType(String retunrValue, ReturnType.ReturnKind returnKind) {
+            this.returnValue = Optional.of(retunrValue);
+            this.returnKind = returnKind;
+        }
+
+        public ReturnType(ReturnType.ReturnKind returnKind) {
+            this.returnKind = returnKind;
+        }
+    }
+
+    private ReturnType ProcessStatement(HashMap<String, InterpreterDataType> locals, StatementNode stmt) {
+        return switch (stmt) {
+            case AssignmentNode as -> {
+                // should be same as in getidt
+                var newValue = GetIDT(as.getExpression(), locals);
+                checkAssignAble(as.getTarget());
+                // we can really only assign to scalar
+                // we inteninall setcontents and getcontents so assignment doesnt modify
+                // original variable
+                GetIDT(as.getTarget(), locals).setContents(newValue.getContents());
+                yield new ReturnType(newValue.getContents(), ReturnType.ReturnKind.Normal);
+            }
+            case BreakNode br -> new ReturnType(ReturnType.ReturnKind.Break);
+            case ContinueNode ct -> new ReturnType(ReturnType.ReturnKind.Continue);
+            case FunctionCallNode fc -> new ReturnType(RunFunctionCall(fc, locals), ReturnType.ReturnKind.Normal);
+            case ReturnNode rt -> rt.getReturnValue().map(
+                    ret -> new ReturnType(GetIDT(ret, locals).getContents(), Interpreter.ReturnType.ReturnKind.Return))
+                    .orElse(new ReturnType(Interpreter.ReturnType.ReturnKind.Return));
+            case DeleteNode dl -> {
+            }
+            case DoWhileNode dw -> {
+            }
+            case ForNode fr -> {
+            }
+            case ForEachNode fe -> {
+            }
+            case IfNode ifs -> {
+            }
+
+            case WhileNode wl -> {
+            }
+            default -> throw new IllegalArgumentException("Unexpected value: " + stmt);
+
+        };
+    }
+
+    // only return non normal returns
+    private Optional<ReturnType> InterpretListOfStatements(BlockNode block,
+            HashMap<String, InterpreterArrayDataType> locals) {
+        for (var stmt : block.getStatements()) {
+            var maybeReturn = ProcessStatement(variables, stmt);
+            if (maybeReturn.getReturnKind() != ReturnType.ReturnKind.Normal) {
+                return Optional.of(maybeReturn);
+            }
+        }
+        return Optional.empty();
+    }
 }
