@@ -71,6 +71,39 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
 
     }
 
+    public static class ExpectedIterableError extends AwkRuntimeError {
+        private String variable;
+
+        public ExpectedIterableError(String variable) {
+            this.variable = variable;
+
+        }
+
+        @Override
+        public String message() {
+            return "Expeced " + variable + " to be array for iteration with for";
+        }
+
+    }
+
+    
+
+    public static class ExpectedDeleteArrayError extends AwkRuntimeError {
+        private String variable;
+
+        public ExpectedDeleteArrayError(String variable) {
+            this.variable = variable;
+
+        }
+
+        @Override
+        public String message() {
+            return "Expeced " + variable + " to be array for delete";
+        }
+
+    }
+
+
     public static class ExpectedNumberError extends AwkRuntimeError {
         private InterpreterDataType value;
         private NumberFormatException parseError;
@@ -101,7 +134,6 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
         }
     }
 
-    
     public static class NegativeFieldIndexError extends AwkRuntimeError {
         private Node attempted;
         private int index;

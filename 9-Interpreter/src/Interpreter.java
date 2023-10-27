@@ -651,11 +651,53 @@ public class Interpreter {
 
             }
             case ForNode fr -> {
+                // fr.getInit().ifPresent(init->GetIDT(init, locals));
+                for (fr.getInit().ifPresent(init -> GetIDT(init, locals)); fr.getCondition()
+                        .map(cond -> truthyValue(GetIDT(cond, locals).getContents()) == "1")
+                        .orElse(true); fr.getIncrement().ifPresent(inc -> GetIDT(inc, locals))) {
+                    var maybeReturn = InterpretListOfStatements(fr.getBlock(), locals);
+                    var returnType = maybeReturn.map(ReturnType::getReturnKind)
+                            .orElse(Interpreter.ReturnType.ReturnKind.Normal);
+                    if (returnType == Interpreter.ReturnType.ReturnKind.Return) {
+                        yield maybeReturn.get();
+                    } else if (returnType == Interpreter.ReturnType.ReturnKind.Break) {
+                        break;
+
+                    }
+                }
+                yield new ReturnType("", ReturnType.ReturnKind.Normal);
             }
             case ForEachNode fe -> {
+                if (fe.getIterable() instanceof VariableReferenceNode v) {
+                    // TODO: through exception for mutlidimensional arrays (parser shuld only allow
+                    // name not full lvalue?)
+                    InterpreterArrayDataType iterable = getArray(v.getName(), locals);
+                    for (var index : iterable.getKeysList()) {
+                        var maybeReturn = InterpretListOfStatements(fe.getBlock(), locals);
+                        var returnType = maybeReturn.map(ReturnType::getReturnKind)
+                                .orElse(Interpreter.ReturnType.ReturnKind.Normal);
+                        if (returnType == Interpreter.ReturnType.ReturnKind.Return) {
+                            yield maybeReturn.get();
+                        } else if (returnType == Interpreter.ReturnType.ReturnKind.Break) {
+                            break;
+                        }
+                    }
+                } else {
+                    throw new AwkRuntimeError.ExpectedIterableError(fe.getIterable().toString());
+                }
+                yield new ReturnType("", ReturnType.ReturnKind.Normal);
             }
 
             case DeleteNode dl -> {
+                if (dl.getArray() instanceof VariableReferenceNode v) {
+                    InterpreterArrayDataType iterable = getArray(v.getName(), locals);
+                    v.getIndex().ifPresentOrElse(i -> iterable.get(GetIDT(i, locals).getContents()).setContents(""),
+                            () -> iterable.clear());
+
+                } else {
+                    throw new AwkRuntimeError.ExpectedDeleteArrayError(dl.getArray().toString());
+                }
+                yield new ReturnType("", ReturnType.ReturnKind.Normal);
             }
             default -> throw new IllegalArgumentException("Unexpected value: " + stmt);
 
