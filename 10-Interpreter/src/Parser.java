@@ -334,6 +334,7 @@ public class Parser {
 
                         }
                     });
+                    // we lower case it as enum are tostringed like FOO -> "FOO" and all token for builtins are also uppercased
                     return new FunctionCallNode(token.toString().toLowerCase(), ret);
                 });
         return Optional.ofNullable(tokens.Peek(0).map(Token::getType).equals(Optional.of(Token.TokenType.WORD))

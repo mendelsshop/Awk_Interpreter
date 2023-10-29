@@ -142,6 +142,7 @@ public class Interpreter {
                 update.accept("NR");
                 update.accept("NFR");
                 String text = lines.remove(0);
+                variables.put("NF", new InterpreterDataType("" + lines.size()));
                 // assign each variable to $n
                 // assign lines and nf,fnr,nr
                 // is $0 for whole line if so start from 1
@@ -155,7 +156,6 @@ public class Interpreter {
 
     private ProgramNode program;
     private LineManager input;
-    // private boolean next = false;
     private Record record;
     private HashMap<String, InterpreterDataType> variables = new HashMap<String, InterpreterDataType>() {
         {
@@ -348,6 +348,7 @@ public class Interpreter {
                 var strings = string.split(sep);
                 int index = 0;
                 for (String s : strings) {
+                    // indicies start mostly at one in awk
                     array.insert(String.valueOf(++index), new InterpreterDataType((s)));
                 }
                 return "" + strings.length;

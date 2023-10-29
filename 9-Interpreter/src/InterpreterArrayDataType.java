@@ -7,6 +7,10 @@ import java.util.stream.Stream;
 public class InterpreterArrayDataType extends InterpreterDataType {
     private HashMap<String, InterpreterDataType> contents = new HashMap<String, InterpreterDataType>();
 
+    public InterpreterArrayDataType(HashMap<String, InterpreterDataType> contents) {
+        this.contents = contents;
+    }
+
     public Stream<InterpreterDataType> getItemsStream() {
         return contents.values().stream();
     }
