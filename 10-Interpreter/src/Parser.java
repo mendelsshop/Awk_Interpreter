@@ -329,11 +329,11 @@ public class Parser {
                             // is not
                             ret.add(ParseOperation()
                                     .orElseThrow(() -> createException(
-                                            "call to builtin " + token + " missing expression after comma")));
+                                            "call to builtin " + token.toString().toLowerCase() + " missing expression after comma")));
 
                         }
                     });
-                    return new FunctionCallNode(token.toString(), ret);
+                    return new FunctionCallNode(token.toString().toLowerCase(), ret);
                 });
         return Optional.ofNullable(tokens.Peek(0).map(Token::getType).equals(Optional.of(Token.TokenType.WORD))
                 && tokens.Peek(1).map(Token::getType).equals(Optional.of(Token.TokenType.OPENPAREN))

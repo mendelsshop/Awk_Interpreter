@@ -394,11 +394,42 @@ public class Interpreter {
     }
 
     private String RunFunctionCall(FunctionCallNode function, HashMap<String, InterpreterDataType> locals) {
-    //     var functionDefinition = Optional.ofNullable(functions.get(function.getFunctionName())).orElseThrow(null);
-    //     if (functionDefinition instanceof BuiltInFunctionDefinitionNode buitlin) {
-    //         for (int i = )
-    //     }
-    return "";
+        TriFunction<LinkedList<String>, LinkedList<Node>, Boolean, HashMap<String, InterpreterDataType>> proccesArgs = (
+                params, args, vardiac) -> {
+            if ((vardiac && args.size() < params.size()) || args.size() != params.size()) {
+                throw new AwkRuntimeError.AwkArittyError(function.getFunctionName(), params.size(), args.size(),
+                        vardiac);
+            }
+            var evaledArgs = args.stream().map(a -> GetIDT(a, locals)).toList();
+            // go through all parameter besides for the last (special cases for vardiacs)
+            if (vardiac) {
+                // we can do limit to size -1 b/c varidiac garuntess there is at least one param
+                // so size = 1 and size -1 = 0
+                var map = Stream.iterate(0, n -> n + 1).limit(params.size() - 1)
+                        .collect(Collectors.toMap(i -> params.get(i), i -> evaledArgs.get(i)));
+                map.put(params.getLast(), new InterpreterArrayDataType(new HashMap<>(
+                        Stream.iterate(params.size() - 1, n -> n + 1).limit(args.size() -1)
+                                .collect(Collectors.toMap(i -> "" + i, i -> evaledArgs.get(i))))));
+                return new HashMap<>(map);
+            }
+            return new HashMap<String, InterpreterDataType>(Stream.iterate(0, n -> n + 1).limit(params.size())
+                    .collect(Collectors.toMap(i -> params.get(i), i -> evaledArgs.get(i))));
+        };
+        var functionDefinition = Optional.ofNullable(functions.get(function.getFunctionName()))
+                .orElseThrow(() -> new AwkRuntimeError.FunctionNotFoundError(function.getFunctionName()));
+
+        if (functionDefinition instanceof BuiltInFunctionDefinitionNode buitlin) {
+            var args = proccesArgs.apply(buitlin.getParameters(), function.getParameters(), buitlin.getVaridiac());
+            return buitlin.getExecute().apply(args);
+        } else {
+            var args = proccesArgs.apply(functionDefinition.getParameters(), function.getParameters(), false);
+            var retValue = InterpretListOfStatements(new BlockNode(functionDefinition.getStatements()), args)
+                    .orElse(new ReturnType(Interpreter.ReturnType.ReturnKind.Normal));
+            return switch (retValue.getReturnKind()) {
+                case Normal, Return -> retValue.getReturnValue().orElse("");
+                default -> throw new AwkRuntimeError.ReturnInOuterBlockError(retValue);
+            };
+        }
     }
 
     // TODO: prefer locals to be optional
@@ -620,7 +651,7 @@ public class Interpreter {
                         break;
                     }
                 } while (truthyValue(GetIDT(dw.getCondition(), locals).getContents()) == "1");
-                yield new ReturnType("", ReturnType.ReturnKind.Normal);
+                yield new ReturnType(ReturnType.ReturnKind.Normal);
             }
 
             case WhileNode wl -> {
@@ -634,7 +665,7 @@ public class Interpreter {
                         break;
                     }
                 }
-                yield new ReturnType("", ReturnType.ReturnKind.Normal);
+                yield new ReturnType(ReturnType.ReturnKind.Normal);
             }
             case IfNode ifs -> {
                 if (truthyValue(GetIDT(ifs.getCondition(), locals).getContents()) == "1") {
@@ -650,9 +681,9 @@ public class Interpreter {
                         return ProcessStatement(locals, elif);
                     } else {
                         return InterpretListOfStatements((BlockNode) block, locals)
-                                .orElse(new ReturnType("", Interpreter.ReturnType.ReturnKind.Normal));
+                                .orElse(new ReturnType(Interpreter.ReturnType.ReturnKind.Normal));
                     }
-                }).orElse(new ReturnType("", Interpreter.ReturnType.ReturnKind.Normal));
+                }).orElse(new ReturnType(Interpreter.ReturnType.ReturnKind.Normal));
 
             }
             case ForNode fr -> {
@@ -670,7 +701,7 @@ public class Interpreter {
 
                     }
                 }
-                yield new ReturnType("", ReturnType.ReturnKind.Normal);
+                yield new ReturnType(ReturnType.ReturnKind.Normal);
             }
             case ForEachNode fe -> {
                 if (fe.getIterable() instanceof VariableReferenceNode v) {
@@ -690,7 +721,7 @@ public class Interpreter {
                 } else {
                     throw new AwkRuntimeError.ExpectedIterableError(fe.getIterable().toString());
                 }
-                yield new ReturnType("", ReturnType.ReturnKind.Normal);
+                yield new ReturnType(ReturnType.ReturnKind.Normal);
             }
 
             case DeleteNode dl -> {
@@ -702,7 +733,7 @@ public class Interpreter {
                 } else {
                     throw new AwkRuntimeError.ExpectedDeleteArrayError(dl.getArray().toString());
                 }
-                yield new ReturnType("", ReturnType.ReturnKind.Normal);
+                yield new ReturnType(ReturnType.ReturnKind.Normal);
             }
             default -> throw new IllegalArgumentException("Unexpected value: " + stmt);
 
@@ -720,7 +751,7 @@ public class Interpreter {
                 break;
             }
         }
-        return new ReturnType("", ReturnType.ReturnKind.Normal);
+        return new ReturnType(ReturnType.ReturnKind.Normal);
     }
 
     // only return non normal returns
@@ -754,7 +785,7 @@ public class Interpreter {
     public void InterpretBlock(BlockNode block) {
         if (block.getCondition().map(cond -> truthyValue(GetIDT(cond, null).getContents()) == "1").orElse(true)) {
             InterpretListOfStatements(block, null).ifPresent(ret -> {
-                // throw new AwkRuntimeError.ReturnInOuterBlockError(ret);
+                throw new AwkRuntimeError.ReturnInOuterBlockError(ret);
             });
         }
     }

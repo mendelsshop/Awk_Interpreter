@@ -21,8 +21,7 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
 
         @Override
         public String message() {
-            // TODO Auto-generated method stub
-            throw new UnsupportedOperationException("Unimplemented method 'message'");
+            return "Expected " + (varidiac ? "At least " + (expected - 1): expected ) + " arguement(s) but found " + found + " arguement(s) in call to " + functionName;
         }
 
     }
@@ -156,6 +155,20 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
         @Override
         public String message() {
             return "Cannot change control flow in outer block with " + returnValue;
+
+        }
+    }
+
+    public static class FunctionNotFoundError extends AwkRuntimeError {
+        private String functionName;
+
+        public FunctionNotFoundError(String function) {
+            functionName = function;
+        }
+
+        @Override
+        public String message() {
+            return "Functon " + functionName + " is not defined";
 
         }
     }
