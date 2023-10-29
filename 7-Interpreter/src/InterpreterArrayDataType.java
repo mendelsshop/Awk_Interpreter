@@ -7,6 +7,10 @@ import java.util.stream.Stream;
 public class InterpreterArrayDataType extends InterpreterDataType {
     private HashMap<String, InterpreterDataType> contents = new HashMap<String, InterpreterDataType>();
 
+    public InterpreterArrayDataType(HashMap<String, InterpreterDataType> contents) {
+        this.contents = contents;
+    }
+
     public Stream<InterpreterDataType> getItemsStream() {
         return contents.values().stream();
     }
@@ -15,6 +19,10 @@ public class InterpreterArrayDataType extends InterpreterDataType {
         return new LinkedList<>(contents.values());
     }
 
+
+    public List<String> getKeysList() {
+        return new LinkedList<>(contents.keySet());
+    }
     public InterpreterDataType get(String index) {
         return (contents.computeIfAbsent(index, u -> new InterpreterDataType()));
     }
@@ -29,17 +37,27 @@ public class InterpreterArrayDataType extends InterpreterDataType {
         return Optional.ofNullable(contents.get(index));
     }
 
-    public void insert(String name, InterpreterDataType value) {
-        contents.put(name, value);
-    }
-
-    public InterpreterArrayDataType() {
+    public boolean contains(String index) {
+        return contents.containsKey(index);
     }
 
     // make sure that if we try to get it like its a scalar that we throw exception
     @Override
     public String getContents() {
         throw new AwkRuntimeError.ExpectedScalarError(this);
+    }
+
+    // make sure that if we try to set it like its a scalar that we throw exception
+    @Override
+    public void setContents(String contents) {
+        throw new AwkRuntimeError.ExpectedScalarError(this);
+    }
+
+    public void insert(String name, InterpreterDataType value) {
+        contents.put(name, value);
+    }
+
+    public InterpreterArrayDataType() {
     }
 
     @Override
@@ -53,5 +71,9 @@ public class InterpreterArrayDataType extends InterpreterDataType {
     @Override
     public InterpreterDataType Clone() {
         return this;
+    }
+
+    public void clear() {
+        contents.clear();
     }
 }

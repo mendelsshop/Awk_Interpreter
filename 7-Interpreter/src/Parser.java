@@ -74,6 +74,7 @@ public class Parser {
     }
 
     private boolean ParseAction(ProgramNode program) throws AwkException {
+        AcceptSeperators();
         if (MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
             var block = ParseBlock(false);
             program.addToBegin(block);
@@ -329,11 +330,12 @@ public class Parser {
                             // is not
                             ret.add(ParseOperation()
                                     .orElseThrow(() -> createException(
-                                            "call to builtin " + token + " missing expression after comma")));
+                                            "call to builtin " + token.toString().toLowerCase() + " missing expression after comma")));
 
                         }
                     });
-                    return new FunctionCallNode(token.toString(), ret);
+                    // we lower case it as enum are tostringed like FOO -> "FOO" and all token for builtins are also uppercased
+                    return new FunctionCallNode(token.toString().toLowerCase(), ret);
                 });
         return Optional.ofNullable(tokens.Peek(0).map(Token::getType).equals(Optional.of(Token.TokenType.WORD))
                 && tokens.Peek(1).map(Token::getType).equals(Optional.of(Token.TokenType.OPENPAREN))

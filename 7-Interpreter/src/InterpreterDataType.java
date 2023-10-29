@@ -5,11 +5,18 @@ public class InterpreterDataType {
         this.contents = contents;
     }
 
+    public void setContents(Float contents) {
+        this.contents = contents % 1 == 0 ? String.valueOf(contents.intValue()) : String.valueOf(contents);
+    }
+
     public InterpreterDataType() {
     }
 
     public InterpreterDataType(String contents) {
         this.contents = contents;
+    }
+    public InterpreterDataType(float contents) {
+        setContents(contents);
     }
 
     public String getContents() {

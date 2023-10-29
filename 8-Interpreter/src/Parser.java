@@ -74,6 +74,7 @@ public class Parser {
     }
 
     private boolean ParseAction(ProgramNode program) throws AwkException {
+        AcceptSeperators();
         if (MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
             var block = ParseBlock(false);
             program.addToBegin(block);
@@ -312,29 +313,30 @@ public class Parser {
     // wouldn't have to do all this peek stuff
     private Optional<FunctionCallNode> ParseFunctionCall() throws AwkException {
         CheckedFunction<Token.TokenType, Optional<FunctionCallNode>, AwkException> builtin = (
-            token) -> MatchAndRemove(token).<FunctionCallNode, AwkException>CheckedMap(s -> {
-                var ret = new LinkedList<Node>();
-                ParseOperation().CheckedIfPresent(first -> {
-                    ret.add(first);
-                    while (MatchAndRemove(Token.TokenType.COMMA).isPresent()) {
-                        AcceptSeperators();
-                        // we can only acceptsepeorators after comma or else check seporarotrs will fail b/c we ate the seporator before
-                        // ie:
-                        // print a, b,
-                        //
-                        // c
-                        // is ok but 
-                        // print a
-                        // ,v 
-                        // is not
-                        ret.add(ParseOperation()
-                                .orElseThrow(() -> createException(
-                                        "call to builtin " + token + " missing expression after comma")));
+                token) -> MatchAndRemove(token).<FunctionCallNode, AwkException>CheckedMap(s -> {
+                    var ret = new LinkedList<Node>();
+                    ParseOperation().CheckedIfPresent(first -> {
+                        ret.add(first);
+                        while (MatchAndRemove(Token.TokenType.COMMA).isPresent()) {
+                            AcceptSeperators();
+                            // we can only acceptsepeorators after comma or else check seporarotrs will fail b/c we ate the seporator before
+                            // ie:
+                            // print a, b,
+                            //
+                            // c
+                            // is ok but 
+                            // print a
+                            // ,v 
+                            // is not
+                            ret.add(ParseOperation()
+                                    .orElseThrow(() -> createException(
+                                            "call to builtin " + token.toString().toLowerCase() + " missing expression after comma")));
 
-                    }
+                        }
+                    });
+                    // we lower case it as enum are tostringed like FOO -> "FOO" and all token for builtins are also uppercased
+                    return new FunctionCallNode(token.toString().toLowerCase(), ret);
                 });
-                return new FunctionCallNode(token.toString(), ret);
-            });
         return Optional.ofNullable(tokens.Peek(0).map(Token::getType).equals(Optional.of(Token.TokenType.WORD))
                 && tokens.Peek(1).map(Token::getType).equals(Optional.of(Token.TokenType.OPENPAREN))
                         ? new FunctionCallNode(MatchAndRemove(Token.TokenType.WORD).get().getValue().get(),

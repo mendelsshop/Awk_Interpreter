@@ -1,7 +1,6 @@
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -14,6 +13,10 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 public class Interpreter {
+    @FunctionalInterface
+    interface TriFunction<T, U, V, K> {
+        K apply(T t, U u, V v);
+    }
 
     /// mutability
     // scalars passed into builtins can effect outside call
@@ -21,7 +24,6 @@ public class Interpreter {
     /// (done by calling Clone on IDT at function call time)
     // arrays will always will always modify outside outside call
     // something assigned to an index of an array cannot modify the what that value
-    /// is
 
     // for managing $0 ,$n
     private class Record {
@@ -34,7 +36,9 @@ public class Interpreter {
 
         private void ProcessRecord(String record) {
             this.record = new HeadField(record);
-            fields = Stream.of(record.split(getGlobal("FS").getContents())).map(f -> new Field(f))
+            String[] fields = record.split(getGlobal("FS").getContents());
+            variables.put("NF", new InterpreterDataType(fields.length));
+            this.fields = Stream.of(fields).map(f -> new Field(f))
                     .collect(Collectors.toCollection(() -> new LinkedList<>()));
         }
 
@@ -44,7 +48,7 @@ public class Interpreter {
             return switch (index) {
                 case 0 -> record;
                 default ->
-                    Optional.ofNullable(fields.get(index - 1)).orElseGet(() -> {
+                    Optional.ofExceptionable(() -> fields.get(index - 1)).orElseGet(() -> {
                         // the second you update the record any witespace from record input ges removed
                         record.updateRecord(fields.stream().map(Field::getContents).collect(Collectors.joining(" ")));
                         Stream.iterate(fields.size() - 2 - index, n -> n < index - 1, n -> n + 1)
@@ -129,7 +133,7 @@ public class Interpreter {
                     var nref = getGlobal(n);
                     try {
                         // if this is first record "" gets parsed to 0 (0 + 1) = 1
-                        nref.setContents("" + parse(nref) + 1);
+                        nref.setContents(parse(nref) + 1);
                     } catch (AwkRuntimeError.ExpectedNumberError e) {
                         nref.setContents("1");
                     }
@@ -151,7 +155,6 @@ public class Interpreter {
 
     private ProgramNode program;
     private LineManager input;
-    private boolean next = false;
     private Record record;
     private HashMap<String, InterpreterDataType> variables = new HashMap<String, InterpreterDataType>() {
         {
@@ -209,6 +212,10 @@ public class Interpreter {
         }
     }
 
+    private class Next extends RuntimeException {
+
+    }
+
     // TODO; should have functions for checking that pieces of data are of specific
     // data type
     // also need to make sure to not clone stuff (most of the time) so [g]sub
@@ -227,7 +234,8 @@ public class Interpreter {
             put("print", new BuiltInFunctionDefinitionNode("print", (vars) -> {
                 InterpreterArrayDataType strings = getArray("strings", vars);
                 System.out.println(
-                        strings.getItemsStream().map(InterpreterDataType::toString).collect(Collectors.joining(" ")));
+                        strings.getItemsStream().map(InterpreterDataType::getContents)
+                                .collect(Collectors.joining(" ")));
                 return "";
             }, new LinkedList<>() {
                 {
@@ -238,7 +246,7 @@ public class Interpreter {
                 String format = getVariable("format", vars).getContents();
                 InterpreterArrayDataType strings = getArray("strings", vars);
                 // how to use print to format elements of stream of strings by format
-                System.out.printf(format, strings.getItemsStream().map(InterpreterDataType::toString).toArray());
+                System.out.printf(format, strings.getItemsStream().map(InterpreterDataType::getContents).toArray());
                 return "";
             }, new LinkedList<>() {
                 {
@@ -249,7 +257,7 @@ public class Interpreter {
             put("sprintf", new BuiltInFunctionDefinitionNode("sprintf", (vars) -> {
                 String format = getVariable("format", vars).getContents();
                 InterpreterArrayDataType strings = getArray("strings", vars);
-                return format.formatted(strings.getItemsStream().map(InterpreterDataType::toString).toArray());
+                return format.formatted(strings.getItemsStream().map(InterpreterDataType::getContents).toArray());
             }, new LinkedList<>() {
                 {
                     add("format");
@@ -270,13 +278,8 @@ public class Interpreter {
             // next should be a statementnode b/c it changes control flow (if the entire awk
             // program is essentialy a loop next is like a continue)
             put("next", new BuiltInFunctionDefinitionNode("next", (vars) -> {
-                next = true;
-                return "";
+                throw new Next();
             }, new LinkedList<>(), false));
-            @FunctionalInterface
-            interface TriFunction<T, U, V, K> {
-                K apply(T t, U u, V v);
-            }
             BiFunction<String, TriFunction<String, String, String, String>, BuiltInFunctionDefinitionNode> sub = (name,
                     replacer) -> new BuiltInFunctionDefinitionNode(name, (vars) -> {
                         String pattern = getVariable("pattern", vars).getContents();
@@ -344,9 +347,10 @@ public class Interpreter {
                 var strings = string.split(sep);
                 int index = 0;
                 for (String s : strings) {
-                    array.insert(String.valueOf(index++), new InterpreterDataType((s)));
+                    // indicies start mostly at one in awk
+                    array.insert(String.valueOf(++index), new InterpreterDataType((s)));
                 }
-                return "";
+                return "" + strings.length;
             }, new LinkedList<>() {
                 {
                     add("string");
