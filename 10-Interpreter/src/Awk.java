@@ -3,7 +3,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.LinkedList;
-import java.util.Optional;
 
 public class Awk {
     public static void main(String[] args) {
@@ -16,7 +15,6 @@ public class Awk {
         String content;
         try {
             content = new String(Files.readAllBytes(myPath));
-
             try {
                 Lexer lexer = new Lexer(content);
                 // print result token stream

@@ -4,11 +4,9 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.BiFunction;
@@ -48,7 +46,7 @@ public class Interpreter {
             return switch (index) {
                 case 0 -> record;
                 default ->
-                    Optional.ofNullable(fields.get(index - 1)).orElseGet(() -> {
+                    Optional.ofExceptionable(() -> fields.get(index - 1)).orElseGet(() -> {
                         // the second you update the record any witespace from record input ges removed
                         record.updateRecord(fields.stream().map(Field::getContents).collect(Collectors.joining(" ")));
                         Stream.iterate(fields.size() - 2 - index, n -> n < index - 1, n -> n + 1)
@@ -133,7 +131,7 @@ public class Interpreter {
                     var nref = getGlobal(n);
                     try {
                         // if this is first record "" gets parsed to 0 (0 + 1) = 1
-                        nref.setContents("" + parse(nref) + 1);
+                        nref.setContents(parse(nref) + 1);
                     } catch (AwkRuntimeError.ExpectedNumberError e) {
                         nref.setContents("1");
                     }
@@ -141,7 +139,7 @@ public class Interpreter {
                 update.accept("NR");
                 update.accept("NFR");
                 String text = lines.remove(0);
-                variables.put("NF", new InterpreterDataType("" + lines.size()));
+                variables.put("NF", new InterpreterDataType(lines.size()));
                 // assign each variable to $n
                 // assign lines and nf,fnr,nr
                 // is $0 for whole line if so start from 1
@@ -231,7 +229,8 @@ public class Interpreter {
             put("print", new BuiltInFunctionDefinitionNode("print", (vars) -> {
                 InterpreterArrayDataType strings = getArray("strings", vars);
                 System.out.println(
-                        strings.getItemsStream().map(InterpreterDataType::toString).collect(Collectors.joining(" ")));
+                        strings.getItemsStream().map(InterpreterDataType::getContents)
+                                .collect(Collectors.joining(" ")));
                 return "";
             }, new LinkedList<>() {
                 {
@@ -242,7 +241,7 @@ public class Interpreter {
                 String format = getVariable("format", vars).getContents();
                 InterpreterArrayDataType strings = getArray("strings", vars);
                 // how to use print to format elements of stream of strings by format
-                System.out.printf(format, strings.getItemsStream().map(InterpreterDataType::toString).toArray());
+                System.out.printf(format, strings.getItemsStream().map(InterpreterDataType::getContents).toArray());
                 return "";
             }, new LinkedList<>() {
                 {
@@ -253,7 +252,7 @@ public class Interpreter {
             put("sprintf", new BuiltInFunctionDefinitionNode("sprintf", (vars) -> {
                 String format = getVariable("format", vars).getContents();
                 InterpreterArrayDataType strings = getArray("strings", vars);
-                return format.formatted(strings.getItemsStream().map(InterpreterDataType::toString).toArray());
+                return format.formatted(strings.getItemsStream().map(InterpreterDataType::getContents).toArray());
             }, new LinkedList<>() {
                 {
                     add("format");
@@ -344,9 +343,9 @@ public class Interpreter {
                 var strings = string.split(sep);
                 int index = 0;
                 for (String s : strings) {
-                    array.insert(String.valueOf(index++), new InterpreterDataType((s)));
+                    array.insert(String.valueOf(++index), new InterpreterDataType((s)));
                 }
-                return "";
+                return "" + strings.length;
             }, new LinkedList<>() {
                 {
                     add("string");
@@ -396,11 +395,11 @@ public class Interpreter {
     private String RunFunctionCall(FunctionCallNode function, HashMap<String, InterpreterDataType> locals) {
         TriFunction<LinkedList<String>, LinkedList<Node>, Boolean, HashMap<String, InterpreterDataType>> proccesArgs = (
                 params, args, vardiac) -> {
-            if ((vardiac && args.size() < params.size()) || args.size() != params.size()) {
+            if (vardiac ? args.size() < params.size() - 1 : args.size() != params.size()) {
                 throw new AwkRuntimeError.AwkArittyError(function.getFunctionName(), params.size(), args.size(),
                         vardiac);
             }
-            var evaledArgs = args.stream().map(a -> GetIDT(a, locals)).toList();
+            var evaledArgs = args.stream().map(a -> GetIDT(a, locals).Clone()).toList();
             // go through all parameter besides for the last (special cases for vardiacs)
             if (vardiac) {
                 // we can do limit to size -1 b/c varidiac garuntess there is at least one param
@@ -408,8 +407,9 @@ public class Interpreter {
                 var map = Stream.iterate(0, n -> n + 1).limit(params.size() - 1)
                         .collect(Collectors.toMap(i -> params.get(i), i -> evaledArgs.get(i)));
                 map.put(params.getLast(), new InterpreterArrayDataType(new HashMap<>(
-                        Stream.iterate(params.size() - 1, n -> n + 1).limit(args.size() -1)
-                                .collect(Collectors.toMap(i -> "" + i, i -> evaledArgs.get(i))))));
+                        Stream.iterate(params.size() - 1, i -> i < args.size(), n -> n + 1)
+                                .collect(Collectors.toMap(i -> "" + (i - (params.size() - 1)),
+                                        i -> evaledArgs.get(i))))));
                 return new HashMap<>(map);
             }
             return new HashMap<String, InterpreterDataType>(Stream.iterate(0, n -> n + 1).limit(params.size())
@@ -439,20 +439,6 @@ public class Interpreter {
             case AssignmentNode a -> {
                 // TODO: make sure assigmnet is right ie array to array or scalr to scale ...
                 var newValue = GetIDT(a.getExpression(), locals);
-                // if (a.getTarget() instanceof VariableReferenceNode || a.getTarget()
-                // instanceof OperationNode op
-                // && op.getOperation() == OperationNode.Operation.DOLLAR) {
-                // var target = GetIDT(v, locals).getContents();
-                // v.getIndex().ifPresentOrElse(i->{
-                // String index = GetIDT(i, locals).getContents();
-                // getArray(target, locals).insert(index, newValue);
-                // }, ()-> {
-                // getVariable(target, locals).setContents(newValue.getContents());
-                // });
-
-                // } else {
-                // throw new AwkRuntimeError.NotAVariableError(value);
-                // }
                 checkAssignAble(a.getTarget());
                 // we can really only assign to scalar
                 // we inteninall setcontents and getcontents so assignment doesnt modify
@@ -461,6 +447,7 @@ public class Interpreter {
                 return newValue;
             }
             case ConstantNode c -> {
+                // TODO: if its number truncate n.0 to n
                 return new InterpreterDataType(c.getValue());
             }
             case FunctionCallNode f -> {
@@ -503,14 +490,15 @@ public class Interpreter {
         // yield is used to return from a block
         // https://stackoverflow.com/questions/56806905/return-outside-of-enclosing-switch-expression
         TriFunction<Node, Node, BiFunction<Float, Float, Float>, InterpreterDataType> mathOp = (a, b,
-                math) -> new InterpreterDataType("" + math.apply(
+                math) -> new InterpreterDataType(math.apply(
                         parse(GetIDT(a, locals)), parse(GetIDT(b, locals))));
         TriFunction<Node, Boolean, Function<Float, Float>, InterpreterDataType> opAssign = (v, pre, math) -> {
             checkAssignAble(v);
             var variable = GetIDT(v, locals);
             var oldValue = parse(variable);
             var newValue = math.apply(oldValue);
-            return new InterpreterDataType("" + (pre ? oldValue : newValue));
+            variable.setContents(newValue);
+            return new InterpreterDataType((pre ? oldValue : newValue));
         };
         BiFunction<String, String, String> match = (pattern, string) -> {
             return Pattern.matches(pattern, string) ? "1" : "0";
@@ -578,9 +566,9 @@ public class Interpreter {
             case PREDEC -> opAssign.apply(op.getLeft(), true, (x) -> x - 1);
             case PREINC -> opAssign.apply(op.getLeft(), true, (x) -> x + 1);
             case SUBTRACT -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x - y);
-            case UNARYNEG -> new InterpreterDataType("" + (-parse(GetIDT(op.getLeft(), locals))));
+            case UNARYNEG -> new InterpreterDataType((-parse(GetIDT(op.getLeft(), locals))));
             // unary pos is just used to check that a IDT is a numberish
-            case UNARYPOS -> new InterpreterDataType("" + parse(GetIDT(op.getLeft(), locals)));
+            case UNARYPOS -> new InterpreterDataType(parse(GetIDT(op.getLeft(), locals)));
             default -> throw new IllegalArgumentException("Unexpected value: " + op.getOperation());
 
         };
@@ -687,7 +675,6 @@ public class Interpreter {
 
             }
             case ForNode fr -> {
-                // fr.getInit().ifPresent(init->GetIDT(init, locals));
                 for (fr.getInit().ifPresent(init -> GetIDT(init, locals)); fr.getCondition()
                         .map(cond -> truthyValue(GetIDT(cond, locals).getContents()) == "1")
                         .orElse(true); fr.getIncrement().ifPresent(inc -> GetIDT(inc, locals))) {
@@ -709,6 +696,13 @@ public class Interpreter {
                     // name not full lvalue?)
                     InterpreterArrayDataType iterable = getArray(v.getName(), locals);
                     for (var index : iterable.getKeysList()) {
+                        // indices are global and local in awk even if declared earlier in a local scope
+                        // so global == local == index
+                        var indexVar = getGlobal(fe.getIndex());
+                        if (locals != null) {
+                            locals.put(fe.getIndex(), indexVar);
+                        }
+                        indexVar.setContents(index);
                         var maybeReturn = InterpretListOfStatements(fe.getBlock(), locals);
                         var returnType = maybeReturn.map(ReturnType::getReturnKind)
                                 .orElse(Interpreter.ReturnType.ReturnKind.Normal);
@@ -758,7 +752,7 @@ public class Interpreter {
     private Optional<ReturnType> InterpretListOfStatements(BlockNode block,
             HashMap<String, InterpreterDataType> locals) {
         for (var stmt : block.getStatements()) {
-            var maybeReturn = ProcessStatement(variables, stmt);
+            var maybeReturn = ProcessStatement(locals, stmt);
             if (maybeReturn.getReturnKind() != ReturnType.ReturnKind.Normal) {
                 return Optional.of(maybeReturn);
             }

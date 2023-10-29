@@ -135,6 +135,25 @@ public final class Optional<T> {
         return value == null ? (Optional<T>) EMPTY
                              : new Optional<>(value);
     }
+    /**
+     * Returns an {@code Optional} describing the given value, if
+     * non-{@code Exception}, otherwise returns an empty {@code Optional}.
+     *
+     * @param value the possibly-{@code Exception} value to describe
+     * @param <T> the type of the value
+     * @param <E> possible Exception
+     * @return an {@code Optional} with a present value if the specified value
+     *         is non-{@code Exception}, otherwise an empty {@code Optional}
+     */
+    @SuppressWarnings("unchecked")
+    public static <T, E extends Exception> Optional<T> ofExceptionable(CheckedSupplier<T, E> value) {
+        try {
+           return new Optional<T>(value.get());
+        } catch (Exception e) {
+            return (Optional<T>) EMPTY;
+        }
+    }
+
 
     /**
      * If a value is present, returns the value, otherwise throws
