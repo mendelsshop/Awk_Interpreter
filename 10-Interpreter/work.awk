@@ -1,4 +1,10 @@
+
+
+BEGIN 
+{}
 {
+
+
    a[1] = 5;
 #    a--;
 #    v = sprintf ();
@@ -17,6 +23,7 @@ l = split($0, a, FS)
 a["ss"] = l
 for ( i=0;i < l;i++) {
         print "index",i, a[i], "end"
+        next
 }
 # foo(a, l)
 
@@ -31,3 +38,9 @@ for ( i=0;i < l;i++) {
 # }
 
 # }
+
+function foo(){
+        next
+}
+
+END{ foo()}

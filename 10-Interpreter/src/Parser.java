@@ -74,6 +74,7 @@ public class Parser {
     }
 
     private boolean ParseAction(ProgramNode program) throws AwkException {
+        AcceptSeperators();
         if (MatchAndRemove(Token.TokenType.BEGIN).isPresent()) {
             var block = ParseBlock(false);
             program.addToBegin(block);

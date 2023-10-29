@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -153,7 +154,7 @@ public class Interpreter {
 
     private ProgramNode program;
     private LineManager input;
-    private boolean next = false;
+    // private boolean next = false;
     private Record record;
     private HashMap<String, InterpreterDataType> variables = new HashMap<String, InterpreterDataType>() {
         {
@@ -209,6 +210,10 @@ public class Interpreter {
         } catch (NumberFormatException e) {
             throw new AwkRuntimeError.ExpectedNumberError(value, e);
         }
+    }
+
+    private class Next extends RuntimeException {
+
     }
 
     // TODO; should have functions for checking that pieces of data are of specific
@@ -273,8 +278,7 @@ public class Interpreter {
             // next should be a statementnode b/c it changes control flow (if the entire awk
             // program is essentialy a loop next is like a continue)
             put("next", new BuiltInFunctionDefinitionNode("next", (vars) -> {
-                next = true;
-                return "";
+                throw new Next();
             }, new LinkedList<>(), false));
             BiFunction<String, TriFunction<String, String, String, String>, BuiltInFunctionDefinitionNode> sub = (name,
                     replacer) -> new BuiltInFunctionDefinitionNode(name, (vars) -> {
@@ -761,19 +765,26 @@ public class Interpreter {
     }
 
     public void InterpretProgram() {
-        for (var begin : program.getBeginBlocks()) {
-            InterpretBlock(begin);
-        }
-
+        BiConsumer<Supplier<AwkRuntimeError>, LinkedList<BlockNode>> blockInterpreter = (type, blocks) -> {
+            for (var block : blocks) {
+                try {
+                    InterpretBlock(block);
+                } catch (Next e) {
+                    throw type.get();
+                }
+            }
+        };
+        blockInterpreter.accept(()->new AwkRuntimeError.NextInBeginError(), program.getBeginBlocks());
         while (input.SplitAndAssign()) {
-            for (var block : program.getRestBlocks()) {
-                InterpretBlock(block);
+            try {
+                for (var block : program.getRestBlocks()) {
+                    InterpretBlock(block);
+                }
+            } catch (Next e) {
+                // just continue
             }
         }
-
-        for (var end : program.getEndBlocks()) {
-            InterpretBlock(end);
-        }
+        blockInterpreter.accept(()->new AwkRuntimeError.NextInEndError(), program.getEndBlocks());
     }
 
     public void InterpretBlock(BlockNode block) {

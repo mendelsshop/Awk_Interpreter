@@ -172,4 +172,18 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
 
         }
     }
+
+    public static class NextInBeginError extends AwkRuntimeError {
+        @Override
+        public String message() {
+            return "Next statement ran in begin block";
+        }
+    }
+
+    public static class NextInEndError extends AwkRuntimeError {
+        @Override
+        public String message() {
+            return "Next statement ran in end block";
+        }
+    }
 }
