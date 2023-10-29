@@ -37,7 +37,9 @@ public class Interpreter {
 
         private void ProcessRecord(String record) {
             this.record = new HeadField(record);
-            fields = Stream.of(record.split(getGlobal("FS").getContents())).map(f -> new Field(f))
+            String[] fields = record.split(getGlobal("FS").getContents());
+            variables.put("NF", new InterpreterDataType(fields.length));
+            this.fields = Stream.of(fields).map(f -> new Field(f))
                     .collect(Collectors.toCollection(() -> new LinkedList<>()));
         }
 
@@ -140,7 +142,6 @@ public class Interpreter {
                 update.accept("NR");
                 update.accept("NFR");
                 String text = lines.remove(0);
-                variables.put("NF", new InterpreterDataType(lines.size()));
                 // assign each variable to $n
                 // assign lines and nf,fnr,nr
                 // is $0 for whole line if so start from 1
@@ -396,37 +397,44 @@ public class Interpreter {
 
     }
 
+    // maps params to args
+    // the mapper function is used to clone idts so they cannot be modified from non builtin fucntions
+    private HashMap<String, InterpreterDataType> proccesArgs(LinkedList<String> params, LinkedList<Node> args,
+            Boolean vardiac, String functionName, HashMap<String, InterpreterDataType> locals,
+            Function<InterpreterDataType, InterpreterDataType> mapper) {
+        if (vardiac ? args.size() < params.size() - 1 : args.size() != params.size()) {
+            throw new AwkRuntimeError.AwkArittyError(functionName, params.size(), args.size(),
+                    vardiac);
+        }
+        var evaledArgs = args.stream().<InterpreterDataType>map(a -> GetIDT(a, locals)).map(mapper).toList();
+        // go through all parameter besides for the last (special cases for vardiacs)
+        if (vardiac) {
+            // we can do limit to size -1 b/c varidiac garuntess there is at least one param
+            // so size = 1 and size -1 = 0
+            var map = Stream.iterate(0, n -> n + 1).limit(params.size() - 1)
+                    .collect(Collectors.toMap(i -> params.get(i), i -> evaledArgs.get(i)));
+            map.put(params.getLast(), new InterpreterArrayDataType(new HashMap<>(
+                    Stream.iterate(params.size() - 1, i -> i < args.size(), n -> n + 1)
+                            .collect(Collectors.toMap(i -> "" + (i - (params.size() - 1)),
+                                    i -> evaledArgs.get(i))))));
+            return new HashMap<>(map);
+        }
+        return new HashMap<String, InterpreterDataType>(Stream.iterate(0, n -> n + 1).limit(params.size())
+                .collect(Collectors.toMap(i -> params.get(i), i -> evaledArgs.get(i))));
+    }
+
     private String RunFunctionCall(FunctionCallNode function, HashMap<String, InterpreterDataType> locals) {
-        TriFunction<LinkedList<String>, LinkedList<Node>, Boolean, HashMap<String, InterpreterDataType>> proccesArgs = (
-                params, args, vardiac) -> {
-            if (vardiac ? args.size() < params.size() - 1 : args.size() != params.size()) {
-                throw new AwkRuntimeError.AwkArittyError(function.getFunctionName(), params.size(), args.size(),
-                        vardiac);
-            }
-            var evaledArgs = args.stream().map(a -> GetIDT(a, locals).Clone()).toList();
-            // go through all parameter besides for the last (special cases for vardiacs)
-            if (vardiac) {
-                // we can do limit to size -1 b/c varidiac garuntess there is at least one param
-                // so size = 1 and size -1 = 0
-                var map = Stream.iterate(0, n -> n + 1).limit(params.size() - 1)
-                        .collect(Collectors.toMap(i -> params.get(i), i -> evaledArgs.get(i)));
-                map.put(params.getLast(), new InterpreterArrayDataType(new HashMap<>(
-                        Stream.iterate(params.size() - 1, i -> i < args.size(), n -> n + 1)
-                                .collect(Collectors.toMap(i -> "" + (i - (params.size() - 1)),
-                                        i -> evaledArgs.get(i))))));
-                return new HashMap<>(map);
-            }
-            return new HashMap<String, InterpreterDataType>(Stream.iterate(0, n -> n + 1).limit(params.size())
-                    .collect(Collectors.toMap(i -> params.get(i), i -> evaledArgs.get(i))));
-        };
         var functionDefinition = Optional.ofNullable(functions.get(function.getFunctionName()))
                 .orElseThrow(() -> new AwkRuntimeError.FunctionNotFoundError(function.getFunctionName()));
 
         if (functionDefinition instanceof BuiltInFunctionDefinitionNode buitlin) {
-            var args = proccesArgs.apply(buitlin.getParameters(), function.getParameters(), buitlin.getVaridiac());
+            var args = proccesArgs(buitlin.getParameters(), function.getParameters(), buitlin.getVaridiac(),
+            // mapper here is identity b/c for builtins we do not clone so [g?]sub works
+                    function.getFunctionName(), locals, i -> i);
             return buitlin.getExecute().apply(args);
         } else {
-            var args = proccesArgs.apply(functionDefinition.getParameters(), function.getParameters(), false);
+            var args = proccesArgs(functionDefinition.getParameters(), function.getParameters(), false,
+                    function.getFunctionName(), locals, InterpreterDataType::Clone);
             var retValue = InterpretListOfStatements(new BlockNode(functionDefinition.getStatements()), args)
                     .orElse(new ReturnType(Interpreter.ReturnType.ReturnKind.Normal));
             return switch (retValue.getReturnKind()) {
@@ -438,7 +446,6 @@ public class Interpreter {
 
     // TODO: prefer locals to be optional
     private InterpreterDataType GetIDT(Node value, HashMap<String, InterpreterDataType> locals) {
-
         switch (value) {
             case AssignmentNode a -> {
                 // TODO: make sure assigmnet is right ie array to array or scalr to scale ...
@@ -774,7 +781,7 @@ public class Interpreter {
                 }
             }
         };
-        blockInterpreter.accept(()->new AwkRuntimeError.NextInBeginError(), program.getBeginBlocks());
+        blockInterpreter.accept(() -> new AwkRuntimeError.NextInBeginError(), program.getBeginBlocks());
         while (input.SplitAndAssign()) {
             try {
                 for (var block : program.getRestBlocks()) {
@@ -784,7 +791,7 @@ public class Interpreter {
                 // just continue
             }
         }
-        blockInterpreter.accept(()->new AwkRuntimeError.NextInEndError(), program.getEndBlocks());
+        blockInterpreter.accept(() -> new AwkRuntimeError.NextInEndError(), program.getEndBlocks());
     }
 
     public void InterpretBlock(BlockNode block) {
