@@ -34,11 +34,15 @@ public class InterpreterArrayDataType extends InterpreterDataType {
     // this method is used for varidaic parameter handling, in awk if a index is not
     // present we create it (purpose of get), but for varidiac parameters we want to
     // know if there is no map for the key to use the default value
-    // TODO: maybe since its only for varidac 1) assert its only 1 param
+    /// since its only for varidac 
+    // 1) assert its only 1 param
     // 2) dont take index assume its 0
-    public Optional<InterpreterDataType> getOptional(String index) {
+    public Optional<InterpreterDataType> getOptional(String name) {
+        if (contents.size() > 1) {
+            throw new AwkRuntimeError.ToManyArgsForVardiacError(name, contents.size());
+        }
         // javas hashmap returns null if cannot find value for a given key
-        return Optional.ofNullable(contents.get(index));
+        return Optional.ofNullable(contents.get("0"));
     }
 
     public boolean contains(String index) {
