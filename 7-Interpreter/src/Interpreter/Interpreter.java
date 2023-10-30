@@ -178,8 +178,8 @@ public class Interpreter {
         }
     };
 
-
-    // has to be after variables or else using new record freaks out about variables being null1
+    // has to be after variables or else using new record freaks out about variables
+    // being null1
     // your allowed to play with $0 $n in begin and end blocks via getline
     private Record record = new Record("");
 
@@ -252,6 +252,12 @@ public class Interpreter {
             // for all the varidiac functions we can assume that the vardiac paramter is of
             // type InterpereterArrayDataType as the caller of each function knows to do
             // that
+            // we can also assume that all the variables are present as the caller of each
+            // function knows to do that
+
+            // and that the correct varidac paramter is passed in
+            // as the for print, printf, sprintf we accept any number of strings
+            // for the others the getOptional on IADT checks that for us
 
             // prints list of strings to stdout + newline
             put("print", new BuiltInFunctionDefinitionNode("print", (vars) -> {
@@ -378,6 +384,7 @@ public class Interpreter {
             put("split", new BuiltInFunctionDefinitionNode("split", (vars) -> {
                 String string = getVariable("string", vars).getContents();
                 InterpreterArrayDataType array = getArray("array", vars);
+                array.clear();
                 String sep = (getArray("sep", vars))
                         // if no sep passed -> FS
                         .getOptional("split").orElse(getGlobal("FS"))
@@ -403,7 +410,7 @@ public class Interpreter {
                 return (getArray("length", vars))
                         .getOptional("substr")
                         .<String>map(n -> string.substring(start, start + parse(n).intValue()))
-                        // if no length -> just og to end of string
+                        // if no length -> just go to end of string
                         .orElse(string.substring(start));
 
             }, new LinkedList<>() {
