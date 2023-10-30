@@ -1,6 +1,5 @@
 BEGIN {
-        getline
-        print $0
+        getline print $0
 }
 
 # {

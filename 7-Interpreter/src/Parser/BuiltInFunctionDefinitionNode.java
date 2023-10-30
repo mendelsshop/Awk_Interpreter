@@ -19,7 +19,6 @@ public class BuiltInFunctionDefinitionNode extends FunctionNode {
     public BuiltInFunctionDefinitionNode(String name, Function<HashMap<String, InterpreterDataType>, String> execute,
         LinkedList<String> parameters,
             Boolean varidiac) {
-        // TODO: how do we check arrity
         super(name, parameters);
         Execute = execute;
         this.varidiac = varidiac;

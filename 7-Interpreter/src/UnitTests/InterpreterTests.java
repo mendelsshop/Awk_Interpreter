@@ -106,7 +106,7 @@ public class InterpreterTests {
                     }
                 }));
             }
-        }, "0", i -> {
+        }, "1", i -> {
             assertEquals(i.getRecord().Get(0).getContents(), "this is not csv");
         });
         assertEquals(var.getContents(), "r1 r2 r3");
