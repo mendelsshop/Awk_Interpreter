@@ -30,7 +30,6 @@ public class InterpreterArrayDataType extends InterpreterDataType {
     public InterpreterDataType get(String index) {
         return (contents.computeIfAbsent(index, u -> new InterpreterDataType()));
     }
-
     // this method is used for varidaic parameter handling, in awk if a index is not
     // present we create it (purpose of get), but for varidiac parameters we want to
     // know if there is no map for the key to use the default value
@@ -44,6 +43,7 @@ public class InterpreterArrayDataType extends InterpreterDataType {
         // javas hashmap returns null if cannot find value for a given key
         return Optional.ofNullable(contents.get("0"));
     }
+
 
     public boolean contains(String index) {
         return contents.containsKey(index);

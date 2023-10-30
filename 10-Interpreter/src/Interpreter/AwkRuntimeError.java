@@ -1,5 +1,3 @@
-// Decided to make each error indivdual class makes it easier to test what type of errors are being thrown
-// TODO: make the inner classes accesable without/outer class
 public abstract class AwkRuntimeError extends RuntimeException implements DisplayError {
     // we make them subclasses static which just means they don't have acccess to
     // the outer classes instance varaibles -> we can access the inner classes
@@ -142,6 +140,22 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
         @Override
         public String message() {
             return "Cannot get field with negative index " + index + " in expression " + attempted;
+        }
+    }
+
+    public static class ToManyArgsForVardiacError extends AwkRuntimeError {
+
+        private String name;
+        private int size;
+
+        public ToManyArgsForVardiacError(String name, int size) {
+            this.name = name;
+            this.size = size;
+        }
+
+        @Override
+        public String message() {
+            return "Function " + name + "expected an optional arguement, not an extra " + size + " arguements";
         }
     }
 

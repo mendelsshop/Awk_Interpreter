@@ -27,7 +27,8 @@ public class Interpreter {
     // something assigned to an index of an array cannot modify the what that value
 
     // for managing $0 ,$n
-    private class Record {
+    // public for testing
+    class Record {
         private LinkedList<Field> fields;
         private HeadField record;
 
@@ -122,10 +123,11 @@ public class Interpreter {
 
         // used for getline with variable
         public boolean assign(InterpreterDataType var) {
-            if (!lines.isEmpty()) {
+            var left = !lines.isEmpty();
+            if (left) {
                 var.setContents(lines.remove(0));
             }
-            return !lines.isEmpty();
+            return left;
         }
 
         public boolean SplitAndAssign() {
@@ -156,7 +158,17 @@ public class Interpreter {
 
     private ProgramNode program;
     private LineManager input;
-    private Record record;
+
+    // public for testing purposes
+    public void setInput(String input) {
+        this.input = new LineManager(new LinkedList<>(List.of(input.split("\n"))));
+    }
+
+    // public for testing purposes
+    public Record getRecord() {
+        return record;
+    }
+
     private HashMap<String, InterpreterDataType> variables = new HashMap<String, InterpreterDataType>() {
         {
             put("FS", new InterpreterDataType(" "));
@@ -167,10 +179,20 @@ public class Interpreter {
         }
     };
 
+    // has to be after variables or else using new record freaks out about variables
+    // being null1
+    // your allowed to play with $0 $n in begin and end blocks via getline
+    private Record record = new Record("");
+
+    // public for testing purposes
     public InterpreterDataType getGlobal(String index) {
         return (variables.computeIfAbsent(index, u -> new InterpreterDataType()));
     }
 
+    // awk allows for inventing varaibles so get or init
+    // will attemptt to find the varaible or create otherwise in the samllest scope
+    // possible
+    // basis for get(Varaible|Array)
     private InterpreterDataType getOrInit(String index, Optional<HashMap<String, InterpreterDataType>> vars,
             Supplier<InterpreterDataType> defaultValue) {
         return vars
@@ -180,7 +202,8 @@ public class Interpreter {
 
     }
 
-    private InterpreterDataType getVariable(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
+    // public for testing purposes
+    public InterpreterDataType getVariable(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
         return getOrInit(index, vars, () -> new InterpreterDataType());
     }
 
@@ -192,6 +215,7 @@ public class Interpreter {
         return getArray(index, Optional.ofNullable(vars));
     }
 
+    // public for testing purposes
     private InterpreterArrayDataType getArray(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
         if (getOrInit(index, vars, () -> new InterpreterArrayDataType()) instanceof InterpreterArrayDataType array) {
             return array;
@@ -201,6 +225,7 @@ public class Interpreter {
         }
     }
 
+    // real awk uses c's atof which allow for "" -> 0 instead of an error
     private Float parse(InterpreterDataType value) {
         var string = value.getContents().trim();
         try {
@@ -213,25 +238,29 @@ public class Interpreter {
         }
     }
 
-    private class Next extends RuntimeException {
+    // public for testing next
+    // used for singalling a next staements has appeared - wont get handled till
+    // interpeter 4
+    public class Next extends RuntimeException {
 
     }
 
-    // TODO; should have functions for checking that pieces of data are of specific
-    // data type
-    // also need to make sure to not clone stuff (most of the time) so [g]sub
-    // actualy replaces strings
-    // TODO: tinterpreter needs custom exception b/c doesn't know line numbers
     // docs https://pubs.opengroup.org/onlinepubs/7908799/xcu/awk.html
     // slightly more formatted
     // https://manpages.ubuntu.com/manpages/focal/en/man1/awk.1posix.html
     private HashMap<String, FunctionNode> functions = new HashMap<String, FunctionNode>() {
         {
-            // TODO: builtin functions also need to figure out what each function does
-            // TODO: printing arrays is not valid
             // for all the varidiac functions we can assume that the vardiac paramter is of
             // type InterpereterArrayDataType as the caller of each function knows to do
             // that
+            // we can also assume that all the variables are present as the caller of each
+            // function knows to do that
+
+            // and that the correct varidac paramter is passed in
+            // as the for print, printf, sprintf we accept any number of strings
+            // for the others the getOptional on IADT checks that for us
+
+            // prints list of strings to stdout + newline
             put("print", new BuiltInFunctionDefinitionNode("print", (vars) -> {
                 InterpreterArrayDataType strings = getArray("strings", vars);
                 System.out.println(
@@ -243,6 +272,8 @@ public class Interpreter {
                     add("strings");
                 }
             }, true));
+
+            // prints list of strings formatted by format to stdout
             put("printf", new BuiltInFunctionDefinitionNode("printf", (vars) -> {
                 String format = getVariable("format", vars).getContents();
                 InterpreterArrayDataType strings = getArray("strings", vars);
@@ -255,6 +286,8 @@ public class Interpreter {
                     add("strings");
                 }
             }, true));
+
+            // returns list of strings formatted by format
             put("sprintf", new BuiltInFunctionDefinitionNode("sprintf", (vars) -> {
                 String format = getVariable("format", vars).getContents();
                 InterpreterArrayDataType strings = getArray("strings", vars);
@@ -265,30 +298,38 @@ public class Interpreter {
                     add("strings");
                 }
             }, true));
-            // are next and getline samething
-            // should getline be variadiac on a variable
+
+            // if nothing passed reset record ($0, $n)
+            // otherwise sets variable to new line
+            // returns 0 if no lines left otherwise 1
             put("getline",
                     new BuiltInFunctionDefinitionNode("getline",
-                            (vars) -> getArray("var", vars).getOptional("0").map(v -> input.assign(v))
+                            (vars) -> getArray("var", vars).getOptional("getline").map(v -> input.assign(v))
+                                    // if no var passed -> $0
                                     .orElseGet(() -> input.SplitAndAssign()) ? "1" : "0",
                             new LinkedList<>() {
                                 {
                                     add("var");
                                 }
                             }, true));
-            // next should be a statementnode b/c it changes control flow (if the entire awk
-            // program is essentialy a loop next is like a continue)
+
+            // we through next aand will handl in later assignments
             put("next", new BuiltInFunctionDefinitionNode("next", (vars) -> {
                 throw new Next();
             }, new LinkedList<>(), false));
+
+            // function for [g?]sub
+            // mutates passed in string or $0 (b/c when buitins are called they do not
+            // clone)
             BiFunction<String, TriFunction<String, String, String, String>, BuiltInFunctionDefinitionNode> sub = (name,
                     replacer) -> new BuiltInFunctionDefinitionNode(name, (vars) -> {
                         String pattern = getVariable("pattern", vars).getContents();
                         String replacement = (getVariable("replacement", vars)
                                 .getContents());
                         InterpreterDataType target = (getArray("target", vars))
-                                .getOptional("0")
-                                .orElse(record.Get(0));
+                                .getOptional(name)
+                                // if no target passed -> $0
+                                .orElseGet(() -> record.Get(0));
                         target.setContents(replacer.apply(target.getContents(), pattern, replacement));
                         return "";
                     }, new LinkedList<>() {
@@ -304,7 +345,7 @@ public class Interpreter {
                 String needle = getVariable("needle", vars).getContents();
                 var pattern = Pattern.compile(needle);
                 var matcher = pattern.matcher(haystack);
-                boolean matches = matcher.matches();
+                boolean matches = matcher.find();
                 String index = String.valueOf(matches ? matcher.start() + 1 : 0);
                 String length = String.valueOf((matches) ? matcher.end() - matcher.start() : -1);
                 variables.put("RSTART", new InterpreterDataType(index));
@@ -317,6 +358,7 @@ public class Interpreter {
                 }
             }, false));
             put("sub", sub.apply("sub", String::replaceFirst));
+            // returns 1 based index of needle in haystack if present otherwise 0
             put("index", new BuiltInFunctionDefinitionNode("index", (vars) -> {
                 String haystack = getVariable("haystack", vars).getContents();
                 String needle = getVariable("needle", vars).getContents();
@@ -328,10 +370,10 @@ public class Interpreter {
                     add("needle");
                 }
             }, false));
-            // defaults to $0 if nothing maybee
+            // defaults to $0
             put("length", new BuiltInFunctionDefinitionNode("length", (vars) -> {
-                String string = (getArray("string", vars)).getOptional("0")
-                        .orElse(record.Get(0))
+                String string = (getArray("string", vars)).getOptional("length")
+                        .orElseGet(() -> record.Get(0))
                         .getContents();
                 return String.valueOf(string.length());
             }, new LinkedList<>() {
@@ -339,11 +381,14 @@ public class Interpreter {
                     add("string");
                 }
             }, true));
+            // varidac over seperator (defaults to FS)
             put("split", new BuiltInFunctionDefinitionNode("split", (vars) -> {
                 String string = getVariable("string", vars).getContents();
                 InterpreterArrayDataType array = getArray("array", vars);
+                array.clear();
                 String sep = (getArray("sep", vars))
-                        .getOptional("0").orElse(getGlobal("FS"))
+                        // if no sep passed -> FS
+                        .getOptional("split").orElse(getGlobal("FS"))
                         .getContents();
                 var strings = string.split(sep);
                 int index = 0;
@@ -364,8 +409,9 @@ public class Interpreter {
                 // we do start -1 b\c according to spec the start is 1-based index
                 int start = parse(getVariable("start", vars)).intValue() - 1;
                 return (getArray("length", vars))
-                        .getOptional("0")
+                        .getOptional("substr")
                         .<String>map(n -> string.substring(start, start + parse(n).intValue()))
+                        // if no length -> just go to end of string
                         .orElse(string.substring(start));
 
             }, new LinkedList<>() {
@@ -388,6 +434,11 @@ public class Interpreter {
             put("toupper", strUpdate.apply("toupper", String::toUpperCase));
         }
     };
+
+    // public for testing purposes
+    public FunctionNode getFunction(String function) {
+        return functions.get(function);
+    }
 
     public Interpreter(ProgramNode program, Optional<String> path) throws IOException {
         input = new LineManager(
@@ -445,12 +496,29 @@ public class Interpreter {
         }
     }
 
+
+
     // TODO: prefer locals to be optional
     private InterpreterDataType GetIDT(Node value, HashMap<String, InterpreterDataType> locals) {
+
         switch (value) {
             case AssignmentNode a -> {
                 // TODO: make sure assigmnet is right ie array to array or scalr to scale ...
                 var newValue = GetIDT(a.getExpression(), locals);
+                // if (a.getTarget() isubstrstanceof VariableReferenceNode || a.getTarget()
+                // instanceof OperationNode op
+                // && op.getOperation() == OperationNode.Operation.DOLLAR) {
+                // var target = GetIDT(v, locals).getContents();
+                // v.getIndex().ifPresentOrElse(i->{
+                // String index = GetIDT(i, locals).getContents();
+                // getArray(target, locals).insert(index, newValue);
+                // }, ()-> {
+                // getVariable(target, locals).setContents(newValue.getContents());
+                // });
+
+                // } else {
+                // throw new AwkRuntimeError.NotAVariableError(value);
+                // }
                 checkAssignAble(a.getTarget());
                 // we can really only assign to scalar
                 // we inteninall setcontents and getcontents so assignment doesnt modify
@@ -771,7 +839,6 @@ public class Interpreter {
         }
         return Optional.empty();
     }
-
     public void InterpretProgram() {
         BiConsumer<Supplier<AwkRuntimeError>, LinkedList<BlockNode>> blockInterpreter = (type, blocks) -> {
             for (var block : blocks) {

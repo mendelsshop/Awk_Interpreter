@@ -34,10 +34,10 @@ sub("2", "two",$0 )
 
 NF == 3 {
         print "3 fields"
-        print substr($0, 4,3) == "two"
+        # print substr($0, 4,3) == "two"
         print length($0) == length()
         # doesnt change $0
-        print getline a
+        # print getline a`
         v = sprintf ("\t%s\n", a)
         print v
         print $0
