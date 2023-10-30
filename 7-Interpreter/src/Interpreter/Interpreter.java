@@ -26,6 +26,7 @@ public class Interpreter {
     // something assigned to an index of an array cannot modify the what that value
 
     // for managing $0 ,$n
+    // public for testing
     class Record {
         private LinkedList<Field> fields;
         private HeadField record;
@@ -121,10 +122,11 @@ public class Interpreter {
 
         // used for getline with variable
         public boolean assign(InterpreterDataType var) {
-            if (!lines.isEmpty()) {
+            var left = !lines.isEmpty();
+            if (left) {
                 var.setContents(lines.remove(0));
             }
-            return !lines.isEmpty();
+            return left;
         }
 
         public boolean SplitAndAssign() {
@@ -161,8 +163,6 @@ public class Interpreter {
         this.input = new LineManager(new LinkedList<>(List.of(input.split("\n"))));
     }
 
-    private Record record;
-
     // public for testing purposes
     public Record getRecord() {
         return record;
@@ -177,6 +177,11 @@ public class Interpreter {
             // we dont set nr/nf/nfr as getglobal will auto assign them if accesed
         }
     };
+
+
+    // has to be after variables or else using new record freaks out about variables being null1
+    // your allowed to play with $0 $n in begin and end blocks via getline
+    private Record record = new Record("");
 
     // public for testing purposes
     public InterpreterDataType getGlobal(String index) {

@@ -41,6 +41,8 @@ NF == 3 {
         v = sprintf ("\t%s\n", a)
         print v
         print $0
+}{
+        print "3 fields"
 }
 
 # function foo(array, l) {
@@ -52,7 +54,8 @@ NF == 3 {
 # }
 
 function foo(){
-        next
+        # next
+        print "anmd"
 }
 
-# END { foo()}
+END { foo()}
