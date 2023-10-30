@@ -38,7 +38,8 @@ NF == 3 {
         print length($0) == length()
         # doesnt change $0
         print getline a
-        print a
+        v = sprintf ("\t%s\n", a)
+        print v
         print $0
 }
 

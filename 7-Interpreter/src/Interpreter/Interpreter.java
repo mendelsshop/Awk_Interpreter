@@ -155,6 +155,13 @@ public class Interpreter {
 
     private ProgramNode program;
     private LineManager input;
+
+
+    // public for testing purposes
+    public void setInput(String input) {
+        this.input = new LineManager(new LinkedList<>(List.of(input.split("\n"))));
+    }
+
     private Record record;
     private HashMap<String, InterpreterDataType> variables = new HashMap<String, InterpreterDataType>() {
         {
@@ -166,6 +173,7 @@ public class Interpreter {
         }
     };
 
+    // public for testing purposes
     public InterpreterDataType getGlobal(String index) {
         return (variables.computeIfAbsent(index, u -> new InterpreterDataType()));
     }
@@ -179,7 +187,8 @@ public class Interpreter {
 
     }
 
-    private InterpreterDataType getVariable(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
+    // public for testing purposes
+    public InterpreterDataType getVariable(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
         return getOrInit(index, vars, () -> new InterpreterDataType());
     }
 
@@ -190,7 +199,8 @@ public class Interpreter {
     private InterpreterArrayDataType getArray(String index, HashMap<String, InterpreterDataType> vars) {
         return getArray(index, Optional.ofNullable(vars));
     }
-
+    
+    // public for testing purposes
     private InterpreterArrayDataType getArray(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
         if (getOrInit(index, vars, () -> new InterpreterArrayDataType()) instanceof InterpreterArrayDataType array) {
             return array;
@@ -212,7 +222,9 @@ public class Interpreter {
         }
     }
 
-    private class Next extends RuntimeException {
+    // public for testing next
+    // used for singalling a next staements has appeared - wont get handled till interpeter 4
+    public class Next extends RuntimeException {
 
     }
 
@@ -287,7 +299,7 @@ public class Interpreter {
                                 .getContents());
                         InterpreterDataType target = (getArray("target", vars))
                                 .getOptional("0")
-                                .orElse(record.Get(0));
+                                .orElseGet(()->record.Get(0));
                         target.setContents(replacer.apply(target.getContents(), pattern, replacement));
                         return "";
                     }, new LinkedList<>() {
@@ -303,7 +315,10 @@ public class Interpreter {
                 String needle = getVariable("needle", vars).getContents();
                 var pattern = Pattern.compile(needle);
                 var matcher = pattern.matcher(haystack);
-                boolean matches = matcher.matches();
+                boolean matches = matcher.find();
+                System.out.println(haystack);
+                System.out.println(needle);
+                System.out.println(matches);
                 String index = String.valueOf(matches ? matcher.start() + 1 : 0);
                 String length = String.valueOf((matches) ? matcher.end() - matcher.start() : -1);
                 variables.put("RSTART", new InterpreterDataType(index));
@@ -330,7 +345,7 @@ public class Interpreter {
             // defaults to $0 if nothing maybee
             put("length", new BuiltInFunctionDefinitionNode("length", (vars) -> {
                 String string = (getArray("string", vars)).getOptional("0")
-                        .orElse(record.Get(0))
+                        .orElseGet(()->record.Get(0))
                         .getContents();
                 return String.valueOf(string.length());
             }, new LinkedList<>() {
@@ -387,6 +402,11 @@ public class Interpreter {
             put("toupper", strUpdate.apply("toupper", String::toUpperCase));
         }
     };
+
+    // public for testing purposes
+    public FunctionNode getFunction(String function) {
+        return functions.get(function);
+    }
 
     public Interpreter(ProgramNode program, Optional<String> path) throws IOException {
         input = new LineManager(

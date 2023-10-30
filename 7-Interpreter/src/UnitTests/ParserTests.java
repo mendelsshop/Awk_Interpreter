@@ -8,9 +8,10 @@ import java.util.LinkedList;
 import org.junit.Test;
 
 public class ParserTests {
-       @Test
+    @Test
     public void ParseBasicFunction() throws Exception {
-        var lexer = UnitTests.testLexContent("function function_name(argument1, argument2, a) {} BEGIN {} END {} BEGIN {}",
+        var lexer = UnitTests.testLexContent(
+                "function function_name(argument1, argument2, a) {} BEGIN {} END {} BEGIN {}",
                 new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
                         Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.WORD, Token.TokenType.COMMA,
                         Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE,
@@ -79,7 +80,8 @@ public class ParserTests {
 
     @Test
     public void ParseFunctionWithMultipleParameters() throws Exception {
-        var lexer = UnitTests.testLexContent("function func_multi_params(param1, param2, param3) {} \n BEGIN {}\n END {}",
+        var lexer = UnitTests.testLexContent(
+                "function func_multi_params(param1, param2, param3) {} \n BEGIN {}\n END {}",
                 new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
                         Token.TokenType.WORD, Token.TokenType.COMMA, Token.TokenType.WORD, Token.TokenType.COMMA,
                         Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE,
@@ -211,8 +213,9 @@ public class ParserTests {
     @Test
     public void predecparse() throws Exception {
         var parser = new Parser(
-                UnitTests.testLexContent("{--a}", new Token.TokenType[] { Token.TokenType.OPENBRACE, Token.TokenType.MINUSMINUS,
-                        Token.TokenType.WORD, Token.TokenType.CLOSEBRACE }));
+                UnitTests.testLexContent("{--a}",
+                        new Token.TokenType[] { Token.TokenType.OPENBRACE, Token.TokenType.MINUSMINUS,
+                                Token.TokenType.WORD, Token.TokenType.CLOSEBRACE }));
         var res = parser.Parse();
         if (res.getRestBlocks().getFirst().getStatements().getFirst() instanceof AssignmentNode as
                 && as.getTarget() instanceof VariableReferenceNode variable
@@ -228,8 +231,9 @@ public class ParserTests {
     @Test
     public void preincparse() throws Exception {
         var parser = new Parser(
-                UnitTests.testLexContent("{++a}", new Token.TokenType[] { Token.TokenType.OPENBRACE, Token.TokenType.PLUSPLUS,
-                        Token.TokenType.WORD, Token.TokenType.CLOSEBRACE }));
+                UnitTests.testLexContent("{++a}",
+                        new Token.TokenType[] { Token.TokenType.OPENBRACE, Token.TokenType.PLUSPLUS,
+                                Token.TokenType.WORD, Token.TokenType.CLOSEBRACE }));
         var res = parser.Parse();
         if (res.getRestBlocks().getFirst().getStatements().getFirst() instanceof AssignmentNode as
                 && as.getTarget() instanceof VariableReferenceNode variable
@@ -1078,9 +1082,12 @@ public class ParserTests {
 
     @Test
     public void testBlockWithConditionalAndStatement() throws Exception {
-        var program = UnitTests.parse("a==5 {prints(a)}", new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.EQUAL,
-                Token.TokenType.NUMBER, Token.TokenType.OPENBRACE, Token.TokenType.WORD, Token.TokenType.OPENPAREN,
-                Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.CLOSEBRACE }, 0, 0, 0, 1);
+        var program = UnitTests.parse("a==5 {prints(a)}",
+                new Token.TokenType[] { Token.TokenType.WORD, Token.TokenType.EQUAL,
+                        Token.TokenType.NUMBER, Token.TokenType.OPENBRACE, Token.TokenType.WORD,
+                        Token.TokenType.OPENPAREN,
+                        Token.TokenType.WORD, Token.TokenType.CLOSEPAREN, Token.TokenType.CLOSEBRACE },
+                0, 0, 0, 1);
 
         var block = program.getRestBlocks().get(0);
         assertEquals(block.getCondition().get(),
@@ -1641,7 +1648,8 @@ public class ParserTests {
 
     @Test
     public void invalidconstuctsignature() throws Exception {
-        // tests to make sure UnitTests.parse throws error if the signature of a construct is
+        // tests to make sure UnitTests.parse throws error if the signature of a
+        // construct is
         // invalid
         // ie if the condition of a while loop empty or if the condition of one of them
         // has no parenthesis

@@ -6,10 +6,8 @@ import java.util.stream.Stream;
 
 import org.junit.Test;
 
-
 public class LexerTests {
-      // Lexer unittests
-
+    // Lexer unittests
 
     @Test
     public void EmptyLex() throws Exception {
@@ -364,7 +362,8 @@ public class LexerTests {
 
     @Test
     public void testBadlyFormattedProgram2() throws Exception {
-        UnitTests.testLexContent("if\t(i\t>\t10)\t{print\t\"i is greater than 10\"}\nelse\n{print \"i is not greater than 10\"}",
+        UnitTests.testLexContent(
+                "if\t(i\t>\t10)\t{print\t\"i is greater than 10\"}\nelse\n{print \"i is not greater than 10\"}",
                 new Token.TokenType[] {
                         Token.TokenType.IF, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
                         Token.TokenType.GREATERTHAN, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,

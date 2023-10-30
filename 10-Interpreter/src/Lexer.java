@@ -205,7 +205,10 @@ public class Lexer {
     }
 
     protected Token HandleStringLiteral() throws AwkException {
-        return HandleQuotedIsh('"', Token.TokenType.STRINGLITERAL, "string");
+        Token handleQuotedIsh = HandleQuotedIsh('"', Token.TokenType.STRINGLITERAL, "string");
+        // var t = handleQuotedIsh.getValue().get().replace("\\n", "\n");
+        // handleQuotedIsh = new Token(handleQuotedIsh.getStartPosition(),handleQuotedIsh.getLineNumber(), Token.TokenType.STRINGLITERAL, t);
+        return handleQuotedIsh;
     }
 
     protected void HanldeComment() {

@@ -5,7 +5,7 @@ import java.nio.charset.Charset;
 import org.junit.Test;
 
 public class StringHandlerTests {
-     // StringHandler unittests
+    // StringHandler unittests
     @Test
     public void HandleLEmptyString() throws Exception {
         var handler = new StringHandler("");
@@ -135,6 +135,5 @@ public class StringHandlerTests {
             fuzz_string_handler(string, numberOfOperations);
         }
     }
-
 
 }

@@ -1,16 +1,11 @@
 
 import static org.junit.Assert.*;
-
 import java.io.IOException;
-
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.Random;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
-
-import org.junit.Test;
 
 public class UnitTests {
         public static LinkedList<Token> testLexContent(String content, Token.TokenType[] expected) throws Exception {
