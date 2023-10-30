@@ -26,7 +26,7 @@ public class Interpreter {
     // something assigned to an index of an array cannot modify the what that value
 
     // for managing $0 ,$n
-    private class Record {
+    class Record {
         private LinkedList<Field> fields;
         private HeadField record;
 
@@ -156,13 +156,18 @@ public class Interpreter {
     private ProgramNode program;
     private LineManager input;
 
-
     // public for testing purposes
     public void setInput(String input) {
         this.input = new LineManager(new LinkedList<>(List.of(input.split("\n"))));
     }
 
     private Record record;
+
+    // public for testing purposes
+    public Record getRecord() {
+        return record;
+    }
+
     private HashMap<String, InterpreterDataType> variables = new HashMap<String, InterpreterDataType>() {
         {
             put("FS", new InterpreterDataType(" "));
@@ -199,7 +204,7 @@ public class Interpreter {
     private InterpreterArrayDataType getArray(String index, HashMap<String, InterpreterDataType> vars) {
         return getArray(index, Optional.ofNullable(vars));
     }
-    
+
     // public for testing purposes
     private InterpreterArrayDataType getArray(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
         if (getOrInit(index, vars, () -> new InterpreterArrayDataType()) instanceof InterpreterArrayDataType array) {
@@ -223,7 +228,8 @@ public class Interpreter {
     }
 
     // public for testing next
-    // used for singalling a next staements has appeared - wont get handled till interpeter 4
+    // used for singalling a next staements has appeared - wont get handled till
+    // interpeter 4
     public class Next extends RuntimeException {
 
     }
@@ -299,7 +305,7 @@ public class Interpreter {
                                 .getContents());
                         InterpreterDataType target = (getArray("target", vars))
                                 .getOptional("0")
-                                .orElseGet(()->record.Get(0));
+                                .orElseGet(() -> record.Get(0));
                         target.setContents(replacer.apply(target.getContents(), pattern, replacement));
                         return "";
                     }, new LinkedList<>() {
@@ -345,7 +351,7 @@ public class Interpreter {
             // defaults to $0 if nothing maybee
             put("length", new BuiltInFunctionDefinitionNode("length", (vars) -> {
                 String string = (getArray("string", vars)).getOptional("0")
-                        .orElseGet(()->record.Get(0))
+                        .orElseGet(() -> record.Get(0))
                         .getContents();
                 return String.valueOf(string.length());
             }, new LinkedList<>() {

@@ -83,18 +83,33 @@ public class InterpreterTests {
                     }
                 }));
             }
-        }, "0", i -> {
-        });
+        }, "0");
+        assertEquals(var.getContents(), "null");
     }
 
     @Test
     public void testGetlineVar() {
-
+        testBuiltIn("getline", initRecord("foo bar\nbaz sand"), new HashMap<String, InterpreterDataType>() {
+        }, "1", i -> {
+            assertEquals(i.getRecord().Get(0).getContents(), "baz sand");
+        });
     }
 
     @Test
     public void testGetline() {
-
+        var var = new InterpreterDataType("null");
+        testBuiltIn("getline", initRecord("this is not csv\nr1 r2 r3"), new HashMap<String, InterpreterDataType>() {
+            {
+                put("var", new InterpreterArrayDataType(new HashMap<>() {
+                    {
+                        put("0", var);
+                    }
+                }));
+            }
+        }, "0", i -> {
+            assertEquals(i.getRecord().Get(0).getContents(), "this is not csv");
+        });
+        assertEquals(var.getContents(), "r1 r2 r3");
     }
 
     @Test
@@ -147,10 +162,28 @@ public class InterpreterTests {
 
     @Test
     public void testSubDollar0() {
+        testBuiltIn("sub", initRecord("once=onne=oncce=one"), new HashMap<String, InterpreterDataType>() {
+            {
+                put("pattern", new InterpreterDataType("on.e"));
+                put("replacement", new InterpreterDataType("1"));
+                put("target", new InterpreterArrayDataType(new HashMap<>()));
+            }
+        }, "", i -> {
+            assertEquals(i.getRecord().Get(0).getContents(), "1=onne=oncce=one");
+        });
     }
 
     @Test
     public void testGSubDollar0() {
+        testBuiltIn("gsub", initRecord("1b-1a"), new HashMap<String, InterpreterDataType>() {
+            {
+                put("pattern", new InterpreterDataType("1(a|b)"));
+                put("replacement", new InterpreterDataType("foo"));
+                put("target", new InterpreterArrayDataType(new HashMap<>()));
+            }
+        }, "", i -> {
+            assertEquals(i.getRecord().Get(0).getContents(), "foo-foo");
+        });
     }
 
     @Test
@@ -236,11 +269,48 @@ public class InterpreterTests {
 
     @Test
     public void testSplit() {
-
+        var array = new InterpreterArrayDataType();
+        testBuiltIn("split", i -> {
+        }, new HashMap<String, InterpreterDataType>() {
+            {
+                put("string", new InterpreterDataType("Fo3ObA3Rs"));
+                put("array", array);
+                put("sep", new InterpreterArrayDataType(new HashMap<>() {
+                    {
+                        put("0", new InterpreterDataType("3"));
+                    }
+                }));
+            }
+        }, "3");
+        assertEquals(array.getHashMap(), new HashMap<>() {
+            {
+                put("1", new InterpreterDataType("Fo"));
+                put("2", new InterpreterDataType("ObA"));
+                put("3", new InterpreterDataType("Rs"));
+            }
+        });
     }
 
     @Test
     public void testSplitFS() {
+        var array = new InterpreterArrayDataType();
+        testBuiltIn("split", i -> {
+        }, new HashMap<String, InterpreterDataType>() {
+            {
+                put("string", new InterpreterDataType("123 45 67 7 8"));
+                put("array", array);
+                put("sep", new InterpreterArrayDataType(new HashMap<>()));
+            }
+        }, "5");
+        assertEquals(array.getHashMap(), new HashMap<>() {
+            {
+                put("1", new InterpreterDataType("123"));
+                put("2", new InterpreterDataType("45"));
+                put("3", new InterpreterDataType("67"));
+                put("4", new InterpreterDataType("7"));
+                put("5", new InterpreterDataType("8"));
+            }
+        });
     }
 
     @Test
