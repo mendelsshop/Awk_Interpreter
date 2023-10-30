@@ -9,6 +9,7 @@ public class Parser {
     private TokenHandler tokens;
     private int line = 0;
     private int column = 0;
+    private boolean inBuiltin; // used to make sure print print doesnt work
 
     public Parser(LinkedList<Token> tokenStream) {
         tokens = new TokenHandler(tokenStream);
@@ -315,26 +316,36 @@ public class Parser {
         CheckedFunction<Token.TokenType, Optional<FunctionCallNode>, AwkException> builtin = (
                 token) -> MatchAndRemove(token).<FunctionCallNode, AwkException>CheckedMap(s -> {
                     var ret = new LinkedList<Node>();
+                    // if this flag is true we are in already in a buitin function ie we have case like print a, b, print c
+                    if (inBuiltin) {
+                        throw createException("cannot nest builtin functions like" + token.toString().toLowerCase());
+                    }
+                    inBuiltin = true;
                     ParseOperation().CheckedIfPresent(first -> {
                         ret.add(first);
+
                         while (MatchAndRemove(Token.TokenType.COMMA).isPresent()) {
                             AcceptSeperators();
-                            // we can only acceptsepeorators after comma or else check seporarotrs will fail b/c we ate the seporator before
+                            // we can only acceptsepeorators after comma or else check seporarotrs will fail
+                            // b/c we ate the seporator before
                             // ie:
                             // print a, b,
                             //
                             // c
-                            // is ok but 
+                            // is ok but
                             // print a
-                            // ,v 
+                            // ,v
                             // is not
                             ret.add(ParseOperation()
                                     .orElseThrow(() -> createException(
-                                            "call to builtin " + token.toString().toLowerCase() + " missing expression after comma")));
+                                            "call to builtin " + token.toString().toLowerCase()
+                                                    + " missing expression after comma")));
 
                         }
                     });
-                    // we lower case it as enum are tostringed like FOO -> "FOO" and all token for builtins are also uppercased
+                    inBuiltin = false;
+                    // we lower case it as enum are tostringed like FOO -> "FOO" and all token for
+                    // builtins are also uppercased
                     return new FunctionCallNode(token.toString().toLowerCase(), ret);
                 });
         return Optional.ofNullable(tokens.Peek(0).map(Token::getType).equals(Optional.of(Token.TokenType.WORD))
@@ -349,7 +360,6 @@ public class Parser {
                 .CheckedOr(() -> builtin.apply(Token.TokenType.EXIT))
                 .CheckedOr(() -> builtin.apply(Token.TokenType.NEXTFILE))
                 .CheckedOr(() -> builtin.apply(Token.TokenType.NEXT));
-
     }
 
     private Optional<Node> ParseBottomLevel() throws AwkException {

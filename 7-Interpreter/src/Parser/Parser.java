@@ -172,9 +172,7 @@ public class Parser {
         var result = ParseOperation().orElseThrow(
                 () -> createException("expected expression in block but found invalid or empty expression"));
         Function<OperationNode, AssignmentNode> makeAssign = (op) -> new AssignmentNode(op.getLeft(), op);
-
         CheckSeporators(result.toString());
-
         switch (result) {
             case OperationNode op -> {
                 // we turn ++, -- into = ++, = -- here instead of in parsebottom
@@ -362,7 +360,6 @@ public class Parser {
                 .CheckedOr(() -> builtin.apply(Token.TokenType.EXIT))
                 .CheckedOr(() -> builtin.apply(Token.TokenType.NEXTFILE))
                 .CheckedOr(() -> builtin.apply(Token.TokenType.NEXT));
-
     }
 
     private Optional<Node> ParseBottomLevel() throws AwkException {

@@ -15,6 +15,7 @@ public class InterpreterDataType {
     public InterpreterDataType(String contents) {
         this.contents = contents;
     }
+    
     public InterpreterDataType(float contents) {
         setContents(contents);
     }

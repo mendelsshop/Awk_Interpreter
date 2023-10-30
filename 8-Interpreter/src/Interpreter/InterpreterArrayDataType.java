@@ -7,6 +7,10 @@ import java.util.stream.Stream;
 public class InterpreterArrayDataType extends InterpreterDataType {
     private HashMap<String, InterpreterDataType> contents = new HashMap<String, InterpreterDataType>();
 
+    public HashMap<String, InterpreterDataType> getHashMap() {
+        return contents;
+    }
+
     public InterpreterArrayDataType(HashMap<String, InterpreterDataType> contents) {
         this.contents = contents;
     }
@@ -30,11 +34,15 @@ public class InterpreterArrayDataType extends InterpreterDataType {
     // this method is used for varidaic parameter handling, in awk if a index is not
     // present we create it (purpose of get), but for varidiac parameters we want to
     // know if there is no map for the key to use the default value
-    // TODO: maybe since its only for varidac 1) assert its only 1 param
+    /// since its only for varidac 
+    // 1) assert its only 1 param
     // 2) dont take index assume its 0
-    public Optional<InterpreterDataType> getOptional(String index) {
+    public Optional<InterpreterDataType> getOptional(String name) {
+        if (contents.size() > 1) {
+            throw new AwkRuntimeError.ToManyArgsForVardiacError(name, contents.size());
+        }
         // javas hashmap returns null if cannot find value for a given key
-        return Optional.ofNullable(contents.get(index));
+        return Optional.ofNullable(contents.get("0"));
     }
 
     public boolean contains(String index) {
@@ -75,5 +83,30 @@ public class InterpreterArrayDataType extends InterpreterDataType {
 
     public void clear() {
         contents.clear();
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = super.hashCode();
+        result = prime * result + ((contents == null) ? 0 : contents.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (!super.equals(obj))
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        InterpreterArrayDataType other = (InterpreterArrayDataType) obj;
+        if (contents == null) {
+            if (other.contents != null)
+                return false;
+        } else if (!contents.equals(other.contents))
+            return false;
+        return true;
     }
 }
