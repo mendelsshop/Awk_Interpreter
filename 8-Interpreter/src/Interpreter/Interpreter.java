@@ -457,22 +457,7 @@ public class Interpreter {
 
         switch (value) {
             case AssignmentNode a -> {
-                // TODO: make sure assigmnet is right ie array to array or scalr to scale ...
                 var newValue = GetIDT(a.getExpression(), locals);
-                // if (a.getTarget() isubstrstanceof VariableReferenceNode || a.getTarget()
-                // instanceof OperationNode op
-                // && op.getOperation() == OperationNode.Operation.DOLLAR) {
-                // var target = GetIDT(v, locals).getContents();
-                // v.getIndex().ifPresentOrElse(i->{
-                // String index = GetIDT(i, locals).getContents();
-                // getArray(target, locals).insert(index, newValue);
-                // }, ()-> {
-                // getVariable(target, locals).setContents(newValue.getContents());
-                // });
-
-                // } else {
-                // throw new AwkRuntimeError.NotAVariableError(value);
-                // }
                 checkAssignAble(a.getTarget());
                 // we can really only assign to scalar
                 // we inteninall setcontents and getcontents so assignment doesnt modify
@@ -511,7 +496,7 @@ public class Interpreter {
     }
 
     private void checkAssignAble(Node value) {
-        if (value instanceof VariableReferenceNode || value instanceof OperationNode op
+        if (value instanceof VariableReferenceNode var && var.getIndex().isEmpty() || value instanceof OperationNode op
                 && op.getOperation() == OperationNode.Operation.DOLLAR) {
 
         } else {
@@ -572,6 +557,10 @@ public class Interpreter {
             case IN -> {
                 var index = GetIDT(op.getLeft(), locals).getContents();
                 if (op.getRight().get() instanceof VariableReferenceNode v) {
+                    // through error if the index is present since we do not support mutlidimensional arrays
+                    if (v.getIndex().isPresent()) {
+                        throw new AwkRuntimeError.ExpectedArrayError(index, "");
+                    }
                     var array = getArray(v.getName(), locals);
                     yield new InterpreterDataType(array.contains(index) ? "1" : "0");
                 } else {
@@ -584,7 +573,7 @@ public class Interpreter {
                     GetIDT(op.getRight().get(), locals).getContents()));
             case MODULO -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x % y);
             case MULTIPLY -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x * y);
-            case NE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case NE -> compare.apply(op.getLeft(), op.getRight().get(), c -> c != 0);
             case NOT ->
                 new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
                         ? "0"
