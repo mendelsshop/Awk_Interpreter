@@ -107,4 +107,17 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
             return "Function " + name + "expected an optional arguement, not an extra " + size + " arguements";
         }
     }
+
+    public static class ExpectedPatternError extends AwkRuntimeError {
+        private Node value;
+
+        public ExpectedPatternError(Node value) {
+            this.value = value;
+        }
+
+        @Override
+        public String message() {
+            return "Expected " + value + " to be a pattern, but it was not";
+        }
+    }
 }

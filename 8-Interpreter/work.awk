@@ -8,8 +8,9 @@ b = 4
 $1= 5
 $1++
 print $1
-c[0] = 6
-foo(c)
+# c[0] = 6
+# foo(c)
+!"fo"
 } 
 
 function foo(x) {

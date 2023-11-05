@@ -210,11 +210,11 @@ public class Interpreter {
         return getVariable(index, Optional.ofNullable(vars));
     }
 
-    private InterpreterArrayDataType getArray(String index, HashMap<String, InterpreterDataType> vars) {
+    // public for testing purposes
+    public InterpreterArrayDataType getArray(String index, HashMap<String, InterpreterDataType> vars) {
         return getArray(index, Optional.ofNullable(vars));
     }
 
-    // public for testing purposes
     private InterpreterArrayDataType getArray(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
         if (getOrInit(index, vars, () -> new InterpreterArrayDataType()) instanceof InterpreterArrayDataType array) {
             return array;
@@ -453,7 +453,8 @@ public class Interpreter {
     }
 
     // TODO: prefer locals to be optional
-    private InterpreterDataType GetIDT(Node value, HashMap<String, InterpreterDataType> locals) {
+    // package visibile for unit tests
+    InterpreterDataType GetIDT(Node value, HashMap<String, InterpreterDataType> locals) {
 
         switch (value) {
             case AssignmentNode a -> {
@@ -519,8 +520,11 @@ public class Interpreter {
             variable.setContents(newValue);
             return new InterpreterDataType((pre ? oldValue : newValue));
         };
-        BiFunction<String, String, String> match = (pattern, string) -> {
-            return Pattern.matches(pattern, string) ? "1" : "0";
+        BiFunction<String, Node, String> match = (string, pattern) -> {
+            if (pattern instanceof PatternNode p) {
+                return Pattern.matches(p.getPattern(), string) ? "1" : "0";
+            }
+            throw new AwkRuntimeError.ExpectedPatternError(pattern);
         };
         TriFunction<Node, Node, Function<Integer, Boolean>, InterpreterDataType> compare = (
                 x, y, comparator) -> {
@@ -570,7 +574,7 @@ public class Interpreter {
             case LE -> compare.apply(op.getLeft(), op.getRight().get(), c -> c <= 0);
             case LT -> compare.apply(op.getLeft(), op.getRight().get(), c -> c < 0);
             case MATCH -> new InterpreterDataType(match.apply(GetIDT(op.getLeft(), locals).getContents(),
-                    GetIDT(op.getRight().get(), locals).getContents()));
+                   op.getRight().get()));
             case MODULO -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x % y);
             case MULTIPLY -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x * y);
             case NE -> compare.apply(op.getLeft(), op.getRight().get(), c -> c != 0);
@@ -579,7 +583,7 @@ public class Interpreter {
                         ? "0"
                         : "1");
             case NOTMATCH -> new InterpreterDataType(match.apply(GetIDT(op.getLeft(), locals).getContents(),
-                    GetIDT(op.getRight().get(), locals).getContents()) == "1" ? "0" : "1");
+                    op.getRight().get()) == "1" ? "0" : "1");
             case OR ->
                 new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
                         ? "1"
