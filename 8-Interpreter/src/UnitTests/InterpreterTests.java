@@ -1028,4 +1028,163 @@ public class InterpreterTests {
         assertEquals("1", interpreter.GetIDT(positive, null).getContents());
     }
 
+    // interpreter 2 - tests - GetIDT - error - with numbers
+    // like doing 1- "foo" ...
+    @Test
+    public void testGetIDTErrorWithNumbers() throws Exception {
+        var parser = new Parser(
+                UnitTests.testLexContent("2 * \"bar\"; 17 - \"baz\"; i+= \"foo\"\n 7 / \"banana\"; 1 % \"bar\"",
+                        new Token.TokenType[] {
+                                // multiplication
+                                Token.TokenType.NUMBER, Token.TokenType.MULTIPLY, Token.TokenType.STRINGLITERAL,
+                                Token.TokenType.SEPERATOR,
+                                // subtraction
+                                Token.TokenType.NUMBER, Token.TokenType.MINUS, Token.TokenType.STRINGLITERAL,
+                                Token.TokenType.SEPERATOR,
+                                // addition
+                                Token.TokenType.WORD, Token.TokenType.PLUSEQUAL, Token.TokenType.STRINGLITERAL,
+                                Token.TokenType.SEPERATOR,
+                                // division
+                                Token.TokenType.NUMBER, Token.TokenType.DIVIDE, Token.TokenType.STRINGLITERAL,
+                                Token.TokenType.SEPERATOR,
+                                // modulus
+                                Token.TokenType.NUMBER, Token.TokenType.MODULO, Token.TokenType.STRINGLITERAL,
+                        }));
+        var interpreter = emptyInterpreter();
+        var multiplication = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(
+                new OperationNode(OperationNode.Operation.MULTIPLY, new ConstantNode("2"), new ConstantNode("bar")),
+                multiplication);
+        assertThrows(AwkRuntimeError.ExpectedNumberError.class, () -> interpreter.GetIDT(multiplication, null));
+
+        var subtraction = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(
+                new OperationNode(OperationNode.Operation.SUBTRACT, new ConstantNode("17"), new ConstantNode("baz")),
+                subtraction);
+        assertThrows(AwkRuntimeError.ExpectedNumberError.class, () -> interpreter.GetIDT(subtraction, null));
+
+        var addition = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new VariableReferenceNode("i"),
+                new OperationNode(OperationNode.Operation.ADD, new VariableReferenceNode("i"),
+                        new ConstantNode("foo"))),
+                addition);
+        assertThrows(AwkRuntimeError.ExpectedNumberError.class, () -> interpreter.GetIDT(addition, null));
+
+        var division = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(
+                new OperationNode(OperationNode.Operation.DIVIDE, new ConstantNode("7"), new ConstantNode("banana")),
+                division);
+        assertThrows(AwkRuntimeError.ExpectedNumberError.class, () -> interpreter.GetIDT(division, null));
+
+        var modulus = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new OperationNode(OperationNode.Operation.MODULO, new ConstantNode("1"), new ConstantNode("bar")),
+                modulus);
+        assertThrows(AwkRuntimeError.ExpectedNumberError.class, () -> interpreter.GetIDT(modulus, null));
+    }
+
+    // interpreter 2 - tests - GetIDT - error - with assignment to non variable
+    @Test
+    public void testGetIDTErrorWithAssignmentToNonVariable() throws Exception {
+        // pre inc/dec gets handled in parser
+        var parser = new Parser(UnitTests.testLexContent("1 = 2\n 7--; \"potato\" *= 2\n \"banana\" /= 2; \"bar\" %= 2",
+                new Token.TokenType[] {
+                        // assignment
+                        Token.TokenType.NUMBER, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR,
+
+                        // post decrement
+                        Token.TokenType.NUMBER, Token.TokenType.MINUSMINUS, Token.TokenType.SEPERATOR,
+                        // multiplication assignment
+                        Token.TokenType.STRINGLITERAL, Token.TokenType.MULTIPLYEQUAL, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR,
+                        // division assignment
+                        Token.TokenType.STRINGLITERAL, Token.TokenType.DIVIDEEQUAL, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR,
+                        // modulus assignment
+                        Token.TokenType.STRINGLITERAL, Token.TokenType.MODULOEQUAL, Token.TokenType.NUMBER,
+                }));
+
+        var interpreter = emptyInterpreter();
+        var assignment = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new ConstantNode("1"), new ConstantNode("2")), assignment);
+        assertThrows(AwkRuntimeError.NotAVariableError.class, () -> interpreter.GetIDT(assignment, null));
+
+        var postDecrement = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new OperationNode(OperationNode.Operation.POSTDEC, new ConstantNode("7")), postDecrement);
+        assertThrows(AwkRuntimeError.NotAVariableError.class, () -> interpreter.GetIDT(postDecrement, null));
+
+        var multiplicationAssignment = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new ConstantNode("potato"),
+                new OperationNode(OperationNode.Operation.MULTIPLY, new ConstantNode("potato"), new ConstantNode("2"))),
+                multiplicationAssignment);
+
+        // although the rest through expected number errors, thats just b/c a+= b -> a =
+        // a + b (so if a was a number then the math would work and we would get not a
+        // variable error)
+        assertThrows(AwkRuntimeError.ExpectedNumberError.class,
+                () -> interpreter.GetIDT(multiplicationAssignment, null));
+
+        var divisionAssignment = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new ConstantNode("banana"),
+                new OperationNode(OperationNode.Operation.DIVIDE, new ConstantNode("banana"), new ConstantNode("2"))),
+                divisionAssignment);
+        assertThrows(AwkRuntimeError.ExpectedNumberError.class, () -> interpreter.GetIDT(divisionAssignment, null));
+
+        var modulusAssignment = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new ConstantNode("bar"),
+                new OperationNode(OperationNode.Operation.MODULO, new ConstantNode("bar"), new ConstantNode("2"))),
+                modulusAssignment);
+        assertThrows(AwkRuntimeError.ExpectedNumberError.class, () -> interpreter.GetIDT(modulusAssignment, null));
+    }
+
+    // interpreter 2 - tests - GetIDT - error - (not)?match without pattern
+    @Test
+    public void testGetIDTErrorMatchWithoutPattern() throws Exception {
+        var parser = new Parser(UnitTests.testLexContent("\"foo\" ~ \"bar\"\n \"banana\" !~ \"baz\"",
+                new Token.TokenType[] {
+                        // match
+                        Token.TokenType.STRINGLITERAL, Token.TokenType.MATCH, Token.TokenType.STRINGLITERAL,
+                        Token.TokenType.SEPERATOR,
+                        // not match
+                        Token.TokenType.STRINGLITERAL, Token.TokenType.NOTMATCH, Token.TokenType.STRINGLITERAL,
+                }));
+        var interpreter = emptyInterpreter();
+        var match = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(
+                new OperationNode(OperationNode.Operation.MATCH, new ConstantNode("foo"), new ConstantNode("bar")),
+                match);
+        assertThrows(AwkRuntimeError.ExpectedPatternError.class, () -> interpreter.GetIDT(match, null));
+    
+        var notMatch = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(
+                new OperationNode(OperationNode.Operation.NOTMATCH, new ConstantNode("banana"), new ConstantNode("baz")),
+                notMatch);
+        assertThrows(AwkRuntimeError.ExpectedPatternError.class, () -> interpreter.GetIDT(notMatch, null));
+    }
+
+    // interpreter 2 - tests - GetIDT - error - field index < 0
+    @Test
+    public void testGetIDTErrorFieldIndexLessThanZero() throws Exception {
+        var parser = new Parser(UnitTests.testLexContent("$(37-10*40)\n", new Token.TokenType[] {
+                // field index < 0
+                Token.TokenType.DOLLAR, Token.TokenType.OPENPAREN, Token.TokenType.NUMBER, Token.TokenType.MINUS, Token.TokenType.NUMBER, Token.TokenType.MULTIPLY, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+        }));
+        var interpreter = emptyInterpreter();
+        var fieldIndexLessThanZero = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new OperationNode(OperationNode.Operation.DOLLAR, new OperationNode(OperationNode.Operation.SUBTRACT, new ConstantNode("37"), new OperationNode(OperationNode.Operation.MULTIPLY, new ConstantNode("10"), new ConstantNode("40")))), fieldIndexLessThanZero);
+        assertThrows(AwkRuntimeError.NegativeFieldIndexError.class, () -> interpreter.GetIDT(fieldIndexLessThanZero, null));
+    }
 }
