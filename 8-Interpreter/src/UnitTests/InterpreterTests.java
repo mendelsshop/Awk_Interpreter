@@ -1165,11 +1165,12 @@ public class InterpreterTests {
                 new OperationNode(OperationNode.Operation.MATCH, new ConstantNode("foo"), new ConstantNode("bar")),
                 match);
         assertThrows(AwkRuntimeError.ExpectedPatternError.class, () -> interpreter.GetIDT(match, null));
-    
+
         var notMatch = parser.ParseOperation().get();
         parser.AcceptSeperators();
         assertEquals(
-                new OperationNode(OperationNode.Operation.NOTMATCH, new ConstantNode("banana"), new ConstantNode("baz")),
+                new OperationNode(OperationNode.Operation.NOTMATCH, new ConstantNode("banana"),
+                        new ConstantNode("baz")),
                 notMatch);
         assertThrows(AwkRuntimeError.ExpectedPatternError.class, () -> interpreter.GetIDT(notMatch, null));
     }
@@ -1179,12 +1180,120 @@ public class InterpreterTests {
     public void testGetIDTErrorFieldIndexLessThanZero() throws Exception {
         var parser = new Parser(UnitTests.testLexContent("$(37-10*40)\n", new Token.TokenType[] {
                 // field index < 0
-                Token.TokenType.DOLLAR, Token.TokenType.OPENPAREN, Token.TokenType.NUMBER, Token.TokenType.MINUS, Token.TokenType.NUMBER, Token.TokenType.MULTIPLY, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN, Token.TokenType.SEPERATOR,
+                Token.TokenType.DOLLAR, Token.TokenType.OPENPAREN, Token.TokenType.NUMBER, Token.TokenType.MINUS,
+                Token.TokenType.NUMBER, Token.TokenType.MULTIPLY, Token.TokenType.NUMBER, Token.TokenType.CLOSEPAREN,
+                Token.TokenType.SEPERATOR,
         }));
         var interpreter = emptyInterpreter();
         var fieldIndexLessThanZero = parser.ParseOperation().get();
         parser.AcceptSeperators();
-        assertEquals(new OperationNode(OperationNode.Operation.DOLLAR, new OperationNode(OperationNode.Operation.SUBTRACT, new ConstantNode("37"), new OperationNode(OperationNode.Operation.MULTIPLY, new ConstantNode("10"), new ConstantNode("40")))), fieldIndexLessThanZero);
-        assertThrows(AwkRuntimeError.NegativeFieldIndexError.class, () -> interpreter.GetIDT(fieldIndexLessThanZero, null));
+        assertEquals(
+                new OperationNode(OperationNode.Operation.DOLLAR,
+                        new OperationNode(OperationNode.Operation.SUBTRACT, new ConstantNode("37"), new OperationNode(
+                                OperationNode.Operation.MULTIPLY, new ConstantNode("10"), new ConstantNode("40")))),
+                fieldIndexLessThanZero);
+        assertThrows(AwkRuntimeError.NegativeFieldIndexError.class,
+                () -> interpreter.GetIDT(fieldIndexLessThanZero, null));
+    }
+
+    // interpreter 2 - tests - GetIDT - complex math (test order of operations eval)
+    @Test
+    public void testGetIDTComplexMath() throws Exception {
+        var parser = new Parser(UnitTests.testLexContent("1 + 2 * 3 - 4 / 5 ^ 6 % 7\n", new Token.TokenType[] {
+                // complex math
+                Token.TokenType.NUMBER, Token.TokenType.PLUS, Token.TokenType.NUMBER, Token.TokenType.MULTIPLY,
+                Token.TokenType.NUMBER, Token.TokenType.MINUS, Token.TokenType.NUMBER, Token.TokenType.DIVIDE,
+                Token.TokenType.NUMBER, Token.TokenType.EXPONENT, Token.TokenType.NUMBER, Token.TokenType.MODULO,
+                Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+        }));
+        var interpreter = emptyInterpreter();
+        var complexMath = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        // op precedence is ^, * / %, + -
+        // so ((1 ADD (2 MULTIPLY 3)) SUBTRACT ((4 DIVIDE (5 EXPONENT 6)) MODULO 7))
+        assertEquals(new OperationNode(OperationNode.Operation.SUBTRACT,
+                new OperationNode(OperationNode.Operation.ADD, new ConstantNode("1"),
+                        new OperationNode(OperationNode.Operation.MULTIPLY, new ConstantNode("2"),
+                                new ConstantNode("3"))),
+                new OperationNode(OperationNode.Operation.MODULO,
+                        new OperationNode(OperationNode.Operation.DIVIDE, new ConstantNode("4"),
+                                new OperationNode(OperationNode.Operation.EXPONENT, new ConstantNode("5"),
+                                        new ConstantNode("6"))),
+                        new ConstantNode("7"))),
+                complexMath);
+        assertEquals("6.999744", interpreter.GetIDT(complexMath, null).getContents());
+    }
+
+    // interpreter 2 - tests - GetIDT - complex variables
+    @Test
+    public void testGetIDTComplexVariables() throws Exception {
+        var parser = new Parser(UnitTests.testLexContent("a = 5; b -=a; c[a] = $1\n d = f ? a : c[b]\n a += b--",
+                new Token.TokenType[] {
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.MINUSEQUAL, Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN, Token.TokenType.DOLLAR,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.QUESTION,
+                        Token.TokenType.WORD, Token.TokenType.COLON, Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.WORD, Token.TokenType.CLOSEBRACKET, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.PLUSEQUAL, Token.TokenType.WORD,
+                        Token.TokenType.MINUSMINUS,
+                }));
+        var interpreter = emptyInterpreter();
+        var assignment = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new VariableReferenceNode("a"), new ConstantNode("5")), assignment);
+        assertEquals("5", interpreter.GetIDT(assignment, null).getContents());
+
+        var subtractionAssignment = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new VariableReferenceNode("b"),
+                new OperationNode(OperationNode.Operation.SUBTRACT, new VariableReferenceNode("b"),
+                        new VariableReferenceNode("a"))),
+                subtractionAssignment);
+        assertEquals("-5", interpreter.GetIDT(subtractionAssignment, null).getContents());
+
+
+        var arrayAssignment = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new VariableReferenceNode("c", new VariableReferenceNode("a")),
+                        new OperationNode(OperationNode.Operation.DOLLAR, new ConstantNode("1"))), arrayAssignment);
+                interpreter.setInput("foo, 1, 2 ,3, bar\nbar");
+                ((BuiltInFunctionDefinitionNode) interpreter.getFunction("getline")).getExecute().apply(new HashMap<>());
+                assertEquals("foo,", interpreter.GetIDT(arrayAssignment, null).getContents());
+
+        var ternary = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new VariableReferenceNode("d"),
+                new TernaryOperationNode(new VariableReferenceNode("f"), new VariableReferenceNode("a"),
+                        new VariableReferenceNode("c", new VariableReferenceNode("b")))),
+                ternary);
+
+        assertEquals("", interpreter.GetIDT(ternary, null).getContents());
+
+        var additionAssignment = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new VariableReferenceNode("a"),
+                new OperationNode(OperationNode.Operation.ADD, new VariableReferenceNode("a"),
+                        new OperationNode(OperationNode.Operation.POSTDEC, new VariableReferenceNode("b")))),
+                additionAssignment);
+        assertEquals("-1", interpreter.GetIDT(additionAssignment, null).getContents());
+
+        // assert all variables
+        assertEquals("-1", interpreter.getGlobal("a").getContents());
+        assertEquals("-6", interpreter.getGlobal("b").getContents());
+        assertEquals("foo,", interpreter.getArray("c", null).getHashMap().get("5").getContents());
+        assertEquals("", interpreter.getArray("c", null).getHashMap().get("-5").getContents());
+        assertEquals("", interpreter.getGlobal("d").getContents());
+        assertEquals("", interpreter.getGlobal("f").getContents());
+
+        // $0 .. $5
+        assertEquals("foo, 1, 2 ,3, bar", interpreter.getRecord().Get(0).getContents());
+        assertEquals("foo,", interpreter.getRecord().Get(1).getContents());
+        assertEquals("1,", interpreter.getRecord().Get(2).getContents());
+        assertEquals("2", interpreter.getRecord().Get(3).getContents());
+        assertEquals(",3,", interpreter.getRecord().Get(4).getContents());
+        assertEquals("bar", interpreter.getRecord().Get(5).getContents());
     }
 }

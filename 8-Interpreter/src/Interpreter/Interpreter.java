@@ -497,7 +497,7 @@ public class Interpreter {
     }
 
     private void checkAssignAble(Node value) {
-        if (value instanceof VariableReferenceNode var && var.getIndex().isEmpty() || value instanceof OperationNode op
+        if (value instanceof VariableReferenceNode var || value instanceof OperationNode op
                 && op.getOperation() == OperationNode.Operation.DOLLAR) {
 
         } else {

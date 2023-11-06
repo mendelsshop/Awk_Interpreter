@@ -13,7 +13,7 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
 
         @Override
         public String message() {
-            return "Pattern " + pattern + "is invalid in this context";
+            return "Pattern " + pattern + " is invalid in this context";
         }
 
     }
