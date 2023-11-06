@@ -211,11 +211,11 @@ public class Interpreter {
         return getVariable(index, Optional.ofNullable(vars));
     }
 
-    private InterpreterArrayDataType getArray(String index, HashMap<String, InterpreterDataType> vars) {
+    // public for testing purposes
+    public InterpreterArrayDataType getArray(String index, HashMap<String, InterpreterDataType> vars) {
         return getArray(index, Optional.ofNullable(vars));
     }
 
-    // public for testing purposes
     private InterpreterArrayDataType getArray(String index, Optional<HashMap<String, InterpreterDataType>> vars) {
         if (getOrInit(index, vars, () -> new InterpreterArrayDataType()) instanceof InterpreterArrayDataType array) {
             return array;
@@ -496,29 +496,11 @@ public class Interpreter {
         }
     }
 
-
-
-    // TODO: prefer locals to be optional
-    private InterpreterDataType GetIDT(Node value, HashMap<String, InterpreterDataType> locals) {
-
+    // package visibile for unit tests
+    InterpreterDataType GetIDT(Node value, HashMap<String, InterpreterDataType> locals) {
         switch (value) {
             case AssignmentNode a -> {
-                // TODO: make sure assigmnet is right ie array to array or scalr to scale ...
                 var newValue = GetIDT(a.getExpression(), locals);
-                // if (a.getTarget() isubstrstanceof VariableReferenceNode || a.getTarget()
-                // instanceof OperationNode op
-                // && op.getOperation() == OperationNode.Operation.DOLLAR) {
-                // var target = GetIDT(v, locals).getContents();
-                // v.getIndex().ifPresentOrElse(i->{
-                // String index = GetIDT(i, locals).getContents();
-                // getArray(target, locals).insert(index, newValue);
-                // }, ()-> {
-                // getVariable(target, locals).setContents(newValue.getContents());
-                // });
-
-                // } else {
-                // throw new AwkRuntimeError.NotAVariableError(value);
-                // }
                 checkAssignAble(a.getTarget());
                 // we can really only assign to scalar
                 // we inteninall setcontents and getcontents so assignment doesnt modify
@@ -542,6 +524,8 @@ public class Interpreter {
 
             }
             case VariableReferenceNode v -> {
+                // we dont error on arrays b/c maybe this method is being used as part of a
+                // function call
                 return v.getIndex().<InterpreterDataType>map(i -> {
                     var index = GetIDT(i, locals).getContents();
                     return getArray(v.getName(), locals).get(index);
@@ -556,8 +540,11 @@ public class Interpreter {
         }
     }
 
+    // used to check that a node is a variable/field reference
+    // cannot discern if the index is needed or not (is it inexing into array)
+    // becuase it doesn't do any actual lookup
     private void checkAssignAble(Node value) {
-        if (value instanceof VariableReferenceNode || value instanceof OperationNode op
+        if (value instanceof VariableReferenceNode var || value instanceof OperationNode op
                 && op.getOperation() == OperationNode.Operation.DOLLAR) {
 
         } else {
@@ -569,9 +556,16 @@ public class Interpreter {
     private InterpreterDataType GetIDT(OperationNode op, HashMap<String, InterpreterDataType> locals) {
         // yield is used to return from a block
         // https://stackoverflow.com/questions/56806905/return-outside-of-enclosing-switch-expression
+
+        // used for doing math takes 2 nodes interprets them and then applies the math
+        // to them
         TriFunction<Node, Node, BiFunction<Float, Float, Float>, InterpreterDataType> mathOp = (a, b,
                 math) -> new InterpreterDataType(math.apply(
                         parse(GetIDT(a, locals)), parse(GetIDT(b, locals))));
+
+        // used for doing increment/decrement takes a node and a function to apply to it
+        // we also need to know if its pre or post increment/decrement so we can return
+        // old or new value
         TriFunction<Node, Boolean, Function<Float, Float>, InterpreterDataType> opAssign = (v, pre, math) -> {
             checkAssignAble(v);
             var variable = GetIDT(v, locals);
@@ -580,9 +574,16 @@ public class Interpreter {
             variable.setContents(newValue);
             return new InterpreterDataType((pre ? oldValue : newValue));
         };
-        BiFunction<String, String, String> match = (pattern, string) -> {
-            return Pattern.matches(pattern, string) ? "1" : "0";
+        // match is used for ~ and !~ (takes a string and a pattern which is node)
+        // and extracts the pattern from the node and then matches the string against it
+        BiFunction<String, Node, String> match = (string, pattern) -> {
+            if (pattern instanceof PatternNode p) {
+                return Pattern.matches(p.getPattern(), string) ? "1" : "0";
+            }
+            throw new AwkRuntimeError.ExpectedPatternError(pattern);
         };
+        // comparisons in awk first try to convert to numbers and then compare otherwise
+        // they compare as strings
         TriFunction<Node, Node, Function<Integer, Boolean>, InterpreterDataType> compare = (
                 x, y, comparator) -> {
             var new_x = GetIDT(x, locals);
@@ -598,6 +599,7 @@ public class Interpreter {
         return switch (op.getOperation()) {
             case DOLLAR -> {
                 var index = parse(GetIDT(op.getLeft(), locals));
+                // negative index is not allowed (checked here as opposed to in Record::Get)
                 if (index < 0) {
                     throw new AwkRuntimeError.NegativeFieldIndexError(op, index.intValue());
                 }
@@ -618,6 +620,11 @@ public class Interpreter {
             case IN -> {
                 var index = GetIDT(op.getLeft(), locals).getContents();
                 if (op.getRight().get() instanceof VariableReferenceNode v) {
+                    // through error if the index is present since we do not support
+                    // mutlidimensional arrays
+                    if (v.getIndex().isPresent()) {
+                        throw new AwkRuntimeError.ExpectedArrayError(index, "");
+                    }
                     var array = getArray(v.getName(), locals);
                     yield new InterpreterDataType(array.contains(index) ? "1" : "0");
                 } else {
@@ -627,16 +634,16 @@ public class Interpreter {
             case LE -> compare.apply(op.getLeft(), op.getRight().get(), c -> c <= 0);
             case LT -> compare.apply(op.getLeft(), op.getRight().get(), c -> c < 0);
             case MATCH -> new InterpreterDataType(match.apply(GetIDT(op.getLeft(), locals).getContents(),
-                    GetIDT(op.getRight().get(), locals).getContents()));
+                    op.getRight().get()));
             case MODULO -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x % y);
             case MULTIPLY -> mathOp.apply(op.getLeft(), op.getRight().get(), (x, y) -> x * y);
-            case NE -> throw new UnsupportedOperationException("Unimplemented case: " + op.getOperation());
+            case NE -> compare.apply(op.getLeft(), op.getRight().get(), c -> c != 0);
             case NOT ->
                 new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
                         ? "0"
                         : "1");
             case NOTMATCH -> new InterpreterDataType(match.apply(GetIDT(op.getLeft(), locals).getContents(),
-                    GetIDT(op.getRight().get(), locals).getContents()) == "1" ? "0" : "1");
+                    op.getRight().get()) == "1" ? "0" : "1");
             case OR ->
                 new InterpreterDataType(truthyValue(GetIDT(op.getLeft(), locals).getContents()) == "1"
                         ? "1"
@@ -654,6 +661,8 @@ public class Interpreter {
         };
     }
 
+    // used for checking if a string is truthy (by awk standards)
+    // 0 or non number is false any other number is true
     private String truthyValue(String value) {
         try {
             return (Float.parseFloat(value) == 0.0) ? "0" : "1";

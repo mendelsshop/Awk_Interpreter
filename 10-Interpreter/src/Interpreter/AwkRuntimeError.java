@@ -200,4 +200,17 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
             return "Next statement ran in end block";
         }
     }
+
+    public static class ExpectedPatternError extends AwkRuntimeError {
+        private Node value;
+
+        public ExpectedPatternError(Node value) {
+            this.value = value;
+        }
+
+        @Override
+        public String message() {
+            return "Expected " + value + " to be a pattern, but it was not";
+        }
+    }
 }

@@ -625,8 +625,9 @@ public class Interpreter {
         } catch (NumberFormatException e) {
             return "0";
         }
-    } // public so it can be used for exceptions
+    }
 
+    // public so it can be used for exceptions
     public class ReturnType {
         private enum ReturnKind {
             Normal, Break, Continue, Return
