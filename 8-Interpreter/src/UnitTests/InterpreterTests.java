@@ -1236,7 +1236,8 @@ public class InterpreterTests {
                         Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN, Token.TokenType.DOLLAR,
                         Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
                         Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.QUESTION,
-                        Token.TokenType.WORD, Token.TokenType.COLON, Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.WORD, Token.TokenType.CLOSEBRACKET, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.COLON, Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
+                        Token.TokenType.WORD, Token.TokenType.CLOSEBRACKET, Token.TokenType.SEPERATOR,
                         Token.TokenType.WORD, Token.TokenType.PLUSEQUAL, Token.TokenType.WORD,
                         Token.TokenType.MINUSMINUS,
                 }));
@@ -1254,14 +1255,13 @@ public class InterpreterTests {
                 subtractionAssignment);
         assertEquals("-5", interpreter.GetIDT(subtractionAssignment, null).getContents());
 
-
         var arrayAssignment = parser.ParseOperation().get();
         parser.AcceptSeperators();
         assertEquals(new AssignmentNode(new VariableReferenceNode("c", new VariableReferenceNode("a")),
-                        new OperationNode(OperationNode.Operation.DOLLAR, new ConstantNode("1"))), arrayAssignment);
-                interpreter.setInput("foo, 1, 2 ,3, bar\nbar");
-                ((BuiltInFunctionDefinitionNode) interpreter.getFunction("getline")).getExecute().apply(new HashMap<>());
-                assertEquals("foo,", interpreter.GetIDT(arrayAssignment, null).getContents());
+                new OperationNode(OperationNode.Operation.DOLLAR, new ConstantNode("1"))), arrayAssignment);
+        interpreter.setInput("foo, 1, 2 ,3, bar\nbar");
+        ((BuiltInFunctionDefinitionNode) interpreter.getFunction("getline")).getExecute().apply(new HashMap<>());
+        assertEquals("foo,", interpreter.GetIDT(arrayAssignment, null).getContents());
 
         var ternary = parser.ParseOperation().get();
         parser.AcceptSeperators();
@@ -1297,48 +1297,145 @@ public class InterpreterTests {
         assertEquals("bar", interpreter.getRecord().Get(5).getContents());
     }
 
+    // interpreter 2 - tests - GetIDT - complex variables - mix of locals and
+    // globals
+    @Test
+    public void testGetIDTComplexVariables1() throws Exception {
+        var parser = new Parser(UnitTests.testLexContent("a = 5; b -=a; c[a] = $1\n d = f ? a : c[b]\n a += b--",
+                new Token.TokenType[] {
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.MINUSEQUAL, Token.TokenType.WORD,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN, Token.TokenType.DOLLAR,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.QUESTION,
+                        Token.TokenType.WORD, Token.TokenType.COLON, Token.TokenType.WORD, Token.TokenType.OPENBRACKET,
+                        Token.TokenType.WORD, Token.TokenType.CLOSEBRACKET, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.PLUSEQUAL, Token.TokenType.WORD,
+                        Token.TokenType.MINUSMINUS,
+                }));
+        var interpreter = emptyInterpreter();
+        var assignment = parser.ParseOperation().get();
+        var locals_1 = new HashMap<String, InterpreterDataType>() {
+            {
+                put("f", new InterpreterDataType("foo"));
+                put("c", new InterpreterArrayDataType(new HashMap<String, InterpreterDataType>() {
+                    {
+                        put("-5", new InterpreterDataType("bazaaza"));
+                    }
+                }));
+            }
+        };
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new VariableReferenceNode("a"), new ConstantNode("5")), assignment);
+        assertEquals("5", interpreter.GetIDT(assignment, null).getContents());
+
+        var subtractionAssignment = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new VariableReferenceNode("b"),
+                new OperationNode(OperationNode.Operation.SUBTRACT, new VariableReferenceNode("b"),
+                        new VariableReferenceNode("a"))),
+                subtractionAssignment);
+        assertEquals("-5", interpreter.GetIDT(subtractionAssignment, null).getContents());
+
+        var arrayAssignment = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new VariableReferenceNode("c", new VariableReferenceNode("a")),
+                new OperationNode(OperationNode.Operation.DOLLAR, new ConstantNode("1"))), arrayAssignment);
+        interpreter.setInput("foo, 1, 2 ,3, bar\nbar");
+        ((BuiltInFunctionDefinitionNode) interpreter.getFunction("getline")).getExecute().apply(new HashMap<>());
+        assertEquals("foo,", interpreter.GetIDT(arrayAssignment, null).getContents());
+
+        var ternary = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new VariableReferenceNode("d"),
+                new TernaryOperationNode(new VariableReferenceNode("f"), new VariableReferenceNode("a"),
+                        new VariableReferenceNode("c", new VariableReferenceNode("b")))),
+                ternary);
+
+        assertEquals("bazaaza", interpreter.GetIDT(ternary, locals_1).getContents());
+
+        var additionAssignment = parser.ParseOperation().get();
+        parser.AcceptSeperators();
+        assertEquals(new AssignmentNode(new VariableReferenceNode("a"),
+                new OperationNode(OperationNode.Operation.ADD, new VariableReferenceNode("a"),
+                        new OperationNode(OperationNode.Operation.POSTDEC, new VariableReferenceNode("b")))),
+                additionAssignment);
+        assertEquals("-1", interpreter.GetIDT(additionAssignment, locals_1).getContents());
+
+        // assert all variables
+        assertEquals("-1", interpreter.getGlobal("a").getContents());
+        assertEquals("-6", interpreter.getGlobal("b").getContents());
+        assertEquals("foo,", interpreter.getArray("c", null).getHashMap().get("5").getContents());
+
+        // $0 .. $5
+        assertEquals("foo, 1, 2 ,3, bar", interpreter.getRecord().Get(0).getContents());
+        assertEquals("foo,", interpreter.getRecord().Get(1).getContents());
+        assertEquals("1,", interpreter.getRecord().Get(2).getContents());
+        assertEquals("2", interpreter.getRecord().Get(3).getContents());
+        assertEquals(",3,", interpreter.getRecord().Get(4).getContents());
+        assertEquals("bar", interpreter.getRecord().Get(5).getContents());
+
+        // locals
+        assertEquals("foo", locals_1.get("f").getContents());
+        assertEquals("bazaaza", interpreter.getArray("c", locals_1).getHashMap().get("-5").getContents());
+        assertEquals("bazaaza", locals_1.get("d").getContents());
+    }
+
     // interpreter 2 - tests - GetIDT - error - mixing arrays and scalars
     @Test
     public void testGetIDTErrorScalarArray() throws Exception {
-        var parser = new Parser(UnitTests.testLexContent("a = c= 2\n b[1] = 1; d[22] = 6;a=b;d[22]=b", 
-            new Token.TokenType[] {
-                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
-                Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN, Token.TokenType.WORD, 
+        var parser = new Parser(UnitTests.testLexContent("a = c= 2\n b[1] = 1; d[22] = 6;a=b;d[22]=b",
+                new Token.TokenType[] {
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.ASSIGN,
+                        Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN, Token.TokenType.NUMBER,
+                        Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.WORD, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.NUMBER,
+                        Token.TokenType.CLOSEBRACKET, Token.TokenType.ASSIGN, Token.TokenType.WORD,
 
-            }));
+                }));
 
         var interpreter = emptyInterpreter();
         var assignment = parser.ParseOperation().get();
         parser.AcceptSeperators();
-        assertEquals(new AssignmentNode(new VariableReferenceNode("a"), new AssignmentNode(new VariableReferenceNode("c"), new ConstantNode("2"))), assignment);
+        assertEquals(new AssignmentNode(new VariableReferenceNode("a"),
+                new AssignmentNode(new VariableReferenceNode("c"), new ConstantNode("2"))), assignment);
         var locals_1 = new HashMap<String, InterpreterDataType>();
         assertEquals("2", interpreter.GetIDT(assignment, locals_1).getContents());
         assertEquals("2", interpreter.GetIDT(assignment, null).getContents());
 
         var arrayAssignment = parser.ParseOperation().get();
         parser.AcceptSeperators();
-        assertEquals(new AssignmentNode(new VariableReferenceNode("b", new ConstantNode("1")), new ConstantNode("1")), arrayAssignment);
+        assertEquals(new AssignmentNode(new VariableReferenceNode("b", new ConstantNode("1")), new ConstantNode("1")),
+                arrayAssignment);
         assertEquals("1", interpreter.GetIDT(arrayAssignment, locals_1).getContents());
         assertEquals("1", interpreter.GetIDT(arrayAssignment, null).getContents());
 
         var arrayAssignment2 = parser.ParseOperation().get();
         parser.AcceptSeperators();
-        assertEquals(new AssignmentNode(new VariableReferenceNode("d", new ConstantNode("22")), new ConstantNode("6")), arrayAssignment2);
+        assertEquals(new AssignmentNode(new VariableReferenceNode("d", new ConstantNode("22")), new ConstantNode("6")),
+                arrayAssignment2);
         assertEquals("6", interpreter.GetIDT(arrayAssignment2, locals_1).getContents());
         assertEquals("6", interpreter.GetIDT(arrayAssignment2, null).getContents());
 
         var invalidAssignment = parser.ParseOperation().get();
         parser.AcceptSeperators();
-        assertEquals(new AssignmentNode(new VariableReferenceNode("a"), new VariableReferenceNode("b")), invalidAssignment);
+        assertEquals(new AssignmentNode(new VariableReferenceNode("a"), new VariableReferenceNode("b")),
+                invalidAssignment);
         assertThrows(AwkRuntimeError.ExpectedScalarError.class, () -> interpreter.GetIDT(invalidAssignment, locals_1));
         assertThrows(AwkRuntimeError.ExpectedScalarError.class, () -> interpreter.GetIDT(invalidAssignment, null));
 
         var invalidAssignment2 = parser.ParseOperation().get();
         parser.AcceptSeperators();
-        assertEquals(new AssignmentNode(new VariableReferenceNode("d", new ConstantNode("22")), new VariableReferenceNode("b")), invalidAssignment2);
+        assertEquals(new AssignmentNode(new VariableReferenceNode("d", new ConstantNode("22")),
+                new VariableReferenceNode("b")), invalidAssignment2);
         assertThrows(AwkRuntimeError.ExpectedScalarError.class, () -> interpreter.GetIDT(invalidAssignment2, locals_1));
         assertThrows(AwkRuntimeError.ExpectedScalarError.class, () -> interpreter.GetIDT(invalidAssignment2, null));
 
@@ -1358,11 +1455,13 @@ public class InterpreterTests {
     // interpreter 2 - tests - GetIDT - error - index into scalar
     @Test
     public void testGetIDTErrorIndexScalar() throws Exception {
-        var parser = new Parser(UnitTests.testLexContent("a = 5; c -= --a[b]", 
-            new Token.TokenType[] {
-                Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
-                Token.TokenType.WORD, Token.TokenType.MINUSEQUAL, Token.TokenType.MINUSMINUS, Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.WORD, Token.TokenType.CLOSEBRACKET,
-            }));
+        var parser = new Parser(UnitTests.testLexContent("a = 5; c -= --a[b]",
+                new Token.TokenType[] {
+                        Token.TokenType.WORD, Token.TokenType.ASSIGN, Token.TokenType.NUMBER, Token.TokenType.SEPERATOR,
+                        Token.TokenType.WORD, Token.TokenType.MINUSEQUAL, Token.TokenType.MINUSMINUS,
+                        Token.TokenType.WORD, Token.TokenType.OPENBRACKET, Token.TokenType.WORD,
+                        Token.TokenType.CLOSEBRACKET,
+                }));
 
         var interpreter = emptyInterpreter();
         var assignment = parser.ParseOperation().get();
@@ -1372,7 +1471,12 @@ public class InterpreterTests {
 
         var invalidIndex = parser.ParseOperation().get();
         parser.AcceptSeperators();
-        assertEquals(new AssignmentNode(new VariableReferenceNode("c"), new OperationNode(OperationNode.Operation.SUBTRACT, new VariableReferenceNode("c"), new OperationNode(OperationNode.Operation.PREDEC, new VariableReferenceNode("a", new VariableReferenceNode("b"))))), invalidIndex);
+        assertEquals(
+                new AssignmentNode(new VariableReferenceNode("c"),
+                        new OperationNode(OperationNode.Operation.SUBTRACT, new VariableReferenceNode("c"),
+                                new OperationNode(OperationNode.Operation.PREDEC,
+                                        new VariableReferenceNode("a", new VariableReferenceNode("b"))))),
+                invalidIndex);
         assertThrows(AwkRuntimeError.ExpectedArrayError.class, () -> interpreter.GetIDT(invalidIndex, null));
     }
 }
