@@ -13,7 +13,7 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
 
         @Override
         public String message() {
-            return "Pattern " + pattern + "is invalid in this context";
+            return "Pattern " + pattern + " is invalid in this context";
         }
 
     }
@@ -136,6 +136,19 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
         @Override
         public String message() {
             return "Function " + name + "expected an optional arguement, not an extra " + size + " arguements";
+        }
+    }
+
+    public static class ExpectedPatternError extends AwkRuntimeError {
+        private Node value;
+
+        public ExpectedPatternError(Node value) {
+            this.value = value;
+        }
+
+        @Override
+        public String message() {
+            return "Expected " + value + " to be a pattern, but it was not";
         }
     }
 }

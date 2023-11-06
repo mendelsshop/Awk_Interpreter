@@ -23,10 +23,10 @@ public class InterpreterArrayDataType extends InterpreterDataType {
         return new LinkedList<>(contents.values());
     }
 
-
     public List<String> getKeysList() {
         return new LinkedList<>(contents.keySet());
     }
+
     public InterpreterDataType get(String index) {
         return (contents.computeIfAbsent(index, u -> new InterpreterDataType()));
     }
@@ -34,7 +34,7 @@ public class InterpreterArrayDataType extends InterpreterDataType {
     // this method is used for varidaic parameter handling, in awk if a index is not
     // present we create it (purpose of get), but for varidiac parameters we want to
     // know if there is no map for the key to use the default value
-    /// since its only for varidac 
+    /// since its only for varidac
     // 1) assert its only 1 param
     // 2) dont take index assume its 0
     public Optional<InterpreterDataType> getOptional(String name) {

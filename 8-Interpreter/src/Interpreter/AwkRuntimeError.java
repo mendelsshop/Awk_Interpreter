@@ -77,6 +77,7 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
             return "Expected " + attempted + " to be a variable so it could be assigned to but was not";
         }
     }
+
     public static class NegativeFieldIndexError extends AwkRuntimeError {
         private Node attempted;
         private int index;
