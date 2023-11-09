@@ -159,7 +159,16 @@ public class Lexer {
             source.Swallow(1);
             position++;
             // lex after decimal point
-            number += "." + processInteger();
+            // number += "." + processInteger();
+            var decimal = processInteger();
+            // in awk if we have a number with number after the decimal point that is all 0s awk treats that as a whole number
+            // so stuff like `a[0] = 1; a[1] = 2; for (i = 0.0; i < 10; i++) {print a[i]}` doesnt just create a bunch of empty entries in the array but rather since 0.0 truncates to 0
+            // once it the index get stringified it becomes "0" as opposed to "0.0" which are two different keys
+            // in real awk this is done by tracking types of the values
+            // but "0.0" is literally 0.0 (unless you do some math on it at which point it might truncate to 0 if you do something like +"0.0") 
+            if (!decimal.matches("0+")) {
+                number += "." + decimal;
+            } 
             if (!source.IsDone() && source.Peek() == '.') {
                 throw new AwkException(currentLine, position, "a number cannot have more than one decimal point",
                         AwkException.ExceptionType.LexicalError);

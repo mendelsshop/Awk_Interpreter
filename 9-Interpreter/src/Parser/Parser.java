@@ -162,53 +162,8 @@ public class Parser {
                 .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DO, this::ParseDoWhile))
                 .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.DELETE, this::ParseDelete))
                 .CheckedOr(() -> tokenToStatement.apply(Token.TokenType.FOR, this::ParseFor))
-                .CheckedOrElseGet(this::OperationAsStatement);
-    }
-
-    // make sure that 1. the result of parseoperation is present, 2. the result of
-    // parseoperation falls into the category of statementnode
-    // do we need to make op node extend statementnode (what i did)
-    private StatementNode OperationAsStatement() throws AwkException {
-        var result = ParseOperation().orElseThrow(
-                () -> createException("expected expression in block but found invalid or empty expression"));
-        Function<OperationNode, AssignmentNode> makeAssign = (op) -> new AssignmentNode(op.getLeft(), op);
-        CheckSeporators(result.toString());
-        switch (result) {
-            case OperationNode op -> {
-                // we turn ++, -- into = ++, = -- here instead of in parsebottom
-                // level/ParsePostIncDec
-                // b/c if we tuen pos/pre-dec/inc to assignemnt node in there respecitve
-                // functions it would remove the effect of post inc/dec
-                // but in the case the "effect" of post increment is effectivley not being used
-                // as tis post/pre-inc/dec is the outermost part of block
-
-                switch (op.getOperation()) {
-                    // if its one of these cases turn into assingment node which inherits from
-                    // statementnode
-
-                    case POSTDEC, PREDEC, POSTINC, PREINC -> {
-
-                        return makeAssign.apply(op);
-                    }
-                    // otherwise throw exception
-                    default -> throw createException("operation of type " + op.getOperation()
-                            + " is not supported in the outermost part of a block");
-                }
-            }
-            case TernaryOperationNode op ->
-                throw createException("ternary expression is not supported in the outermost part of a block");
-            case VariableReferenceNode op -> throw createException(
-                    "accesing but not assigning to a variable is invalid in the outermost part of a block");
-            case ConstantNode op ->
-                throw createException("constant expression is invalid in the outermost part of a block");
-            case PatternNode op ->
-                throw createException("pattern expression is invalid in the outermost part of a block");
-            // other operations are valid ie function calls and assignment
-            default -> {
-            }
-        }
-        // technically any result of parseoperation is valid statement
-        return (StatementNode) result;
+                .CheckedOrElseGet(() -> ParseOperation().map(op->(StatementNode)op).CheckedInspect(op->CheckSeporators(op.toString())).orElseThrow(
+                        () -> createException("expected expression in block but found invalid or empty expression")));
     }
 
     // used to parse parenthesis around conditions for if-else if while do while

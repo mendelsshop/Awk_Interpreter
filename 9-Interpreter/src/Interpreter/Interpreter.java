@@ -465,13 +465,13 @@ public class Interpreter {
                 return newValue;
             }
             case ConstantNode c -> {
-                // TODO: if its number truncate n.0 to n
                 return new InterpreterDataType(c.getValue());
             }
             case FunctionCallNode f -> {
                 return new InterpreterDataType(RunFunctionCall(f, locals));
             }
             case PatternNode p -> {
+                // TODO: awk doesnt do this
                 throw new AwkRuntimeError.PatternError(p);
             }
             case TernaryOperationNode t -> {
@@ -656,19 +656,9 @@ public class Interpreter {
 
     private ReturnType ProcessStatement(HashMap<String, InterpreterDataType> locals, StatementNode stmt) {
         return switch (stmt) {
-            case AssignmentNode as -> {
-                // should be same as in getidt
-                var newValue = GetIDT(as.getExpression(), locals);
-                checkAssignAble(as.getTarget());
-                // we can really only assign to scalar
-                // we inteninall setcontents and getcontents so assignment doesnt modify
-                // original variable
-                GetIDT(as.getTarget(), locals).setContents(newValue.getContents());
-                yield new ReturnType(newValue.getContents(), ReturnType.ReturnKind.Normal);
-            }
+
             case BreakNode br -> new ReturnType(ReturnType.ReturnKind.Break);
             case ContinueNode ct -> new ReturnType(ReturnType.ReturnKind.Continue);
-            case FunctionCallNode fc -> new ReturnType(RunFunctionCall(fc, locals), ReturnType.ReturnKind.Normal);
             case ReturnNode rt -> rt.getReturnValue().map(
                     ret -> new ReturnType(GetIDT(ret, locals).getContents(), Interpreter.ReturnType.ReturnKind.Return))
                     .orElse(new ReturnType(Interpreter.ReturnType.ReturnKind.Return));
@@ -720,6 +710,19 @@ public class Interpreter {
 
             }
             case ForNode fr -> {
+                // 1) ForNode: If there is an initial, call processStatement on it. Then create
+                // a while loop, using the forNode’s condition as the while’s condition. Inside,
+                // call InterpretListOfStatements() on forNode’s statements. Same as DoWhile –
+                // check the return code and do the same thing. Make sure you call
+                // processStatement() on the forNode’s increment.
+                // 2) Any other node type encountered should be an exception with a good error
+                // message.
+                // how can we call process statement on the increment if its not a statement
+                // becuase of 2). also operation node cannot be a statement b/c of the
+                // restrcitions on outer expression having to possibly mutate
+                // 
+                // TODO: it doesnt even make sense to call interpretstatement on the increment and init b/c 
+                // youre not allowed to do control flow/iterate (break continue return for if do-while while) in them (even the parser catches this) and at that point getidt suffices
                 for (fr.getInit().ifPresent(init -> GetIDT(init, locals)); fr.getCondition()
                         .map(cond -> truthyValue(GetIDT(cond, locals).getContents()) == "1")
                         .orElse(true); fr.getIncrement().ifPresent(inc -> GetIDT(inc, locals))) {
@@ -774,7 +777,33 @@ public class Interpreter {
                 }
                 yield new ReturnType(ReturnType.ReturnKind.Normal);
             }
-            default -> throw new IllegalArgumentException("Unexpected value: " + stmt);
+            // function calls and assignments can be done via getidt (but assingments need to return the value of the right side??? this is not a expression oriented language)
+            // sure return a = 4 the 4 is returned from the assinment to the return but that goes through return which calls getidt which will return the value of the right side
+            // but in our case were talking about the outer most part of a block where the result of this expression can be ignored all we care for is its side effects
+            // maybe the idea was to call in return a = 4 to eval a = 4 with interperstatement and then get the value of 4 as a result of that but again like 
+            // calling interpretstatement on the increment and init of a for loop this doesnt make sense b/c you cant do control flow in return (also checked by parser)
+            case FunctionCallNode fc -> {
+                RunFunctionCall(fc, locals);
+                yield new ReturnType(ReturnType.ReturnKind.Normal);
+            }
+            case AssignmentNode as -> {
+                // should be same as in getidt
+                var newValue = GetIDT(as.getExpression(), locals);
+                checkAssignAble(as.getTarget());
+                // we can really only assign to scalar
+                // we inteninall setcontents and getcontents so assignment doesnt modify
+                // original variable
+                GetIDT(as.getTarget(), locals).setContents(newValue.getContents());
+                // TODO: (doc) Return type None, and the value of right
+                // doesnt make sense none means control flow doesnt change but what is getting
+                // the returned value of the right nothing.
+                yield new ReturnType(newValue.getContents(), ReturnType.ReturnKind.Normal);
+            }
+            // otherwise its constant or other getidt can handle it
+            default -> {
+                GetIDT(stmt, locals);
+                yield new ReturnType(ReturnType.ReturnKind.Normal);
+            }
 
         };
     }

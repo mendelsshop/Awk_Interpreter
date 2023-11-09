@@ -266,12 +266,10 @@ public class ParserTests {
                                                                 Token.TokenType.MINUSMINUS,
                                                                 Token.TokenType.WORD, Token.TokenType.CLOSEBRACE }));
                 var res = parser.Parse();
-                if (res.getRestBlocks().getFirst().getStatements().getFirst() instanceof AssignmentNode as
-                                && as.getTarget() instanceof VariableReferenceNode variable
-                                && as.getExpression() instanceof OperationNode op) {
+                if (res.getRestBlocks().getFirst().getStatements().getFirst()  instanceof OperationNode op) {
                         System.out.println(op);
                         assertEquals(op.getOperation(), OperationNode.Operation.PREDEC);
-                        assertEquals(variable.getName(), "a");
+                        assertEquals(((VariableReferenceNode) op.getLeft()).getName(), "a");
                 } else {
                         throw new Exception("test failed");
                 }
@@ -285,12 +283,10 @@ public class ParserTests {
                                                                 Token.TokenType.PLUSPLUS,
                                                                 Token.TokenType.WORD, Token.TokenType.CLOSEBRACE }));
                 var res = parser.Parse();
-                if (res.getRestBlocks().getFirst().getStatements().getFirst() instanceof AssignmentNode as
-                                && as.getTarget() instanceof VariableReferenceNode variable
-                                && as.getExpression() instanceof OperationNode op) {
+                if (res.getRestBlocks().getFirst().getStatements().getFirst() instanceof OperationNode op) {
                         System.out.println(op);
                         assertEquals(op.getOperation(), OperationNode.Operation.PREINC);
-                        assertEquals(variable.getName(), "a");
+                        assertEquals(((VariableReferenceNode) op.getLeft()).getName(), "a");
                 } else {
                         throw new Exception("test failed");
                 }
@@ -1600,17 +1596,15 @@ public class ParserTests {
                                                         new ConstantNode("10")));
                         assertEquals(whilenode.getBlock().getStatements().size(), 1);
                         assertEquals(whilenode.getBlock().getStatements().get(0),
-                                        (new AssignmentNode(new VariableReferenceNode("i"),
-                                                        new OperationNode(OperationNode.Operation.POSTINC,
-                                                                        new VariableReferenceNode("i")))));
+                                        new OperationNode(OperationNode.Operation.POSTINC,
+                                                        new VariableReferenceNode("i")));
                         assertEquals(dowhilenode.getCondition(),
                                         new OperationNode(OperationNode.Operation.GT, new VariableReferenceNode("i"),
                                                         new ConstantNode("0")));
                         assertEquals(dowhilenode.getBlock().getStatements().size(), 1);
                         assertEquals(dowhilenode.getBlock().getStatements().get(0),
-                                        (new AssignmentNode(new VariableReferenceNode("i"),
-                                                        new OperationNode(OperationNode.Operation.POSTDEC,
-                                                                        new VariableReferenceNode("i")))));
+                                        new OperationNode(OperationNode.Operation.POSTDEC,
+                                                        new VariableReferenceNode("i")));
                 } else {
                         fail();
                 }
@@ -1875,36 +1869,44 @@ public class ParserTests {
                 assertThrows(AwkException.class, () -> parser.Parse());
         }
 
-        @Test
-        public void invalidouterexpressions() throws Exception {
-                // checks that anything besides for assignemnt (includes ++,--) and
-                // functioncalls fail if they are outermost thing in block
-                parseError("BEGIN {1}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
-                                Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACE });
-                // with other operators
-                parseError("BEGIN {1+1}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
-                                Token.TokenType.NUMBER, Token.TokenType.PLUS, Token.TokenType.NUMBER,
-                                Token.TokenType.CLOSEBRACE });
-                parseError("BEGIN {1-1}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
-                                Token.TokenType.NUMBER, Token.TokenType.MINUS, Token.TokenType.NUMBER,
-                                Token.TokenType.CLOSEBRACE });
-                parseError("BEGIN {1*1}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
-                                Token.TokenType.NUMBER, Token.TokenType.MULTIPLY, Token.TokenType.NUMBER,
-                                Token.TokenType.CLOSEBRACE });
-                // also use diferent types of expressions not just one
-                parseError("{a==-b}", new Token.TokenType[] { Token.TokenType.OPENBRACE, Token.TokenType.WORD,
-                                Token.TokenType.EQUAL, Token.TokenType.MINUS, Token.TokenType.WORD,
-                                Token.TokenType.CLOSEBRACE });
-                parseError("function a() {y^-5}",
-                                new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD,
-                                                Token.TokenType.OPENPAREN, Token.TokenType.CLOSEPAREN,
-                                                Token.TokenType.OPENBRACE, Token.TokenType.WORD,
-                                                Token.TokenType.EXPONENT, Token.TokenType.MINUS, Token.TokenType.NUMBER,
-                                                Token.TokenType.CLOSEBRACE });
-                parseError("BEGIN {a~!a+`a`}", new Token.TokenType[] { Token.TokenType.BEGIN, Token.TokenType.OPENBRACE,
-                                Token.TokenType.WORD, Token.TokenType.MATCH, Token.TokenType.NOT, Token.TokenType.WORD,
-                                Token.TokenType.PLUS, Token.TokenType.PATTERN, Token.TokenType.CLOSEBRACE });
-        }
+        // no longer needed b/c we accept any operation even ones that don't mutate
+        // @Test
+        // public void invalidouterexpressions() throws Exception {
+        // // checks that anything besides for assignemnt (includes ++,--) and
+        // // functioncalls fail if they are outermost thing in block
+        // parseError("BEGIN {1}", new Token.TokenType[] { Token.TokenType.BEGIN,
+        // Token.TokenType.OPENBRACE,
+        // Token.TokenType.NUMBER, Token.TokenType.CLOSEBRACE });
+        // // with other operators
+        // parseError("BEGIN {1+1}", new Token.TokenType[] { Token.TokenType.BEGIN,
+        // Token.TokenType.OPENBRACE,
+        // Token.TokenType.NUMBER, Token.TokenType.PLUS, Token.TokenType.NUMBER,
+        // Token.TokenType.CLOSEBRACE });
+        // parseError("BEGIN {1-1}", new Token.TokenType[] { Token.TokenType.BEGIN,
+        // Token.TokenType.OPENBRACE,
+        // Token.TokenType.NUMBER, Token.TokenType.MINUS, Token.TokenType.NUMBER,
+        // Token.TokenType.CLOSEBRACE });
+        // parseError("BEGIN {1*1}", new Token.TokenType[] { Token.TokenType.BEGIN,
+        // Token.TokenType.OPENBRACE,
+        // Token.TokenType.NUMBER, Token.TokenType.MULTIPLY, Token.TokenType.NUMBER,
+        // Token.TokenType.CLOSEBRACE });
+        // // also use diferent types of expressions not just one
+        // parseError("{a==-b}", new Token.TokenType[] { Token.TokenType.OPENBRACE,
+        // Token.TokenType.WORD,
+        // Token.TokenType.EQUAL, Token.TokenType.MINUS, Token.TokenType.WORD,
+        // Token.TokenType.CLOSEBRACE });
+        // parseError("function a() {y^-5}",
+        // new Token.TokenType[] { Token.TokenType.FUNCTION, Token.TokenType.WORD,
+        // Token.TokenType.OPENPAREN, Token.TokenType.CLOSEPAREN,
+        // Token.TokenType.OPENBRACE, Token.TokenType.WORD,
+        // Token.TokenType.EXPONENT, Token.TokenType.MINUS, Token.TokenType.NUMBER,
+        // Token.TokenType.CLOSEBRACE });
+        // parseError("BEGIN {a~!a+`a`}", new Token.TokenType[] { Token.TokenType.BEGIN,
+        // Token.TokenType.OPENBRACE,
+        // Token.TokenType.WORD, Token.TokenType.MATCH, Token.TokenType.NOT,
+        // Token.TokenType.WORD,
+        // Token.TokenType.PLUS, Token.TokenType.PATTERN, Token.TokenType.CLOSEBRACE });
+        // }
 
         @Test
         public void missingseporators() throws Exception {
@@ -1934,16 +1936,6 @@ public class ParserTests {
                                 Token.TokenType.WORD,
                                 Token.TokenType.CLOSEPAREN, Token.TokenType.OPENBRACE, Token.TokenType.CLOSEBRACE,
                                 Token.TokenType.CLOSEBRACE });
-
-                // also single line blocks
-                parseError("a== 6{ while (true) puts(a) y++}", new Token.TokenType[] {
-                                Token.TokenType.WORD, Token.TokenType.EQUAL, Token.TokenType.NUMBER,
-                                Token.TokenType.OPENBRACE,
-                                Token.TokenType.WHILE, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.WORD, Token.TokenType.OPENPAREN, Token.TokenType.WORD,
-                                Token.TokenType.CLOSEPAREN,
-                                Token.TokenType.WORD, Token.TokenType.PLUSPLUS, Token.TokenType.CLOSEBRACE });
 
                 parseError("NF  != 7 {if (false) return x else {}}", new Token.TokenType[] {
                                 Token.TokenType.WORD, Token.TokenType.NOTEQUAL, Token.TokenType.NUMBER,

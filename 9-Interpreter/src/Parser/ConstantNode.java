@@ -1,4 +1,4 @@
-public class ConstantNode extends Node {
+public class ConstantNode extends StatementNode {
     private String value;
 
     public String getValue() {

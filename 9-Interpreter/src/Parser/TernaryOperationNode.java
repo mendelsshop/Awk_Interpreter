@@ -1,4 +1,4 @@
-public class TernaryOperationNode extends Node {
+public class TernaryOperationNode extends StatementNode {
     private Node cond;
     private Node then;
     private Node alt;
