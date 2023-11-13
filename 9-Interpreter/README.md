@@ -1,4 +1,5 @@
 # Interpreter 3
+
 ## Project organization
 
 ```
@@ -21,7 +22,8 @@ root
     │   ├── DisplayError.java
     │   ├── InterpreterArrayDataType.java
     │   ├── InterpreterDataType.java
-    │   └── Interpreter.java
+    │   ├── Interpreter.java
+    │   └── ReturnType.java
     ├── Lexer
     │   ├── FunctionalLexer.java
     │   ├── Lexer.java

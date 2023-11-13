@@ -3,21 +3,6 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
     // the outer classes instance varaibles -> we can access the inner classes
     // without an instance to the outer class
     // in our class making the outer class act kinda of like a single file package
-
-    public static class PatternError extends AwkRuntimeError {
-        private PatternNode pattern;
-
-        public PatternError(PatternNode pattern) {
-            this.pattern = pattern;
-        }
-
-        @Override
-        public String message() {
-            return "Pattern " + pattern + " is invalid in this context";
-        }
-
-    }
-
     public static class ExpectedScalarError extends AwkRuntimeError {
         private InterpreterArrayDataType value;
 
@@ -136,19 +121,6 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
         @Override
         public String message() {
             return "Function " + name + "expected an optional arguement, not an extra " + size + " arguements";
-        }
-    }
-
-    public static class ExpectedPatternError extends AwkRuntimeError {
-        private Node value;
-
-        public ExpectedPatternError(Node value) {
-            this.value = value;
-        }
-
-        @Override
-        public String message() {
-            return "Expected " + value + " to be a pattern, but it was not";
         }
     }
 }

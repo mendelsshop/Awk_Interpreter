@@ -400,20 +400,6 @@ public class InterpreterTests {
         assertEquals("22", interpreter.GetIDT(number, null).getContents());
     }
 
-    // interpreter 2 - tests - GetIDT - pattern
-    @Test
-    public void testGetIDTPattern() throws Exception {
-        var parser = new Parser(UnitTests.testLexContent("`[0-9][a-z]*`\n", new Token.TokenType[] {
-                // pattern
-                Token.TokenType.PATTERN, Token.TokenType.SEPERATOR,
-        }));
-        var interpreter = emptyInterpreter();
-        var pattern = parser.ParseOperation().get();
-        parser.AcceptSeperators();
-        assertEquals(new PatternNode("[0-9][a-z]*"), pattern);
-        assertThrows(AwkRuntimeError.PatternError.class, () -> interpreter.GetIDT(pattern, null));
-    }
-
     // interpreter 2 - tests - GetIDT - function call
     @Test
     public void testGetIDTFunctionCall() throws Exception {
@@ -463,7 +449,7 @@ public class InterpreterTests {
         assertEquals("bandaid", interpreter.GetIDT(variable, locals_1).getContents());
         // not present
         assertEquals("", interpreter.GetIDT(variable, locals_2).getContents());
-        assertEquals("", locals_2.get("baz").getContents());
+        assertEquals("", interpreter.getGlobal("baz").getContents());
 
         // without locals
         // not present
@@ -535,7 +521,7 @@ public class InterpreterTests {
         assertEquals("same", interpreter.GetIDT(ternary, locals_1).getContents());
         // not present
         assertEquals("different", interpreter.GetIDT(ternary, locals_2).getContents());
-        assertEquals("", locals_2.get("banana").getContents());
+        assertEquals("", interpreter.getGlobal("banana").getContents());
 
         // without locals
         // not present
@@ -910,7 +896,7 @@ public class InterpreterTests {
 
         // without locals
         // not present
-        assertEquals("-1", interpreter.GetIDT(postDecrement, null).getContents());
+        assertEquals("-2", interpreter.GetIDT(postDecrement, null).getContents());
         interpreter.getGlobal("a").setContents("3");
         assertEquals("2", interpreter.GetIDT(postDecrement, null).getContents());
     }
@@ -936,7 +922,7 @@ public class InterpreterTests {
 
         // without locals
         // not present
-        assertEquals("1", interpreter.GetIDT(postIncrement, null).getContents());
+        assertEquals("2", interpreter.GetIDT(postIncrement, null).getContents());
         interpreter.getGlobal("i").setContents("3.5");
         assertEquals("4.5", interpreter.GetIDT(postIncrement, null).getContents());
     }
@@ -1147,34 +1133,6 @@ public class InterpreterTests {
         assertThrows(AwkRuntimeError.ExpectedNumberError.class, () -> interpreter.GetIDT(modulusAssignment, null));
     }
 
-    // interpreter 2 - tests - GetIDT - error - (not)?match without pattern
-    @Test
-    public void testGetIDTErrorMatchWithoutPattern() throws Exception {
-        var parser = new Parser(UnitTests.testLexContent("\"foo\" ~ \"bar\"\n \"banana\" !~ \"baz\"",
-                new Token.TokenType[] {
-                        // match
-                        Token.TokenType.STRINGLITERAL, Token.TokenType.MATCH, Token.TokenType.STRINGLITERAL,
-                        Token.TokenType.SEPERATOR,
-                        // not match
-                        Token.TokenType.STRINGLITERAL, Token.TokenType.NOTMATCH, Token.TokenType.STRINGLITERAL,
-                }));
-        var interpreter = emptyInterpreter();
-        var match = parser.ParseOperation().get();
-        parser.AcceptSeperators();
-        assertEquals(
-                new OperationNode(OperationNode.Operation.MATCH, new ConstantNode("foo"), new ConstantNode("bar")),
-                match);
-        assertThrows(AwkRuntimeError.ExpectedPatternError.class, () -> interpreter.GetIDT(match, null));
-
-        var notMatch = parser.ParseOperation().get();
-        parser.AcceptSeperators();
-        assertEquals(
-                new OperationNode(OperationNode.Operation.NOTMATCH, new ConstantNode("banana"),
-                        new ConstantNode("baz")),
-                notMatch);
-        assertThrows(AwkRuntimeError.ExpectedPatternError.class, () -> interpreter.GetIDT(notMatch, null));
-    }
-
     // interpreter 2 - tests - GetIDT - error - field index < 0
     @Test
     public void testGetIDTErrorFieldIndexLessThanZero() throws Exception {
@@ -1380,7 +1338,7 @@ public class InterpreterTests {
         // locals
         assertEquals("foo", locals_1.get("f").getContents());
         assertEquals("bazaaza", interpreter.getArray("c", locals_1).getHashMap().get("-5").getContents());
-        assertEquals("bazaaza", locals_1.get("d").getContents());
+        assertEquals("bazaaza", interpreter.getGlobal("d").getContents());
     }
 
     // interpreter 2 - tests - GetIDT - error - mixing arrays and scalars
@@ -1446,8 +1404,8 @@ public class InterpreterTests {
         assertEquals("6", interpreter.getArray("d", null).getHashMap().get("22").getContents());
 
         // locals
-        assertEquals("2", locals_1.get("a").getContents());
-        assertEquals("2", locals_1.get("c").getContents());
+        assertEquals("2", interpreter.getGlobal("a").getContents());
+        assertEquals("2", interpreter.getGlobal("c").getContents());
         assertEquals("1", interpreter.getArray("b", locals_1).getHashMap().get("1").getContents());
         assertEquals("6", interpreter.getArray("d", locals_1).getHashMap().get("22").getContents());
     }

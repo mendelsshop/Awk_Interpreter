@@ -189,16 +189,15 @@ public class Interpreter {
     }
 
     // awk allows for inventing varaibles so get or init
-    // will attemptt to find the varaible or create otherwise in the samllest scope
-    // possible
+    // will attemptt to find the varaible or create a global
+    // like in real awk the only thing local to function is the parameters, so get
+    // or init should create a new binding in globals if not found
     // basis for get(Varaible|Array)
     private InterpreterDataType getOrInit(String index, Optional<HashMap<String, InterpreterDataType>> vars,
             Supplier<InterpreterDataType> defaultValue) {
         return vars
-                .map(v -> Optional.ofNullable(v.get(index)).or(() -> Optional.ofNullable(variables.get(index)))
-                        .orElseGet(() -> v.computeIfAbsent(index, (u) -> defaultValue.get())))
+                .flatMap(v -> Optional.ofNullable(v.get(index)).or(() -> Optional.ofNullable(variables.get(index))))
                 .orElseGet(() -> variables.computeIfAbsent(index, (u) -> defaultValue.get()));
-
     }
 
     // public for testing purposes
@@ -471,8 +470,8 @@ public class Interpreter {
                 return new InterpreterDataType(RunFunctionCall(f, locals));
             }
             case PatternNode p -> {
-                // TODO: awk doesnt do this
-                throw new AwkRuntimeError.PatternError(p);
+                // patterns are valid anywhere in awk
+                return new InterpreterDataType(p.getPattern());
             }
             case TernaryOperationNode t -> {
                 return truthyValue(GetIDT(t.getCond(), locals).getContents()) == "1" ? GetIDT(t.getThen(), locals)
@@ -532,11 +531,11 @@ public class Interpreter {
         };
         // match is used for ~ and !~ (takes a string and a pattern which is node)
         // and extracts the pattern from the node and then matches the string against it
+        // (we use getidt to extract pattern b/c pattern can be anything ever 5) so 5 ~
+        // 4 is valid
         BiFunction<String, Node, String> match = (string, pattern) -> {
-            if (pattern instanceof PatternNode p) {
-                return Pattern.matches(p.getPattern(), string) ? "1" : "0";
-            }
-            throw new AwkRuntimeError.ExpectedPatternError(pattern);
+            return Pattern.matches(GetIDT(pattern, locals).getContents(), string) ? "1" : "0";
+
         };
         // comparisons in awk first try to convert to numbers and then compare otherwise
         // they compare as strings
@@ -755,24 +754,26 @@ public class Interpreter {
             // calling interpretstatement on the increment and init of a for loop this
             // doesnt make sense b/c you cant do control flow in return (also checked by
             // parser)
-            case FunctionCallNode fc -> {
-                RunFunctionCall(fc, locals);
-                yield new ReturnType(ReturnType.ReturnKind.Normal);
-            }
-            case AssignmentNode as -> {
-                // should be same as in getidt
-                var newValue = GetIDT(as.getExpression(), locals);
-                checkAssignAble(as.getTarget());
-                // we can really only assign to scalar
-                // we inteninall setcontents and getcontents so assignment doesnt modify
-                // original variable
-                GetIDT(as.getTarget(), locals).setContents(newValue.getContents());
-                // TODO: (doc) Return type None, and the value of right
-                // doesnt make sense none means control flow doesnt change but what is getting
-                // the returned value of the right nothing.
-                // yield new ReturnType(newValue.getContents(), ReturnType.ReturnKind.Normal);
-                yield new ReturnType(ReturnType.ReturnKind.Normal);
-            }
+            // case FunctionCallNode fc -> {
+            // RunFunctionCall(fc, locals);
+            // yield new ReturnType(ReturnType.ReturnKind.Normal);
+            // }
+            // case AssignmentNode as -> {
+            // // should be same as in getidt
+            // var newValue = GetIDT(as.getExpression(), locals);
+            // checkAssignAble(as.getTarget());
+            // // we can really only assign to scalar
+            // // we inteninall setcontents and getcontents so assignment doesnt modify
+            // // original variable
+            // GetIDT(as.getTarget(), locals).setContents(newValue.getContents());
+            // // TODO: (doc) Return type None, and the value of right
+            // // doesnt make sense none means control flow doesnt change but what is
+            // getting
+            // // the returned value of the right nothing.
+            // // yield new ReturnType(newValue.getContents(),
+            // ReturnType.ReturnKind.Normal);
+            // yield new ReturnType(ReturnType.ReturnKind.Normal);
+            // }
             // otherwise its constant or other getidt can handle it
             default -> {
                 GetIDT(stmt, locals);
