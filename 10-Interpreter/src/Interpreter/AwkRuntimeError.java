@@ -24,20 +24,6 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
 
     }
 
-    public static class PatternError extends AwkRuntimeError {
-        private PatternNode pattern;
-
-        public PatternError(PatternNode pattern) {
-            this.pattern = pattern;
-        }
-
-        @Override
-        public String message() {
-            return "Pattern " + pattern + "is invalid in this context";
-        }
-
-    }
-
     public static class ExpectedScalarError extends AwkRuntimeError {
         private InterpreterArrayDataType value;
 
@@ -160,9 +146,9 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
     }
 
     public static class ReturnInOuterBlockError extends AwkRuntimeError {
-        private Interpreter.ReturnType returnValue;
+        private ReturnType returnValue;
 
-        public ReturnInOuterBlockError(Interpreter.ReturnType returnValue) {
+        public ReturnInOuterBlockError(ReturnType returnValue) {
             this.returnValue = returnValue;
         }
 
@@ -201,16 +187,4 @@ public abstract class AwkRuntimeError extends RuntimeException implements Displa
         }
     }
 
-    public static class ExpectedPatternError extends AwkRuntimeError {
-        private Node value;
-
-        public ExpectedPatternError(Node value) {
-            this.value = value;
-        }
-
-        @Override
-        public String message() {
-            return "Expected " + value + " to be a pattern, but it was not";
-        }
-    }
 }

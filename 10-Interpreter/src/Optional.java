@@ -515,6 +515,38 @@ public final class Optional<T> {
         }
     }
 
+    // inspect
+    // CheckedInspect
+
+    /**
+     * If a value is present, does the given action with the value,
+     * otherwise does nothing.
+     * @param action the action to be performed, if a value is present
+     * @return this Optional
+    */
+    public Optional<T> inspect(Consumer<? super T> action) {
+        if (value != null) {
+            action.accept(value);
+        }
+        return this;
+    }
+
+    /**
+     * If a value is present, does the given action with the value,
+     * otherwise does nothing.
+     * @param action the action to be performed, if a value is present
+     * @return this Optional
+    */
+    public <E extends Exception> Optional<T> CheckedInspect(CheckedConsumer<? super T, E> action) throws E {
+
+        if (value != null) {
+            action.accept(value);
+        }
+        return this;
+    }
+
+
+
     /**
      * If a value is present, returns the value, otherwise returns
      * {@code other}.

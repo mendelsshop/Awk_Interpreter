@@ -190,16 +190,15 @@ public class Interpreter {
     }
 
     // awk allows for inventing varaibles so get or init
-    // will attemptt to find the varaible or create otherwise in the samllest scope
-    // possible
+    // will attemptt to find the varaible or create a global
+    // like in real awk the only thing local to function is the parameters, so get
+    // or init should create a new binding in globals if not found
     // basis for get(Varaible|Array)
     private InterpreterDataType getOrInit(String index, Optional<HashMap<String, InterpreterDataType>> vars,
             Supplier<InterpreterDataType> defaultValue) {
         return vars
-                .map(v -> Optional.ofNullable(v.get(index)).or(() -> Optional.ofNullable(variables.get(index)))
-                        .orElseGet(() -> v.computeIfAbsent(index, (u) -> defaultValue.get())))
+                .flatMap(v -> Optional.ofNullable(v.get(index)).or(() -> Optional.ofNullable(variables.get(index))))
                 .orElseGet(() -> variables.computeIfAbsent(index, (u) -> defaultValue.get()));
-
     }
 
     // public for testing purposes
@@ -487,8 +486,7 @@ public class Interpreter {
         } else {
             var args = proccesArgs(functionDefinition.getParameters(), function.getParameters(), false,
                     function.getFunctionName(), locals, InterpreterDataType::Clone);
-            var retValue = InterpretListOfStatements(new BlockNode(functionDefinition.getStatements()), args)
-                    .orElse(new ReturnType(Interpreter.ReturnType.ReturnKind.Normal));
+            var retValue = InterpretListOfStatements(new BlockNode(functionDefinition.getStatements()), args);
             return switch (retValue.getReturnKind()) {
                 case Normal, Return -> retValue.getReturnValue().orElse("");
                 default -> throw new AwkRuntimeError.ReturnInOuterBlockError(retValue);
@@ -509,14 +507,14 @@ public class Interpreter {
                 return newValue;
             }
             case ConstantNode c -> {
-                // TODO: if its number truncate n.0 to n
                 return new InterpreterDataType(c.getValue());
             }
             case FunctionCallNode f -> {
                 return new InterpreterDataType(RunFunctionCall(f, locals));
             }
             case PatternNode p -> {
-                throw new AwkRuntimeError.PatternError(p);
+                // patterns are valid anywhere in awk
+                return new InterpreterDataType(p.getPattern());
             }
             case TernaryOperationNode t -> {
                 return truthyValue(GetIDT(t.getCond(), locals).getContents()) == "1" ? GetIDT(t.getThen(), locals)
@@ -576,11 +574,11 @@ public class Interpreter {
         };
         // match is used for ~ and !~ (takes a string and a pattern which is node)
         // and extracts the pattern from the node and then matches the string against it
+        // (we use getidt to extract pattern b/c pattern can be anything ever 5) so 5 ~
+        // 4 is valid
         BiFunction<String, Node, String> match = (string, pattern) -> {
-            if (pattern instanceof PatternNode p) {
-                return Pattern.matches(p.getPattern(), string) ? "1" : "0";
-            }
-            throw new AwkRuntimeError.ExpectedPatternError(pattern);
+            return Pattern.matches(GetIDT(pattern, locals).getContents(), string) ? "1" : "0";
+
         };
         // comparisons in awk first try to convert to numbers and then compare otherwise
         // they compare as strings
@@ -671,60 +669,20 @@ public class Interpreter {
         }
     }
 
-    // public so it can be used for exceptions
-    public class ReturnType {
-        private enum ReturnKind {
-            Normal, Break, Continue, Return
-        }
-
-        private Optional<String> returnValue = Optional.empty();
-        private ReturnKind returnKind;
-
-        public Optional<String> getReturnValue() {
-            return returnValue;
-        }
-
-        public ReturnKind getReturnKind() {
-            return returnKind;
-        }
-
-        public ReturnType(String retunrValue, ReturnType.ReturnKind returnKind) {
-            this.returnValue = Optional.of(retunrValue);
-            this.returnKind = returnKind;
-        }
-
-        public ReturnType(ReturnType.ReturnKind returnKind) {
-            this.returnKind = returnKind;
-        }
-    }
-
     private ReturnType ProcessStatement(HashMap<String, InterpreterDataType> locals, StatementNode stmt) {
         return switch (stmt) {
-            case AssignmentNode as -> {
-                // should be same as in getidt
-                var newValue = GetIDT(as.getExpression(), locals);
-                checkAssignAble(as.getTarget());
-                // we can really only assign to scalar
-                // we inteninall setcontents and getcontents so assignment doesnt modify
-                // original variable
-                GetIDT(as.getTarget(), locals).setContents(newValue.getContents());
-                yield new ReturnType(newValue.getContents(), ReturnType.ReturnKind.Normal);
-            }
             case BreakNode br -> new ReturnType(ReturnType.ReturnKind.Break);
             case ContinueNode ct -> new ReturnType(ReturnType.ReturnKind.Continue);
-            case FunctionCallNode fc -> new ReturnType(RunFunctionCall(fc, locals), ReturnType.ReturnKind.Normal);
             case ReturnNode rt -> rt.getReturnValue().map(
-                    ret -> new ReturnType(GetIDT(ret, locals).getContents(), Interpreter.ReturnType.ReturnKind.Return))
-                    .orElse(new ReturnType(Interpreter.ReturnType.ReturnKind.Return));
+                    ret -> new ReturnType(GetIDT(ret, locals).getContents(), ReturnType.ReturnKind.Return))
+                    .orElse(new ReturnType(ReturnType.ReturnKind.Return));
 
             case DoWhileNode dw -> {
                 do {
-                    var maybeReturn = InterpretListOfStatements(dw.getBlock(), locals);
-                    var returnType = maybeReturn.map(ReturnType::getReturnKind)
-                            .orElse(Interpreter.ReturnType.ReturnKind.Normal);
-                    if (returnType == Interpreter.ReturnType.ReturnKind.Return) {
-                        yield maybeReturn.get();
-                    } else if (returnType == Interpreter.ReturnType.ReturnKind.Break) {
+                    var returnType = InterpretListOfStatements(dw.getBlock(), locals);
+                    if (returnType.getReturnKind() == ReturnType.ReturnKind.Return) {
+                        yield returnType;
+                    } else if (returnType.getReturnKind() == ReturnType.ReturnKind.Break) {
                         break;
                     }
                 } while (truthyValue(GetIDT(dw.getCondition(), locals).getContents()) == "1");
@@ -733,12 +691,10 @@ public class Interpreter {
 
             case WhileNode wl -> {
                 while (truthyValue(GetIDT(wl.getCondition(), locals).getContents()) == "1") {
-                    var maybeReturn = InterpretListOfStatements(wl.getBlock(), locals);
-                    var returnType = maybeReturn.map(ReturnType::getReturnKind)
-                            .orElse(Interpreter.ReturnType.ReturnKind.Normal);
-                    if (returnType == Interpreter.ReturnType.ReturnKind.Return) {
-                        yield maybeReturn.get();
-                    } else if (returnType == Interpreter.ReturnType.ReturnKind.Break) {
+                    var returnType = InterpretListOfStatements(wl.getBlock(), locals);
+                    if (returnType.getReturnKind() == ReturnType.ReturnKind.Return) {
+                        yield returnType;
+                    } else if (returnType.getReturnKind() == ReturnType.ReturnKind.Break) {
                         break;
                     }
                 }
@@ -746,35 +702,46 @@ public class Interpreter {
             }
             case IfNode ifs -> {
                 if (truthyValue(GetIDT(ifs.getCondition(), locals).getContents()) == "1") {
-                    var maybeReturn = InterpretListOfStatements(ifs.getThenBlock(), locals);
-                    var returnType = maybeReturn.map(ReturnType::getReturnKind)
-                            .orElse(Interpreter.ReturnType.ReturnKind.Normal);
-                    if (returnType != Interpreter.ReturnType.ReturnKind.Normal) {
-                        yield maybeReturn.get();
+                    // if return type is break/cotinue/return we need to return it
+                    var returnType = InterpretListOfStatements(ifs.getThenBlock(), locals);
+                    if (returnType.getReturnKind() != ReturnType.ReturnKind.Normal) {
+                        yield returnType;
                     }
                 }
                 yield ifs.getOtherwise().<ReturnType>map(block -> {
                     if (block instanceof IfNode elif) {
                         return ProcessStatement(locals, elif);
                     } else {
-                        return InterpretListOfStatements((BlockNode) block, locals)
-                                .orElse(new ReturnType(Interpreter.ReturnType.ReturnKind.Normal));
+                        return InterpretListOfStatements((BlockNode) block, locals);
                     }
-                }).orElse(new ReturnType(Interpreter.ReturnType.ReturnKind.Normal));
+                }).orElse(new ReturnType(ReturnType.ReturnKind.Normal));
 
             }
             case ForNode fr -> {
+                // 1) ForNode: If there is an initial, call processStatement on it. Then create
+                // a while loop, using the forNode’s condition as the while’s condition. Inside,
+                // call InterpretListOfStatements() on forNode’s statements. Same as DoWhile –
+                // check the return code and do the same thing. Make sure you call
+                // processStatement() on the forNode’s increment.
+                // 2) Any other node type encountered should be an exception with a good error
+                // message.
+                // how can we call process statement on the increment if its not a statement
+                // becuase of 2). also operation node cannot be a statement b/c of the
+                // restrcitions on outer expression having to possibly mutate
+                //
+                // TODO: it doesnt even make sense to call interpretstatement on the increment
+                // and init b/c
+                // youre not allowed to do control flow/iterate (break continue return for if
+                // do-while while) in them (even the parser catches this) and at that point
+                // getidt suffices
                 for (fr.getInit().ifPresent(init -> GetIDT(init, locals)); fr.getCondition()
                         .map(cond -> truthyValue(GetIDT(cond, locals).getContents()) == "1")
                         .orElse(true); fr.getIncrement().ifPresent(inc -> GetIDT(inc, locals))) {
-                    var maybeReturn = InterpretListOfStatements(fr.getBlock(), locals);
-                    var returnType = maybeReturn.map(ReturnType::getReturnKind)
-                            .orElse(Interpreter.ReturnType.ReturnKind.Normal);
-                    if (returnType == Interpreter.ReturnType.ReturnKind.Return) {
-                        yield maybeReturn.get();
-                    } else if (returnType == Interpreter.ReturnType.ReturnKind.Break) {
+                    var returnType = InterpretListOfStatements(fr.getBlock(), locals);
+                    if (returnType.getReturnKind() == ReturnType.ReturnKind.Return) {
+                        yield returnType;
+                    } else if (returnType.getReturnKind() == ReturnType.ReturnKind.Break) {
                         break;
-
                     }
                 }
                 yield new ReturnType(ReturnType.ReturnKind.Normal);
@@ -792,12 +759,10 @@ public class Interpreter {
                             locals.put(fe.getIndex(), indexVar);
                         }
                         indexVar.setContents(index);
-                        var maybeReturn = InterpretListOfStatements(fe.getBlock(), locals);
-                        var returnType = maybeReturn.map(ReturnType::getReturnKind)
-                                .orElse(Interpreter.ReturnType.ReturnKind.Normal);
-                        if (returnType == Interpreter.ReturnType.ReturnKind.Return) {
-                            yield maybeReturn.get();
-                        } else if (returnType == Interpreter.ReturnType.ReturnKind.Break) {
+                        var returnType = InterpretListOfStatements(fe.getBlock(), locals);
+                        if (returnType.getReturnKind() == ReturnType.ReturnKind.Return) {
+                            yield returnType;
+                        } else if (returnType.getReturnKind() == ReturnType.ReturnKind.Break) {
                             break;
                         }
                     }
@@ -818,35 +783,70 @@ public class Interpreter {
                 }
                 yield new ReturnType(ReturnType.ReturnKind.Normal);
             }
-            default -> throw new IllegalArgumentException("Unexpected value: " + stmt);
+            // function calls and assignments can be done via getidt (but assingments need
+            // to return the value of the right side??? this is not a expression oriented
+            // language)
+            // sure return a = 4 the 4 is returned from the assinment to the return but that
+            // goes through return which calls getidt which will return the value of the
+            // right side
+            // but in our case were talking about the outer most part of a block where the
+            // result of this expression can be ignored all we care for is its side effects
+            // maybe the idea was to call in return a = 4 to eval a = 4 with
+            // interperstatement and then get the value of 4 as a result of that but again
+            // like
+            // calling interpretstatement on the increment and init of a for loop this
+            // doesnt make sense b/c you cant do control flow in return (also checked by
+            // parser)
+            // case FunctionCallNode fc -> {
+            // RunFunctionCall(fc, locals);
+            // yield new ReturnType(ReturnType.ReturnKind.Normal);
+            // }
+            // case AssignmentNode as -> {
+            // // should be same as in getidt
+            // var newValue = GetIDT(as.getExpression(), locals);
+            // checkAssignAble(as.getTarget());
+            // // we can really only assign to scalar
+            // // we inteninall setcontents and getcontents so assignment doesnt modify
+            // // original variable
+            // GetIDT(as.getTarget(), locals).setContents(newValue.getContents());
+            // // TODO: (doc) Return type None, and the value of right
+            // // doesnt make sense none means control flow doesnt change but what is
+            // getting
+            // // the returned value of the right nothing.
+            // // yield new ReturnType(newValue.getContents(),
+            // ReturnType.ReturnKind.Normal);
+            // yield new ReturnType(ReturnType.ReturnKind.Normal);
+            // }
+            // otherwise its constant or other getidt can handle it
+            default -> {
+                GetIDT(stmt, locals);
+                yield new ReturnType(ReturnType.ReturnKind.Normal);
+            }
 
         };
     }
 
     private ReturnType loop(Supplier<Boolean> hasNext, BlockNode block, HashMap<String, InterpreterDataType> locals) {
         while (hasNext.get()) {
-            var maybeReturn = InterpretListOfStatements(block, locals);
-            var returnType = maybeReturn.map(ReturnType::getReturnKind)
-                    .orElse(Interpreter.ReturnType.ReturnKind.Normal);
-            if (returnType == Interpreter.ReturnType.ReturnKind.Return) {
-                return maybeReturn.get();
-            } else if (returnType == Interpreter.ReturnType.ReturnKind.Break) {
+            var returnType = InterpretListOfStatements(block, locals);
+            if (returnType.getReturnKind() == ReturnType.ReturnKind.Return) {
+                return returnType;
+            } else if (returnType.getReturnKind() == ReturnType.ReturnKind.Break) {
                 break;
             }
         }
         return new ReturnType(ReturnType.ReturnKind.Normal);
     }
 
-    // only return non normal returns
-    private Optional<ReturnType> InterpretListOfStatements(BlockNode block,
+    private ReturnType InterpretListOfStatements(BlockNode block,
             HashMap<String, InterpreterDataType> locals) {
         for (var stmt : block.getStatements()) {
             var maybeReturn = ProcessStatement(locals, stmt);
             if (maybeReturn.getReturnKind() != ReturnType.ReturnKind.Normal) {
-                return Optional.of(maybeReturn);
+                return (maybeReturn);
             }
         }
-        return Optional.empty();
+        return new ReturnType(ReturnType.ReturnKind.Normal);
     }
     public void InterpretProgram() {
         BiConsumer<Supplier<AwkRuntimeError>, LinkedList<BlockNode>> blockInterpreter = (type, blocks) -> {
@@ -873,9 +873,10 @@ public class Interpreter {
 
     public void InterpretBlock(BlockNode block) {
         if (block.getCondition().map(cond -> truthyValue(GetIDT(cond, null).getContents()) == "1").orElse(true)) {
-            InterpretListOfStatements(block, null).ifPresent(ret -> {
-                throw new AwkRuntimeError.ReturnInOuterBlockError(ret);
-            });
+            var returnValue = InterpretListOfStatements(block, null);
+            if (returnValue.getReturnKind() != ReturnType.ReturnKind.Normal) {
+                throw new AwkRuntimeError.ReturnInOuterBlockError(returnValue);
+            }
         }
     }
 }
