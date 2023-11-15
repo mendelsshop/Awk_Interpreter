@@ -1,4 +1,5 @@
 # Interpreter 4
+
 ## Project organization
 
 ```
@@ -21,7 +22,8 @@ root
     │   ├── DisplayError.java
     │   ├── InterpreterArrayDataType.java
     │   ├── InterpreterDataType.java
-    │   └── Interpreter.java
+    │   ├── Interpreter.java
+    │   └── ReturnType.java
     ├── Lexer
     │   ├── FunctionalLexer.java
     │   ├── Lexer.java
@@ -61,7 +63,7 @@ root
         ├── StringHandlerTests.java
         ├── TokenHandlerTests.java
         └── UnitTests.java
-``````
+```
 
 The awk files are generated from using `get_awk_files.py` (and will probably be different then the ones shown here) are required for the first unit test to work (see `root/src/UnitTests.java` for more info)
 
