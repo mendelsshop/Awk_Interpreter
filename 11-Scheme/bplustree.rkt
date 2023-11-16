@@ -1,20 +1,10 @@
 (define (walk tree value)
-  (if (null? tree) #f
-      (begin
-      (if (null? (cdr tree)) (walk (car tree) value)
-      (let ((v (cadr tree)))
-        (cond
-        ((< value v) (walk (car tree) value))
-        ((> value v) (walk (cddr tree) value))
-        ((= value v) #t)
-        (else (display tree))
-        ))
-       )
-      ) 
-))
-
-
-
+  (cond
+    ((null? tree) #f)
+    ((null? (cdr tree)) (walk (car tree) value))
+    ((< value (cadr tree)) (walk (car tree) value))
+    ((> value (cadr tree)) (walk (cddr tree) value))
+    ((= value (cadr tree)) #t)))
 
 (define ones (list '() 2 '() 4 '() 6 '() 7 '() 8 '()))
 
@@ -24,13 +14,7 @@
 
 (define ninehundreds (list '() 930 '() 940 '() 960 '() 970 '() 988 '()))
 
-(define tree (list tens 100 '() 300 '() 500 '() 700 '() 900 ninehundreds ))
-
-
-
-
-
-
+(define tree (list tens 100 '() 300 '() 500 '() 700 '() 900 ninehundreds))
 
 (walk tree 0) ; returns false
 
