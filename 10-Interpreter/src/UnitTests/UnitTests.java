@@ -21,7 +21,7 @@ public class UnitTests {
 
         }
 
-        // use get_awk_files.py, make sure to have root/tests directory
+        // use get_awk_files.py, make sure to have root/tests/normal and root/tests/backticks directories
         // amd that the junit tests run in the root directory
         // in vscode use "java.test.config": {
         // "workingDirectory": "${workspaceFolder}"
@@ -34,10 +34,9 @@ public class UnitTests {
         // verfiying a file
         // 2) if it doesnt fail who says lexer is correct as we have no way of verfiying
         // a file
-        // b) this simple file = file.replaceAll("/", "`"); messes with with division,
-        // even though it fixes regex pattern
+        // b) our // to `` conversion is not perfect, so we may not be able to parse
         public Stream<String> get_awk_files() throws Exception {
-                return Files.list(Paths.get("tests")).filter(file -> {
+                return Files.list(Paths.get("tests", "backticks")).filter(file -> {
                         try {
                                 new String(Files.readAllBytes(file));
                                 return true;
@@ -54,7 +53,6 @@ public class UnitTests {
         }
 
         public void assertWorks(String file) {
-                file = file.replaceAll("/", "`");
                 var lexer = new Lexer(file);
                 var fpLexer = new FunctionalLexer(file);
                 try {

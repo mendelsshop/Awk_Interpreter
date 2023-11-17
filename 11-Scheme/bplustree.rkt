@@ -1,3 +1,5 @@
+#lang racket
+
 (define (walk tree value)
   (cond
     ((null? tree) #f)
