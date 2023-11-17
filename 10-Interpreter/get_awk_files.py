@@ -28,8 +28,9 @@ def download_file(json, token):
     file_t = f"tests/backtick/{json['name']}"
     res = download(url, token)
     contents = transform_awk_patterns(res.content.decode("utf-8"))
-    open(file_t, 'w').write(f"# source {json['html_url']}\n{contents.encode('utf-8')}")
-    open(file, 'w').write(f"# source {json['html_url']}\n{res.content}")
+    open(file_t, 'w').write(f"# source {json['html_url']}\n{contents}")
+    open(file, 'w').write(f"# source {json['html_url']}\n{res.content.decode('utf-8')}")
+    open('tests/files.txt', 'a').write(f"{json['name']}\n")
 
 def main():
     if len(sys.argv) != 4:

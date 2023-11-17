@@ -19,6 +19,7 @@ public class Parser {
         var program = new ProgramNode();
         while (tokens.MoreTokens()) {
             // if its not an action of function error
+        AcceptSeperators();
             if (!(ParseFunction(program) || ParseAction(program))) {
                 throw createException("cannot parse program top level item was not a function or action");
             }
@@ -46,7 +47,6 @@ public class Parser {
         LinkedList<String> parameters = parseDelimitedList(Token.TokenType.OPENPAREN, Token.TokenType.CLOSEPAREN,
                 () -> MatchAndRemove(Token.TokenType.WORD).map(w -> w.getValue().get()), "function parameter list");
         // parse block eats up newlines before the {
-
         var block = ParseBlock(false).getStatements();
         program.addFunction(new FunctionNode(functionName, parameters, block));
         return true;
