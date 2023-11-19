@@ -32,7 +32,9 @@ for file in tests/normal/*
 do
     for input in tests/text/*
     do
-        awk -f $file $input > tests/output/actual-$(basename $input)-$(basename $file) &
+        # put basename of awk file + basename of input file as header of output file
+        echo "$(basename $file) with $(basename $input)" > tests/output/expected-$(basename $input)-$(basename $file)
+        awk -f $file $input >> tests/output/expected-$(basename $input)-$(basename $file) 
     done
 done
 
@@ -42,7 +44,9 @@ for file in tests/backtick/*
 do
     for input in tests/text/*
     do
-        $1 --enable-preview -jar tests/10-Interpreter.jar -- $file $input > tests/output/actual-$(basename $input)-$(basename $file) 
+        # put basename of awk file + basename of input file as header of output file
+        echo "$(basename $file) with $(basename $input)" > tests/output/actual-$(basename $input)-$(basename $file)
+        $1 --enable-preview -jar tests/10-Interpreter.jar -- $file $input >> tests/output/actual-$(basename $input)-$(basename $file) 
     done
 done
 
@@ -52,6 +56,7 @@ for file in $(cat tests/files.txt)
 do
     for input in tests/text/*
     do
-        diff tests/output/expected-$(basename $input)-$file tests/output/actual-$(basename $input)-$file
+        echo  -e "\nComparing $file with $(basename $input)\n"
+        diff -y tests/output/expected-$(basename $input)-$file tests/output/actual-$(basename $input)-$file
     done
 done

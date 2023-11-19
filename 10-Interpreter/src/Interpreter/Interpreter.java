@@ -449,7 +449,8 @@ public class Interpreter {
     }
 
     // maps params to args
-    // the mapper function is used to clone idts so they cannot be modified from non builtin fucntions
+    // the mapper function is used to clone idts so they cannot be modified from non
+    // builtin fucntions
     private HashMap<String, InterpreterDataType> proccesArgs(LinkedList<String> params, LinkedList<Node> args,
             Boolean vardiac, String functionName, HashMap<String, InterpreterDataType> locals,
             Function<InterpreterDataType, InterpreterDataType> mapper) {
@@ -480,7 +481,7 @@ public class Interpreter {
 
         if (functionDefinition instanceof BuiltInFunctionDefinitionNode buitlin) {
             var args = proccesArgs(buitlin.getParameters(), function.getParameters(), buitlin.getVaridiac(),
-            // mapper here is identity b/c for builtins we do not clone so [g?]sub works
+                    // mapper here is identity b/c for builtins we do not clone so [g?]sub works
                     function.getFunctionName(), locals, i -> i);
             return buitlin.getExecute().apply(args);
         } else {
@@ -704,9 +705,7 @@ public class Interpreter {
                 if (truthyValue(GetIDT(ifs.getCondition(), locals).getContents()) == "1") {
                     // if return type is break/cotinue/return we need to return it
                     var returnType = InterpretListOfStatements(ifs.getThenBlock(), locals);
-                    if (returnType.getReturnKind() != ReturnType.ReturnKind.Normal) {
-                        yield returnType;
-                    }
+                    yield returnType;
                 }
                 yield ifs.getOtherwise().<ReturnType>map(block -> {
                     if (block instanceof IfNode elif) {
@@ -848,6 +847,7 @@ public class Interpreter {
         }
         return new ReturnType(ReturnType.ReturnKind.Normal);
     }
+
     public void InterpretProgram() {
         BiConsumer<Supplier<AwkRuntimeError>, LinkedList<BlockNode>> blockInterpreter = (type, blocks) -> {
             for (var block : blocks) {
