@@ -431,6 +431,15 @@ public class Interpreter {
                     }, false);
             put("tolower", strUpdate.apply("tolower", String::toLowerCase));
             put("toupper", strUpdate.apply("toupper", String::toUpperCase));
+            put("exit", new BuiltInFunctionDefinitionNode("exit", (vars) -> {
+                String status = getVariable("status", vars).getContents();
+                System.exit(parse(new InterpreterDataType(status)).intValue());
+                return "";
+            }, new LinkedList<>() {
+                {
+                    add("status");
+                }
+            }, false));
         }
     };
 
