@@ -3,3 +3,6 @@ find_special_class.awk
 scheme.awk
 fen.awk
 imager.awk
+misc1.awk
+mangler.awk
+math.awk

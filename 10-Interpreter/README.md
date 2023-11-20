@@ -11,6 +11,10 @@ root
 │   │   ├── fen.awk
 │   │   ├── find_special_class.awk
 │   │   ├── imager.awk
+│   │   ├── mangler.awk
+│   │   ├── misc1.awk
+│   │   ├── math.awk
+│   │   ├── mangler.awk
 │   │   └── scheme.awk
 │   ├── files.txt
 │   ├── normal
@@ -18,6 +22,10 @@ root
 │   │   ├── fen.awk
 │   │   ├── find_special_class.awk
 │   │   ├── imager.awk
+│   │   ├── mangler.awk
+│   │   ├── misc1.awk
+│   │   ├── math.awk
+│   │   ├── mangler.awk
 │   │   └── scheme.awk
 │   ├── output
 │   └── text
