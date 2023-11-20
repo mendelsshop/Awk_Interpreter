@@ -20,15 +20,19 @@ public class Awk {
                 // print result token stream
                 LinkedList<Token> lex = lexer.lex();
                 var parser = new Parser(lex);
-                var interpreter = new Interpreter(parser.Parse(), Optional.ofNullable(args.length == 3 ? args[2] : null));
+                var interpreter = new Interpreter(parser.Parse(),
+                        Optional.ofNullable(args.length == 3 ? args[2] : null));
                 interpreter.InterpretProgram();
             } catch (AwkException e) {
                 e.DisplayError(content, myPath.toString());
             } catch (AwkRuntimeError e) {
-               System.err.println("Awk runtime error:\n"+ e.message());
+                System.err.println("Awk runtime error:\n" + e.message());
+                System.exit(1);
             }
         } catch (IOException e) {
             System.err.println("Error while reading awk file: " + myPath.toString() + ": " + e.getMessage());
+            System.exit(1);
+
         }
     }
 }

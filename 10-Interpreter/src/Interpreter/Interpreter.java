@@ -9,7 +9,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -244,7 +243,7 @@ public class Interpreter {
 
     }
 
-    public class Exit extends RuntimeException {
+    private static class Exit extends RuntimeException {
         int status;
 
         public Exit(int status) {
@@ -273,7 +272,8 @@ public class Interpreter {
                 if (strings.size() > 0) {
                     System.out.print(
                             strings.getItemsStream().map(InterpreterDataType::getContents)
-                                    .collect(Collectors.joining(getGlobal("OFS").getContents())) + getGlobal("ORS")
+                                    .collect(Collectors.joining(getGlobal("OFS").getContents()))
+                                    + getGlobal("ORS")
                                             .getContents());
                 } else {
                     // if no strings passed print $0
@@ -871,19 +871,51 @@ public class Interpreter {
         return new ReturnType(ReturnType.ReturnKind.Normal);
     }
 
-    public void InterpretProgram() {
-        BiConsumer<Supplier<AwkRuntimeError>, LinkedList<BlockNode>> blockInterpreter = (type, blocks) -> {
-            for (var block : blocks) {
-                try {
-                    InterpretBlock(block);
-                } catch (Next e) {
-                    throw type.get();
-                }
-            }
-        };
+    private class Tuple<T, U> {
+        T first;
+        U second;
 
+        public Tuple(T first, U second) {
+            this.first = first;
+            this.second = second;
+        }
+
+        public T getFirst() {
+            return first;
+        }
+
+        public U getSecond() {
+            return second;
+        }
+    }
+
+    // inteprets a list of blocks catching any of the exceptions using the list of
+    // handlers
+    private void blockInterpreter(
+            LinkedList<Tuple<Class<? extends Throwable>, Function<Throwable, ? extends RuntimeException>>> handlers,
+            LinkedList<BlockNode> blocks) {
+        for (var block : blocks) {
+            try {
+                InterpretBlock(block);
+            } catch (Throwable e) {
+                for (var handler : handlers) {
+                    if (handler.getFirst().isInstance(e)) {
+                        throw handler.getSecond().apply(e);
+                    }
+                }
+                throw e;
+            }
+        }
+    }
+
+    public void InterpretProgram() {
         try {
-            blockInterpreter.accept(() -> new AwkRuntimeError.NextInBeginError(), program.getBeginBlocks());
+            blockInterpreter(new LinkedList<>() {
+                {
+                    add(new Tuple<>(Next.class,
+                            e -> new AwkRuntimeError.NextInBeginError()));
+                }
+            }, program.getBeginBlocks());
             while (input.SplitAndAssign()) {
                 try {
                     for (var block : program.getRestBlocks()) {
@@ -896,11 +928,27 @@ public class Interpreter {
             // catch an exit in begin/other blocks
             // run end blocks and then exit
         } catch (Exit e) {
-
-            blockInterpreter.accept(() -> new AwkRuntimeError.NextInEndError(), program.getEndBlocks());
+            blockInterpreter(new LinkedList<>() {
+                {
+                    add(new Tuple<>(Next.class,
+                            e -> new AwkRuntimeError.NextInEndError()));
+                    // we dont handle exit in end blocks as we are already exiting
+                }
+            }, program.getEndBlocks());
             System.exit(e.status);
         }
-        blockInterpreter.accept(() -> new AwkRuntimeError.NextInEndError(), program.getEndBlocks());
+        blockInterpreter(new LinkedList<>() {
+            {
+                add(new Tuple<>(Next.class,
+                        e -> new AwkRuntimeError.NextInEndError()));
+                // handle exit in end blocks
+                add(new Tuple<>(Exit.class,
+                        e -> {
+                            System.exit(((Exit) e).status);
+                            return new RuntimeException();
+                        }));
+            }
+        }, program.getEndBlocks());
     }
 
     public void InterpretBlock(BlockNode block) {

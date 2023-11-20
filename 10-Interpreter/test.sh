@@ -34,7 +34,9 @@ do
     do
         # put basename of awk file + basename of input file as header of output file
         echo "$(basename $file) with $(basename $input)" > tests/output/expected-$(basename $input)-$(basename $file)
-        awk -f $file $input >> tests/output/expected-$(basename $input)-$(basename $file) 
+        awk -f $file $input >> tests/output/expected-$(basename $input)-$(basename $file)
+        # save exit status
+        echo "exit status: $?" >> tests/output/expected-$(basename $input)-$(basename $file)
     done
 done
 
@@ -47,6 +49,8 @@ do
         # put basename of awk file + basename of input file as header of output file
         echo "$(basename $file) with $(basename $input)" > tests/output/actual-$(basename $input)-$(basename $file)
         $1 --enable-preview -jar tests/10-Interpreter.jar -- $file $input >> tests/output/actual-$(basename $input)-$(basename $file) 
+        # save exit status
+        echo "exit status: $?" >> tests/output/actual-$(basename $input)-$(basename $file)
     done
 done
 
