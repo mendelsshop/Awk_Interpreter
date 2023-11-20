@@ -244,6 +244,14 @@ public class Interpreter {
 
     }
 
+    public class Exit extends RuntimeException {
+        int status;
+
+        public Exit(int status) {
+            this.status = status;
+        }
+    }
+
     // docs https://pubs.opengroup.org/onlinepubs/7908799/xcu/awk.html
     // slightly more formatted
     // https://manpages.ubuntu.com/manpages/focal/en/man1/awk.1posix.html
@@ -433,8 +441,8 @@ public class Interpreter {
             put("toupper", strUpdate.apply("toupper", String::toUpperCase));
             put("exit", new BuiltInFunctionDefinitionNode("exit", (vars) -> {
                 String status = getVariable("status", vars).getContents();
-                System.exit(parse(new InterpreterDataType(status)).intValue());
-                return "";
+                // exit will make the program run the end blocks and then exit
+                throw new Exit(parse(new InterpreterDataType(status)).intValue());
             }, new LinkedList<>() {
                 {
                     add("status");
@@ -867,15 +875,24 @@ public class Interpreter {
                 }
             }
         };
-        blockInterpreter.accept(() -> new AwkRuntimeError.NextInBeginError(), program.getBeginBlocks());
-        while (input.SplitAndAssign()) {
-            try {
-                for (var block : program.getRestBlocks()) {
-                    InterpretBlock(block);
+
+        try {
+            blockInterpreter.accept(() -> new AwkRuntimeError.NextInBeginError(), program.getBeginBlocks());
+            while (input.SplitAndAssign()) {
+                try {
+                    for (var block : program.getRestBlocks()) {
+                        InterpretBlock(block);
+                    }
+                } catch (Next e) {
+                    // just continue
                 }
-            } catch (Next e) {
-                // just continue
             }
+            // catch an exit in begin/other blocks
+            // run end blocks and then exit
+        } catch (Exit e) {
+
+            blockInterpreter.accept(() -> new AwkRuntimeError.NextInEndError(), program.getEndBlocks());
+            System.exit(e.status);
         }
         blockInterpreter.accept(() -> new AwkRuntimeError.NextInEndError(), program.getEndBlocks());
     }

@@ -60,3 +60,13 @@ do
         diff -y tests/output/expected-$(basename $input)-$file tests/output/actual-$(basename $input)-$file
     done
 done
+
+echo "Summarizing differences"
+for file in $(cat tests/files.txt)
+do
+
+    for input in tests/text/*
+    do
+        diff -q tests/output/expected-$(basename $input)-$file tests/output/actual-$(basename $input)-$file
+    done
+done
