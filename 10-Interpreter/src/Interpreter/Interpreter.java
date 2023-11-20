@@ -267,12 +267,18 @@ public class Interpreter {
             // as the for print, printf, sprintf we accept any number of strings
             // for the others the getOptional on IADT checks that for us
 
-            // prints list of strings to stdout + newline
+            // prints list of strings to stdout + ORS
             put("print", new BuiltInFunctionDefinitionNode("print", (vars) -> {
                 InterpreterArrayDataType strings = getArray("strings", vars);
-                System.out.println(
-                        strings.getItemsStream().map(InterpreterDataType::getContents)
-                                .collect(Collectors.joining(" ")));
+                if (strings.size() > 0) {
+                    System.out.print(
+                            strings.getItemsStream().map(InterpreterDataType::getContents)
+                                    .collect(Collectors.joining(getGlobal("OFS").getContents())) + getGlobal("ORS")
+                                            .getContents());
+                } else {
+                    // if no strings passed print $0
+                    System.out.print(record.Get(0).getContents() + getGlobal("ORS").getContents());
+                }
                 return "";
             }, new LinkedList<>() {
                 {

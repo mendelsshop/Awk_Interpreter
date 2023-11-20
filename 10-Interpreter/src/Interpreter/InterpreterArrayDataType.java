@@ -65,6 +65,10 @@ public class InterpreterArrayDataType extends InterpreterDataType {
         contents.put(name, value);
     }
 
+    public int size() {
+        return contents.size();
+    }
+
     public InterpreterArrayDataType() {
     }
 

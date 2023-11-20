@@ -418,7 +418,7 @@ public class InterpreterTests {
             }
         }), functionCall);
         // rn function calls do nothing
-        assertEquals("", interpreter.GetIDT(functionCall, null).getContents());
+        assertThrows(AwkRuntimeError.FunctionNotFoundError.class, ()->interpreter.GetIDT(functionCall, null).getContents());
     }
 
     HashMap<String, InterpreterDataType> locals_1 = new HashMap<String, InterpreterDataType>() {

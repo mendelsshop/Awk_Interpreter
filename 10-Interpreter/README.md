@@ -4,6 +4,31 @@
 
 ```
 root
+├── tests
+│   ├── 10-Interpreter.jar
+│   ├── backtick
+│   │   ├── csv.awk
+│   │   ├── fen.awk
+│   │   ├── find_special_class.awk
+│   │   ├── imager.awk
+│   │   └── scheme.awk
+│   ├── files.txt
+│   ├── normal
+│   │   ├── csv.awk
+│   │   ├── fen.awk
+│   │   ├── find_special_class.awk
+│   │   ├── imager.awk
+│   │   └── scheme.awk
+│   ├── output
+│   └── text
+│       ├── art
+│       ├── classes
+│       ├── example.txt
+│       ├── fen.txt
+│       ├── hello.rkt
+│       ├── lorum_ipsum
+│       └── sample.csv
+├── test.sh
 ├── get_awk_files.py
 ├── README.md
 └── src
@@ -70,3 +95,5 @@ The awk files are generated from using `get_awk_files.py` (and will probably be 
 The reason there is no `import java.util.Optional` is because I am using a custom version of `Optional` in `root/src/Optional.java`.
 
 Some unit tests require java 21 preview for `instanceof` pattern matching.
+
+Too run the integration tests, run `test.sh` from the root directory with the path java 21 excuatable.
