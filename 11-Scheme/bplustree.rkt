@@ -1,5 +1,3 @@
-#lang racket
-
 (define (walk tree value)
   (cond
     ((null? tree) #f)
@@ -18,6 +16,12 @@
 
 (define tree (list tens 100 '() 300 '() 500 '() 700 '() 900 ninehundreds))
 
+
+(define ones1 '( () 2 () 6 () 8 ()) ) 
+(define twenties '(() 22 () 24 () 26 () 28 ()))
+(define forties '(() 42 () 44 () 46 () 48 ()))
+(define skip `(,ones1 10  ,twenties 30 ,forties 50  ))
+
 (walk tree 0) ; returns false
 
 (walk tree 6) ; returns true
@@ -31,3 +35,7 @@
 (walk tree 900) ; returns true
 
 (walk tree 1100) ; returns false
+
+(walk ones 11) ; returns false
+
+(walk skip 357)
