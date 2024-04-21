@@ -1,0 +1,5 @@
+*.class
+*.idea
+*.iml
+*#
+10-Interpreter/.vscode/launch.json
